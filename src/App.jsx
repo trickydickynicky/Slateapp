@@ -224,7 +224,7 @@ export default function SportsApp() {
       <div className="px-4 pt-12 pb-4">
         <div className="flex justify-between items-start mb-1">
           <div>
-            <h1 className="text-3xl font-semibold">Hi Alex</h1>
+            <h1 className="text-3xl font-semibold">Slate</h1>
             <p className="text-gray-400 text-sm mt-1">{formatDate()}</p>
           </div>
         </div>
