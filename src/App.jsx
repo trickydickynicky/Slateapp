@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
 export default function SportsApp() {
+  // Store API key safely (in production, use environment variables)
+  const BETSTACK_API_KEY = '7f0e1495b778d1694a4a81ecabf836057f6d82d2f941e2306ff167c366ee3164';
+  
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bettingOdds, setBettingOdds] = useState({});  // NEW: for betting odds
   const [selectedGame, setSelectedGame] = useState(null);
   const [gameDetails, setGameDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -16,7 +20,6 @@ export default function SportsApp() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [playerStats, setPlayerStats] = useState(null);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
-
   const filters = [
     { name: 'All', emoji: '🏀' },
     { name: 'Football', emoji: '🏈' },
@@ -26,12 +29,24 @@ export default function SportsApp() {
     { name: 'Soccer', emoji: '⚽' }
   ];
 
-  useEffect(() => {
-    fetchLiveScores();
-    const interval = setInterval(fetchLiveScores, 30000);
-    return () => clearInterval(interval);
-  }, [selectedDate]);
+// Add this line RIGHT BEFORE your first useEffect
+const hasFetchedOdds = React.useRef(false);
 
+useEffect(() => {
+  fetchLiveScores();
+  const interval = setInterval(fetchLiveScores, 30000);
+  return () => clearInterval(interval);
+}, [selectedDate]);
+
+// Updated betting odds useEffect with duplicate prevention
+useEffect(() => {
+  if (!hasFetchedOdds.current) {
+    hasFetchedOdds.current = true;
+    fetchBettingOdds();
+    const oddsInterval = setInterval(fetchBettingOdds, 60000);
+    return () => clearInterval(oddsInterval);
+  }
+}, []);
   const fetchLiveScores = async () => {
     try {
       const dateStr = selectedDate.toISOString().split('T')[0].replace(/-/g, '');
@@ -56,19 +71,122 @@ export default function SportsApp() {
           clock: event.status.displayClock,
           isLive: event.status.type.state === 'in',
           isPreGame: event.status.type.state === 'pre',
+          isFinal: event.status.type.state === 'post',
           gameTime: event.date,
           homeLogo: homeTeam.team.logo,
           awayLogo: awayTeam.team.logo
         };
       });
       
-      setLiveGames(games);
+      // SORT GAMES: Live first, then Pre-game, then Final
+      const sortedGames = games.sort((a, b) => {
+        if (a.isLive && !b.isLive) return -1;
+        if (!a.isLive && b.isLive) return 1;
+        if (a.isPreGame && !b.isPreGame && !b.isLive) return -1;
+        if (!a.isPreGame && b.isPreGame && !a.isLive) return 1;
+        if (a.isFinal && !b.isFinal) return 1;
+        if (!a.isFinal && b.isFinal) return -1;
+        return 0;
+      });
+      
+      setLiveGames(sortedGames);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching scores:', error);
       setLoading(false);
     }
   };
+  
+// fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
+const fetchBettingOdds = async () => {
+  try {
+    const linesResponse = await fetch('https://api.betstack.dev/api/v1/lines', {
+      headers: {
+        'X-API-Key': BETSTACK_API_KEY
+      }
+    });
+    
+    if (!linesResponse.ok) {
+      console.log('Lines API Response Status:', linesResponse.status);
+      return;
+    }
+    
+    const lines = await linesResponse.json();
+    
+    console.log('Lines data:', lines);
+    
+    // Check for rate limit error
+    if (lines.error === 'rate_limit_exceeded') {
+      console.log('Rate limited. Waiting before next request...');
+      return;
+    }
+    
+    const oddsMap = {};
+    
+    // Filter for NBA games only and process
+    lines.forEach(line => {
+      if (line.event?.league?.key === 'basketball_nba' && line.spread?.home?.point) {
+        const homeAbbr = getTeamAbbreviation(line.event.home_team);
+        const awayAbbr = getTeamAbbreviation(line.event.away_team);
+        
+        const gameKey = `${awayAbbr}-${homeAbbr}`;
+        const homeSpread = parseFloat(line.spread.home.point);
+        const spread = Math.abs(homeSpread);
+        const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
+        
+        oddsMap[gameKey] = {
+          favoriteTeam,
+          spread,
+          homeSpread,
+          awaySpread: parseFloat(line.spread.away.point)
+        };
+      }
+    });
+    
+    console.log('Odds Map:', oddsMap);
+    setBettingOdds(oddsMap);
+  } catch (error) {
+    console.error('Error fetching betting odds:', error);
+  }
+};
+
+// Helper function to convert full team name to abbreviation
+const getTeamAbbreviation = (fullName) => {
+  const teamMap = {
+    'Atlanta Hawks': 'ATL',
+    'Boston Celtics': 'BOS',
+    'Brooklyn Nets': 'BKN',
+    'Charlotte Hornets': 'CHA',
+    'Chicago Bulls': 'CHI',
+    'Cleveland Cavaliers': 'CLE',
+    'Dallas Mavericks': 'DAL',
+    'Denver Nuggets': 'DEN',
+    'Detroit Pistons': 'DET',
+    'Golden State Warriors': 'GS',
+    'Houston Rockets': 'HOU',
+    'Indiana Pacers': 'IND',
+    'LA Clippers': 'LAC',
+    'Los Angeles Lakers': 'LAL',
+    'Memphis Grizzlies': 'MEM',
+    'Miami Heat': 'MIA',
+    'Milwaukee Bucks': 'MIL',
+    'Minnesota Timberwolves': 'MIN',
+    'New Orleans Pelicans': 'NO',
+    'New York Knicks': 'NY',
+    'Oklahoma City Thunder': 'OKC',
+    'Orlando Magic': 'ORL',
+    'Philadelphia 76ers': 'PHI',
+    'Phoenix Suns': 'PHX',
+    'Portland Trail Blazers': 'POR',
+    'Sacramento Kings': 'SAC',
+    'San Antonio Spurs': 'SA',
+    'Toronto Raptors': 'TOR',
+    'Utah Jazz': 'UTAH',
+    'Washington Wizards': 'WSH'
+  };
+  
+  return teamMap[fullName] || fullName;
+};
 
   const searchPlayers = async (query) => {
     if (!query || query.trim().length < 2) {
@@ -309,93 +427,122 @@ export default function SportsApp() {
         />
       )}
 
-      <div className="px-4 mt-6 pb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-xl font-semibold">Live</h2>
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-        </div>
+<div className="px-4 mt-6 pb-8">
+  <div className="flex items-center gap-2 mb-4">
+    <h2 className="text-xl font-semibold">Live</h2>
+    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+  </div>
 
-        <div className="space-y-3">
-          {loading ? (
-            <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-              Loading games...
-            </div>
-          ) : liveGames.length === 0 ? (
-            <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-              No live games right now
-            </div>
-          ) : (
-            liveGames.map(game => (
-              <div 
-                key={game.id} 
-                className="bg-zinc-900 rounded-2xl p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
-                onClick={() => handleGameClick(game)}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3 relative">
-                    {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
-                      <span className="text-white text-xs absolute -left-3">▶</span>
-                    )}
-                    <img src={game.awayLogo} alt={game.awayTeam} className="w-10 h-10" />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{game.awayTeam}</span>
-                      {game.awayRecord && (
-                        <span className="text-xs text-gray-400">{game.awayRecord}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`text-2xl font-bold ${
-                    !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
-                      ? 'text-white' 
-                      : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
-                      ? 'text-gray-500'
-                      : 'text-white'
-                  }`}>
-                    {game.awayScore}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 relative">
-                    {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
-                      <span className="text-white text-xs absolute -left-3">▶</span>
-                    )}
-                    <img src={game.homeLogo} alt={game.homeTeam} className="w-10 h-10" />
-                    <div className="flex flex-col">
-                      <span className="font-semibold">{game.homeTeam}</span>
-                      {game.homeRecord && (
-                        <span className="text-xs text-gray-400">{game.homeRecord}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {game.isLive && (
-                      <div className="text-right">
-                        <span className="text-red-500 text-xs font-semibold">LIVE</span>
-                        <div className="text-xs text-gray-400">{game.period}Q • {game.clock}</div>
-                      </div>
-                    )}
-                    {game.isPreGame && (
-                      <div className="text-right">
-                        <span className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</span>
-                      </div>
-                    )}
-                    <span className={`text-2xl font-bold ${
-                      !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
-                        ? 'text-white' 
-                        : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
-                        ? 'text-gray-500'
-                        : 'text-white'
-                    }`}>
-                      {game.homeScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+  <div className="space-y-3">
+    {loading ? (
+      <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+        Loading games...
       </div>
+    ) : liveGames.length === 0 ? (
+      <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+        No live games right now
+      </div>
+    ) : (
+      liveGames.map(game => (
+        <div 
+          key={game.id} 
+          className="bg-zinc-900 rounded-2xl p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
+          onClick={() => handleGameClick(game)}
+        >
+{/* AWAY TEAM ROW - with time/LIVE indicator */}
+<div className="flex items-center justify-between mb-3">
+  <div className="flex items-center gap-4">
+    <div className="flex items-center gap-3 relative">
+      {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
+        <span className="text-white text-xs absolute -left-3">▶</span>
+      )}
+      <img src={game.awayLogo} alt={game.awayTeam} className="w-10 h-10" />
+      <div className="flex flex-col">
+        <span className="font-semibold">{game.awayTeam}</span>
+        {game.awayRecord && (
+          <span className="text-xs text-gray-400">{game.awayRecord}</span>
+        )}
+      </div>
+    </div>
+    
+    {/* TIME/LIVE INDICATOR AND ODDS - between team and score */}
+    <div className="flex flex-col gap-1 text-left">
+      {game.isLive && (
+        <>
+          <div>
+            <span className="text-red-500 text-xs font-semibold">LIVE</span>
+            <span className="text-xs text-gray-400 ml-2">{game.period}Q • {game.clock}</span>
+          </div>
+        </>
+      )}
+      {game.isPreGame && (
+        <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
+      )}
+      {game.isFinal && (
+        <div className="text-xs font-semibold text-gray-300">FINAL</div>
+      )}
+      
+      {/* BETTING ODDS */}
+      {(() => {
+        const gameKey = `${game.awayTeam}-${game.homeTeam}`;
+        const odds = bettingOdds[gameKey];
+        
+        if (odds && odds.spread) {
+          return (
+            <div className="text-xs text-gray-400">
+              {odds.favoriteTeam} by {odds.spread}
+            </div>
+          );
+        }
+        return null;
+      })()}
+    </div>
+              
+ 
+
+            </div>
+            
+            <span className={`text-2xl font-bold ${
+              !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
+                ? 'text-white' 
+                : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
+                ? 'text-gray-500'
+                : 'text-white'
+            }`}>
+              {game.awayScore}
+            </span>
+          </div>
+
+          {/* HOME TEAM ROW - clean, no time indicator */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 relative">
+              {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
+                <span className="text-white text-xs absolute -left-3">▶</span>
+              )}
+              <img src={game.homeLogo} alt={game.homeTeam} className="w-10 h-10" />
+              <div className="flex flex-col">
+                <span className="font-semibold">{game.homeTeam}</span>
+                {game.homeRecord && (
+                  <span className="text-xs text-gray-400">{game.homeRecord}</span>
+                )}
+              </div>
+            </div>
+            
+            <span className={`text-2xl font-bold ${
+              !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
+                ? 'text-white' 
+                : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
+                ? 'text-gray-500'
+                : 'text-white'
+            }`}>
+              {game.homeScore}
+            </span>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+</div>
 
       {selectedPlayer && (
         <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
