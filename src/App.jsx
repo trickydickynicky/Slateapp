@@ -8,7 +8,11 @@ export default function SportsApp() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [bettingOdds, setBettingOdds] = useState({});  // NEW: for betting odds
+  const [bettingOdds, setBettingOdds] = useState(() => {
+    // Load cached odds from localStorage on initial load
+    const cached = localStorage.getItem('bettingOdds');
+    return cached ? JSON.parse(cached) : {};
+  });
   const [selectedGame, setSelectedGame] = useState(null);
   const [gameDetails, setGameDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -20,6 +24,7 @@ export default function SportsApp() {
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [playerStats, setPlayerStats] = useState(null);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState('away');
   const filters = [
     { name: 'All', emoji: '🏀' },
     { name: 'Football', emoji: '🏈' },
@@ -49,9 +54,14 @@ useEffect(() => {
 }, []);
   const fetchLiveScores = async () => {
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0].replace(/-/g, '');
-      const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateStr}`);
-      const data = await response.json();
+       // Use local timezone date, not UTC
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+    
+    const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateStr}`);
+    const data = await response.json();
       
       const games = data.events.map(event => {
         const competition = event.competitions[0];
@@ -100,6 +110,14 @@ useEffect(() => {
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
   try {
+    // Check if we fetched recently (within last 60 seconds)
+    const lastFetch = localStorage.getItem('lastOddsFetch');
+    const now = Date.now();
+    if (lastFetch && (now - parseInt(lastFetch)) < 60000) {
+      console.log('Using cached odds (fetched less than 60 seconds ago)');
+      return; // Use cached odds
+    }
+
     const linesResponse = await fetch('https://api.betstack.dev/api/v1/lines', {
       headers: {
         'X-API-Key': BETSTACK_API_KEY
@@ -117,34 +135,55 @@ const fetchBettingOdds = async () => {
     
     // Check for rate limit error
     if (lines.error === 'rate_limit_exceeded') {
-      console.log('Rate limited. Waiting before next request...');
+      console.log('Rate limited. Using cached odds.');
       return;
     }
     
     const oddsMap = {};
+const today = new Date();
+const yesterday = new Date(today);
+yesterday.setDate(yesterday.getDate() - 1);
+const tomorrow = new Date(today);
+tomorrow.setDate(tomorrow.getDate() + 1);
+const yesterdayStr = yesterday.toDateString();
+const todayStr = today.toDateString();
+const tomorrowStr = tomorrow.toDateString();
     
     // Filter for NBA games only and process
     lines.forEach(line => {
       if (line.event?.league?.key === 'basketball_nba' && line.spread?.home?.point) {
-        const homeAbbr = getTeamAbbreviation(line.event.home_team);
-        const awayAbbr = getTeamAbbreviation(line.event.away_team);
+        const gameDate = new Date(line.event.commence_time);
+        const gameDateStr = gameDate.toDateString();
         
-        const gameKey = `${awayAbbr}-${homeAbbr}`;
-        const homeSpread = parseFloat(line.spread.home.point);
-        const spread = Math.abs(homeSpread);
-        const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
-        
-        oddsMap[gameKey] = {
-          favoriteTeam,
-          spread,
-          homeSpread,
-          awaySpread: parseFloat(line.spread.away.point)
-        };
+        console.log(`API Game: ${line.event.away_team} @ ${line.event.home_team} on ${gameDateStr}`);
+
+        // Only include today's and tomorrow's games
+        // Include yesterday's, today's, and tomorrow's games
+if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === tomorrowStr) {
+          const homeAbbr = getTeamAbbreviation(line.event.home_team);
+          const awayAbbr = getTeamAbbreviation(line.event.away_team);
+          
+          const gameKey = `${awayAbbr}-${homeAbbr}`;
+          const homeSpread = parseFloat(line.spread.home.point);
+          const spread = Math.abs(homeSpread);
+          const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
+          
+          oddsMap[gameKey] = {
+            favoriteTeam,
+            spread,
+            homeSpread,
+            awaySpread: parseFloat(line.spread.away.point)
+          };
+        }
       }
     });
     
     console.log('Odds Map:', oddsMap);
     setBettingOdds(oddsMap);
+    
+    // Cache odds in localStorage
+    localStorage.setItem('bettingOdds', JSON.stringify(oddsMap));
+    localStorage.setItem('lastOddsFetch', now.toString());
   } catch (error) {
     console.error('Error fetching betting odds:', error);
   }
@@ -165,7 +204,8 @@ const getTeamAbbreviation = (fullName) => {
     'Golden State Warriors': 'GS',
     'Houston Rockets': 'HOU',
     'Indiana Pacers': 'IND',
-    'LA Clippers': 'LAC',
+    'Los Angeles Clippers': 'LAC',
+'LA Clippers': 'LAC',
     'Los Angeles Lakers': 'LAL',
     'Memphis Grizzlies': 'MEM',
     'Miami Heat': 'MIA',
@@ -300,6 +340,7 @@ const getTeamAbbreviation = (fullName) => {
 
   const handleGameClick = (game) => {
     setSelectedGame(game);
+    setSelectedTeam('away'); // Reset to away team
     fetchGameDetails(game.id);
   };
 
@@ -403,17 +444,17 @@ const getTeamAbbreviation = (fullName) => {
               
               return (
                 <button
-                  key={idx}
-                  onClick={() => setSelectedDate(date)}
-                  className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-colors ${
-                    isSelected ? 'bg-blue-600' : 'bg-zinc-900'
-                  }`}
-                >
-                  <span className="text-xs text-gray-400">{month} {day}</span>
-                  <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                    {dayOfWeek}
-                  </span>
-                </button>
+                key={idx}
+                onClick={() => setSelectedDate(date)}
+                className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-colors ${
+                  isSelected ? 'bg-blue-600' : 'bg-zinc-900'
+                }`}
+              >
+             <span className="text-xs text-gray-400 whitespace-nowrap">{month} {day}</span>
+                <span className={`text-base font-semibold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                  {dayOfWeek}
+                </span>
+              </button>
               );
             })}
           </div>
@@ -427,11 +468,8 @@ const getTeamAbbreviation = (fullName) => {
         />
       )}
 
-<div className="px-4 mt-6 pb-8">
-  <div className="flex items-center gap-2 mb-4">
-    <h2 className="text-xl font-semibold">Live</h2>
-    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-  </div>
+<div className="px-4 mt-0 pb-8">
+  
 
   <div className="space-y-3">
     {loading ? (
@@ -450,8 +488,8 @@ const getTeamAbbreviation = (fullName) => {
           onClick={() => handleGameClick(game)}
         >
 {/* AWAY TEAM ROW - with time/LIVE indicator */}
-<div className="flex items-center justify-between mb-3">
-  <div className="flex items-center gap-4">
+<div className="flex items-start justify-between mb-3">
+  <div className="flex items-center gap-2">
     <div className="flex items-center gap-3 relative">
       {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
         <span className="text-white text-xs absolute -left-3">▶</span>
@@ -465,16 +503,16 @@ const getTeamAbbreviation = (fullName) => {
       </div>
     </div>
     
-    {/* TIME/LIVE INDICATOR AND ODDS - between team and score */}
-    <div className="flex flex-col gap-1 text-left">
-      {game.isLive && (
-        <>
-          <div>
-            <span className="text-red-500 text-xs font-semibold">LIVE</span>
-            <span className="text-xs text-gray-400 ml-2">{game.period}Q • {game.clock}</span>
-          </div>
-        </>
-      )}
+   {/* TIME/LIVE INDICATOR AND ODDS - between team and score */}
+<div className="flex flex-col text-left leading-tight">
+{game.isLive && (
+  <div className="text-left leading-none">
+    <div className="text-red-500 text-xs font-semibold leading-none">LIVE</div>
+    <div className="text-xs text-gray-400 leading-none">
+      {game.period === 2 && game.clock === '0.0' ? 'Half' : `${game.period}Q • ${game.clock}`}
+    </div>
+  </div>
+)}
       {game.isPreGame && (
         <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
       )}
@@ -489,7 +527,7 @@ const getTeamAbbreviation = (fullName) => {
         
         if (odds && odds.spread) {
           return (
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-orange-400">
               {odds.favoriteTeam} by {odds.spread}
             </div>
           );
@@ -619,11 +657,11 @@ const getTeamAbbreviation = (fullName) => {
         </div>
       )}
 
-      {selectedGame && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
-          <div className="min-h-screen px-4 py-8">
-            <div className="max-w-2xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
+{selectedGame && (
+  <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
+    <div className="min-h-screen px-4 py-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Game Details</h2>
                 <button 
                   onClick={closeModal}
@@ -672,7 +710,7 @@ const getTeamAbbreviation = (fullName) => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
                     {selectedGame.isLive && (
                       <div className="text-right">
                         <span className="text-red-500 font-semibold">LIVE</span>
@@ -695,175 +733,113 @@ const getTeamAbbreviation = (fullName) => {
                 </div>
               </div>
 
+             
+
+              {/* Team Selection Tabs */}
+              <div className="flex gap-4 mb-6">
+                <button
+                  onClick={() => setSelectedTeam('away')}
+                  className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
+                    selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+                  }`}
+                >
+                  {selectedGame.awayTeam}
+                </button>
+                <button
+                  onClick={() => setSelectedTeam('home')}
+                  className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
+                    selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+                  }`}
+                >
+                  {selectedGame.homeTeam}
+                </button>
+              </div>
+
+              
+
               {loadingDetails ? (
-                <div className="text-center py-12 text-gray-400">Loading details...</div>
-              ) : gameDetails ? (
-                <div>
-                  {selectedGame.isPreGame ? (
-                    <div>
-                      <h3 className="text-xl font-bold mb-4">Rosters</h3>
-                      
-                      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                        <h4 className="font-bold mb-3 text-lg">{selectedGame.awayTeam}</h4>
-                        <div className="space-y-2">
-                          {gameDetails.awayRoster?.map((player, idx) => (
-                            <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
-                              <div className="flex items-center gap-3">
-                                <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
-                                <span>{player.displayName}</span>
-                              </div>
-                              <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
+  <div className="text-center py-12 text-gray-400">Loading details...</div>
+) : gameDetails ? (
+  <div>
+    {selectedGame.isPreGame ? (
+                  <div>
+                    <h3 className="text-xl font-bold mb-4">
+                      {selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
+                    </h3>
+                    
+                    <div className="bg-zinc-900 rounded-2xl p-4">
+                      <div className="space-y-2">
+                        {(selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster)?.map((player, idx) => (
+                          <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
+                              <span>{player.displayName}</span>
                             </div>
-                          )) || <div className="text-gray-400 text-center py-4">Roster not available</div>}
-                        </div>
-                      </div>
-
-                      <div className="bg-zinc-900 rounded-2xl p-4">
-                        <h4 className="font-bold mb-3 text-lg">{selectedGame.homeTeam}</h4>
-                        <div className="space-y-2">
-                          {gameDetails.homeRoster?.map((player, idx) => (
-                            <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
-                              <div className="flex items-center gap-3">
-                                <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
-                                <span>{player.displayName}</span>
-                              </div>
-                              <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
-                            </div>
-                          )) || <div className="text-gray-400 text-center py-4">Roster not available</div>}
-                        </div>
+                            <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
+                          </div>
+                        )) || <div className="text-gray-400 text-center py-4">Roster not available</div>}
                       </div>
                     </div>
-                  ) : (
-                    <div>
-                      <h3 className="text-xl font-bold mb-4">Player Stats</h3>
-                      
-                      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                        <h4 className="font-bold mb-3 text-lg">{selectedGame.awayTeam}</h4>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-gray-400 border-b border-zinc-800">
-                                <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
-                                <th className="text-center py-2 px-2">MIN</th>
-                                <th className="text-center py-2 px-2">PTS</th>
-                                <th className="text-center py-2 px-2">REB</th>
-                                <th className="text-center py-2 px-2">AST</th>
-                                <th className="text-center py-2 px-2">STL</th>
-                                <th className="text-center py-2 px-2">BLK</th>
-                                <th className="text-center py-2 px-2">+/-</th>
-                                <th className="text-center py-2 px-2">FG</th>
-                                <th className="text-center py-2 px-2">3FG</th>
-                                <th className="text-center py-2 px-2">FT</th>
-                                <th className="text-center py-2 px-2">TO</th>
-                                <th className="text-center py-2 px-2">PF</th>
-                                <th className="text-center py-2 px-2">OREB</th>
-                                <th className="text-center py-2 px-2">DREB</th>
+                  </div>
+                 ) : (
+                  <div>
+                    <h3 className="text-xl font-bold mb-4">
+                      {selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
+                    </h3>
+                    
+                    <div className="bg-zinc-900 rounded-2xl p-4">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-zinc-800">
+                              <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
+                              <th className="text-center py-2 px-2">MIN</th>
+                              <th className="text-center py-2 px-2">PTS</th>
+                              <th className="text-center py-2 px-2">REB</th>
+                              <th className="text-center py-2 px-2">AST</th>
+                              <th className="text-center py-2 px-2">STL</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+  {gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes
+    ?.sort((a, b) => {
+      const aMinutes = parseFloat(a.stats?.[0]) || 0;
+      const bMinutes = parseFloat(b.stats?.[0]) || 0;
+      return bMinutes - aMinutes;
+    })
+    .map((player, idx) => (
+      <tr key={idx} className="border-b border-zinc-800 last:border-0">
+        <td className="py-2 sticky left-0 bg-zinc-900">
+          <div className="flex items-center gap-2">
+            {player.athlete.headshot && (
+              <img 
+                src={player.athlete.headshot.href} 
+                alt={player.athlete.shortName}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            )}
+                                    <span>{player.athlete.shortName}</span>
+                                  </div>
+                                </td>
+                                <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
+                                <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
+                                <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
+                                <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
+                                <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {gameDetails.boxscore?.players?.[0]?.statistics?.[0]?.athletes?.map((player, idx) => (
-                                <tr key={idx} className="border-b border-zinc-800 last:border-0">
-                                  <td className="py-2 sticky left-0 bg-zinc-900">
-                                    <div className="flex items-center gap-2">
-                                      {player.athlete.headshot && (
-                                        <img 
-                                          src={player.athlete.headshot.href} 
-                                          alt={player.athlete.shortName}
-                                          className="w-8 h-8 rounded-full object-cover"
-                                        />
-                                      )}
-                                      <span>{player.athlete.shortName}</span>
-                                    </div>
-                                  </td>
-                                  <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[9] || '-'}</td>
-                                  <td className={`text-center px-2 ${
-                                    player.stats?.[13] && player.stats[13] !== '-' 
-                                      ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-                                      : ''
-                                  }`}>
-                                    {player.stats?.[13] || '-'}
-                                  </td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[7] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[12] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[10] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[11] || '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Home Team Stats */}
-                      <div className="bg-zinc-900 rounded-2xl p-4">
-                        <h4 className="font-bold mb-3 text-lg">{selectedGame.homeTeam}</h4>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="text-gray-400 border-b border-zinc-800">
-                                <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
-                                <th className="text-center py-2 px-2">MIN</th>
-                                <th className="text-center py-2 px-2">PTS</th>
-                                <th className="text-center py-2 px-2">REB</th>
-                                <th className="text-center py-2 px-2">AST</th>
-                                <th className="text-center py-2 px-2">STL</th>
-                                <th className="text-center py-2 px-2">BLK</th>
-                                <th className="text-center py-2 px-2">+/-</th>
-                                <th className="text-center py-2 px-2">FG</th>
-                                <th className="text-center py-2 px-2">3FG</th>
-                                <th className="text-center py-2 px-2">FT</th>
-                                <th className="text-center py-2 px-2">TO</th>
-                                <th className="text-center py-2 px-2">PF</th>
-                                <th className="text-center py-2 px-2">OREB</th>
-                                <th className="text-center py-2 px-2">DREB</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {gameDetails.boxscore?.players?.[1]?.statistics?.[0]?.athletes?.map((player, idx) => (
-                                <tr key={idx} className="border-b border-zinc-800 last:border-0">
-                                  <td className="py-2 sticky left-0 bg-zinc-900">{player.athlete.shortName}</td>
-                                  <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[9] || '-'}</td>
-                                  <td className={`text-center px-2 ${
-                                    player.stats?.[13] && player.stats[13] !== '-' 
-                                      ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-                                      : ''
-                                  }`}>
-                                    {player.stats?.[13] || '-'}
-                                  </td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-                                  <td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[7] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[12] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[10] || '-'}</td>
-                                  <td className="text-center px-2">{player.stats?.[11] || '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  )}
+                  </div>
+                )}
                 </div>
               ) : null}
-            </div>
-          </div>
         </div>
-      )}
+      </div>
+    </div>
+  )}
     </div>
   );
 }
