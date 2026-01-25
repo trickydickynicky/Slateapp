@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
+import logo from './assets/slate-logo.png';
 
 export default function SportsApp() {
   // Store API key safely (in production, use environment variables)
@@ -205,7 +206,7 @@ const getTeamAbbreviation = (fullName) => {
     'Houston Rockets': 'HOU',
     'Indiana Pacers': 'IND',
     'Los Angeles Clippers': 'LAC',
-'LA Clippers': 'LAC',
+    'LA Clippers': 'LAC',
     'Los Angeles Lakers': 'LAL',
     'Memphis Grizzlies': 'MEM',
     'Miami Heat': 'MIA',
@@ -227,6 +228,33 @@ const getTeamAbbreviation = (fullName) => {
   
   return teamMap[fullName] || fullName;
 };
+
+// Convert betting odds to win probability
+const calculateWinProbability = (spread, favoriteTeam, team) => {
+  if (!spread) return null;
+  
+  // Determine if this team is the favorite
+  const isFavorite = favoriteTeam === team;
+  
+  // Basic conversion: larger spread = higher win probability for favorite
+  // This is a simplified model - actual probabilities are more complex
+  let probability;
+  
+  if (isFavorite) {
+    // Favorite probability increases with spread
+    // Rough formula: 50% + (spread * 2.5)
+    probability = 50 + (spread * 2.5);
+    probability = Math.min(probability, 95); // Cap at 95%
+  } else {
+    // Underdog probability decreases with spread
+    probability = 50 - (spread * 2.5);
+    probability = Math.max(probability, 5); // Floor at 5%
+  }
+  
+  return Math.round(probability);
+};
+  
+
 
   const searchPlayers = async (query) => {
     if (!query || query.trim().length < 2) {
@@ -327,6 +355,12 @@ const getTeamAbbreviation = (fullName) => {
         awayRoster = awayData.athletes;
       }
       
+      console.log('Full game details:', data);
+      console.log('Boxscore teams:', data.boxscore?.teams);
+      console.log('Looking for linescores:', data.scoringPlays);
+      console.log('Header:', data.header);
+      console.log('Competitions:', data.header?.competitions);
+
       setGameDetails({
         ...data,
         homeRoster,
@@ -383,7 +417,13 @@ const getTeamAbbreviation = (fullName) => {
       <div className="px-4 pt-12 pb-4">
         <div className="flex justify-between items-start mb-1">
           <div>
-            <h1 className="text-3xl font-semibold">Slate</h1>
+          <img 
+      
+      src="/slate-logo.png" 
+      alt="Slate" 
+      className="h-8"
+    
+    />
             <p className="text-gray-400 text-sm mt-1">{formatDate()}</p>
           </div>
         </div>
@@ -487,9 +527,11 @@ const getTeamAbbreviation = (fullName) => {
           className="bg-zinc-900 rounded-2xl p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
           onClick={() => handleGameClick(game)}
         >
-{/* AWAY TEAM ROW - with time/LIVE indicator */}
+{/* AWAY TEAM ROW */}
 <div className="flex items-start justify-between mb-3">
-  <div className="flex items-center gap-2">
+  {/* Left side: Team + Time/Odds together */}
+  <div className="flex items-start gap-2">
+    {/* Away Team Info */}
     <div className="flex items-center gap-3 relative">
       {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
         <span className="text-white text-xs absolute -left-3">▶</span>
@@ -502,17 +544,17 @@ const getTeamAbbreviation = (fullName) => {
         )}
       </div>
     </div>
-    
-   {/* TIME/LIVE INDICATOR AND ODDS - between team and score */}
-<div className="flex flex-col text-left leading-tight">
-{game.isLive && (
-  <div className="text-left leading-none">
-    <div className="text-red-500 text-xs font-semibold leading-none">LIVE</div>
-    <div className="text-xs text-gray-400 leading-none">
-      {game.period === 2 && game.clock === '0.0' ? 'Half' : `${game.period}Q • ${game.clock}`}
-    </div>
-  </div>
-)}
+
+    {/* TIME/LIVE/ODDS */}
+    <div className="flex flex-col items-start text-left flex-shrink-0">
+      {game.isLive && (
+        <>
+          <div className="text-red-500 text-xs font-semibold">LIVE</div>
+          <div className="text-xs text-gray-400">
+            {game.period === 2 && game.clock === '0.0' ? 'Half' : `${game.period}Q • ${game.clock}`}
+          </div>
+        </>
+      )}
       {game.isPreGame && (
         <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
       )}
@@ -526,30 +568,39 @@ const getTeamAbbreviation = (fullName) => {
         const odds = bettingOdds[gameKey];
         
         if (odds && odds.spread) {
+          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam);
+          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam);
+          
           return (
-            <div className="text-xs text-orange-400">
-              {odds.favoriteTeam} by {odds.spread}
+            <div className="text-xs mt-1">
+              <div className="text-orange-400">
+                {odds.favoriteTeam} by {odds.spread}
+              </div>
+              <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+                {game.awayTeam} {awayProb}%
+              </div>
+              <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+                {game.homeTeam} {homeProb}%
+              </div>
             </div>
           );
         }
         return null;
       })()}
     </div>
-              
- 
+  </div>
 
-            </div>
-            
-            <span className={`text-2xl font-bold ${
-              !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
-                ? 'text-white' 
-                : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
-                ? 'text-gray-500'
-                : 'text-white'
-            }`}>
-              {game.awayScore}
-            </span>
-          </div>
+  {/* Right side: Away Score */}
+  <span className={`text-2xl font-bold ${
+    !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
+      ? 'text-white' 
+      : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
+      ? 'text-gray-500'
+      : 'text-white'
+  }`}>
+    {game.awayScore}
+  </span>
+</div>
 
           {/* HOME TEAM ROW - clean, no time indicator */}
           <div className="flex items-center justify-between">
@@ -674,66 +725,138 @@ const getTeamAbbreviation = (fullName) => {
               </div>
 
               <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-4 relative">
-                    {!selectedGame.isPreGame && parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) && (
-                      <span className="text-white text-sm absolute -left-4">▶</span>
-                    )}
-                    <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-16 h-16" />
-                    <div className="flex flex-col">
-                      <span className="text-xl font-bold">{selectedGame.awayTeam}</span>
-                      {selectedGame.awayRecord && (
-                        <span className="text-sm text-gray-400">{selectedGame.awayRecord}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className={`text-3xl font-bold ${
-                    !selectedGame.isPreGame && parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) 
-                      ? 'text-white' 
-                      : !selectedGame.isPreGame && parseInt(selectedGame.awayScore) < parseInt(selectedGame.homeScore)
-                      ? 'text-gray-500'
-                      : 'text-white'
-                  }`}>
-                    {selectedGame.awayScore}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 relative">
-                    {!selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) && (
-                      <span className="text-white text-sm absolute -left-4">▶</span>
-                    )}
-                    <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-16 h-16" />
-                    <div className="flex flex-col">
-                      <span className="text-xl font-bold">{selectedGame.homeTeam}</span>
-                      {selectedGame.homeRecord && (
-                        <span className="text-sm text-gray-400">{selectedGame.homeRecord}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {selectedGame.isLive && (
-                      <div className="text-right">
-                        <span className="text-red-500 font-semibold">LIVE</span>
-                        <div className="text-sm text-gray-400">{selectedGame.period}Q • {selectedGame.clock}</div>
-                      </div>
-                    )}
-                    {selectedGame.isPreGame && (
-                      <span className="text-gray-400">{formatGameTime(selectedGame.gameTime)}</span>
-                    )}
-                    <span className={`text-3xl font-bold ${
-                      !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
-                        ? 'text-white' 
-                        : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
-                        ? 'text-gray-500'
-                        : 'text-white'
-                    }`}>
-                      {selectedGame.homeScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
+  <div className="flex items-start justify-between min-h-[200px]">
+    {/* AWAY TEAM - LEFT SIDE */}
+    <div className="flex flex-col items-center flex-1">
+      <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-16 h-16 mb-2" />
+      <span className="text-xl font-bold">{selectedGame.awayTeam}</span>
+      {selectedGame.awayRecord && (
+        <span className="text-sm text-gray-400">{selectedGame.awayRecord}</span>
+      )}
+      <span className={`text-6xl font-bold mt-4 ${
+        !selectedGame.isPreGame && parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) 
+          ? 'text-white' 
+          : !selectedGame.isPreGame && parseInt(selectedGame.awayScore) < parseInt(selectedGame.homeScore)
+          ? 'text-gray-500'
+          : 'text-white'
+      }`}>
+        {selectedGame.awayScore}
+      </span>
+    </div>
 
-             
+    {/* CENTER - TIME/LIVE/ODDS */}
+    <div className="flex flex-col items-center px-6 pt-2">
+      {selectedGame.isLive && (
+        <div className="text-center">
+          <span className="text-red-500 font-semibold text-sm">LIVE</span>
+          <div className="text-sm text-gray-400">{selectedGame.period}Q • {selectedGame.clock}</div>
+        </div>
+      )}
+     {selectedGame.isPreGame && (
+  <div className="text-center">
+    <div className="text-gray-400">{formatGameTime(selectedGame.gameTime)}</div>
+    {(() => {
+      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+      const odds = bettingOdds[gameKey];
+      
+      if (odds && odds.spread) {
+        const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
+        const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
+        
+        return (
+          <div className="mt-1">
+            <div className="text-xs text-orange-400">
+              {odds.favoriteTeam} by {odds.spread}
+            </div>
+            <div className="text-xs mt-1">
+  <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+    {selectedGame.awayTeam} {awayProb}%
+  </div>
+  <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+    {selectedGame.homeTeam} {homeProb}%
+  </div>
+</div>
+          </div>
+        );
+      }
+      return null;
+    })()}
+  </div>
+)}
+      {selectedGame.isFinal && (
+        <div className="text-gray-400 font-semibold">FINAL</div>
+      )}
+    </div>
+
+    {/* HOME TEAM - RIGHT SIDE */}
+    <div className="flex flex-col items-center flex-1">
+      <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-16 h-16 mb-2" />
+      <span className="text-xl font-bold">{selectedGame.homeTeam}</span>
+      {selectedGame.homeRecord && (
+        <span className="text-sm text-gray-400">{selectedGame.homeRecord}</span>
+      )}
+      <span className={`text-6xl font-bold mt-4 ${
+        !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
+          ? 'text-white' 
+          : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
+          ? 'text-gray-500'
+          : 'text-white'
+      }`}>
+        {selectedGame.homeScore}
+      </span>
+    </div>
+  </div>
+</div>
+
+{/* Quarter-by-Quarter Breakdown */}
+{!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
+  <div className="bg-zinc-900 rounded-2xl p-4 mb-6">
+    <div className="grid grid-cols-5 gap-2 text-center">
+      {/* Headers */}
+      <div className="text-gray-400 text-sm font-semibold">Box</div>
+      <div className="text-gray-400 text-sm font-semibold">1st</div>
+      <div className="text-gray-400 text-sm font-semibold">2nd</div>
+      <div className="text-gray-400 text-sm font-semibold">3rd</div>
+      <div className="text-gray-400 text-sm font-semibold">4th</div>
+
+      {/* Away Team Row */}
+      <div className="flex items-center justify-center">
+        <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
+      </div>
+      {(() => {
+        const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
+        const quarters = awayTeam?.linescores || [];
+        return (
+          <>
+            {quarters.map((q, idx) => (
+              <div key={`away-${idx}`} className="text-lg font-semibold">
+                {q.displayValue}
+              </div>
+            ))}
+          </>
+        );
+      })()}
+
+      {/* Home Team Row */}
+      <div className="flex items-center justify-center">
+        <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-8 h-8" />
+      </div>
+      {(() => {
+        const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
+        const quarters = homeTeam?.linescores || [];
+        return (
+          <>
+            {quarters.map((q, idx) => (
+              <div key={`home-${idx}`} className="text-lg font-semibold">
+                {q.displayValue}
+              </div>
+            ))}
+          </>
+        );
+      })()}
+    </div>
+  </div>
+)}
 
               {/* Team Selection Tabs */}
               <div className="flex gap-4 mb-6">
@@ -763,9 +886,7 @@ const getTeamAbbreviation = (fullName) => {
   <div>
     {selectedGame.isPreGame ? (
                   <div>
-                    <h3 className="text-xl font-bold mb-4">
-                      {selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
-                    </h3>
+                    
                     
                     <div className="bg-zinc-900 rounded-2xl p-4">
                       <div className="space-y-2">
@@ -783,23 +904,28 @@ const getTeamAbbreviation = (fullName) => {
                   </div>
                  ) : (
                   <div>
-                    <h3 className="text-xl font-bold mb-4">
-                      {selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
-                    </h3>
+                    
                     
                     <div className="bg-zinc-900 rounded-2xl p-4">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-gray-400 border-b border-zinc-800">
-                              <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
-                              <th className="text-center py-2 px-2">MIN</th>
-                              <th className="text-center py-2 px-2">PTS</th>
-                              <th className="text-center py-2 px-2">REB</th>
-                              <th className="text-center py-2 px-2">AST</th>
-                              <th className="text-center py-2 px-2">STL</th>
-                            </tr>
-                          </thead>
+                        <thead>
+  <tr className="text-gray-400 border-b border-zinc-800">
+    <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
+    <th className="text-center py-2 px-2">MIN</th>
+    <th className="text-center py-2 px-2">PTS</th>
+    <th className="text-center py-2 px-2">REB</th>
+    <th className="text-center py-2 px-2">AST</th>
+    <th className="text-center py-2 px-2">STL</th>
+    <th className="text-center py-2 px-2">BLK</th>
+    <th className="text-center py-2 px-2">+/-</th>
+    <th className="text-center py-2 px-2">FG</th>
+    <th className="text-center py-2 px-2">3PT</th>
+    <th className="text-center py-2 px-2">FT</th>
+    <th className="text-center py-2 px-2">TO</th>
+    <th className="text-center py-2 px-2">PF</th>
+  </tr>
+</thead>
                           <tbody>
   {gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes
     ?.sort((a, b) => {
@@ -822,10 +948,21 @@ const getTeamAbbreviation = (fullName) => {
                                   </div>
                                 </td>
                                 <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
-                                <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
-                                <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
-                                <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
-                                <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[1] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[5] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[6] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[8] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[9] || '-'}</td>
+<td className={`text-center px-2 ${
+  player.stats?.[13] && player.stats[13] !== '-' 
+    ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
+    : ''
+}`}>{player.stats?.[13] || '-'}</td>
+<td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
+<td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
+<td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[7] || '-'}</td>
+<td className="text-center px-2">{player.stats?.[12] || '-'}</td>
                               </tr>
                             ))}
                           </tbody>
