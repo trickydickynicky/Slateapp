@@ -528,70 +528,43 @@ const calculateWinProbability = (spread, favoriteTeam, team) => {
           onClick={() => handleGameClick(game)}
         >
 {/* AWAY TEAM ROW */}
-<div className="flex items-start justify-between mb-3">
-  {/* Left side: Team + Time/Odds together */}
-  <div className="flex items-start gap-2">
-    {/* Away Team Info */}
-    <div className="flex items-center gap-3 relative">
-      {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
-        <span className="text-white text-xs absolute -left-3">▶</span>
+<div className="flex items-center gap-3 mb-1">
+  {/* Away Team */}
+  <div className="flex items-center gap-3 relative">
+    {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
+      <span className="text-white text-xs absolute -left-3">▶</span>
+    )}
+    <img src={game.awayLogo} alt={game.awayTeam} className="w-10 h-10" />
+    <div className="flex flex-col">
+      <span className="font-semibold">{game.awayTeam}</span>
+      {game.awayRecord && (
+        <span className="text-xs text-gray-400">{game.awayRecord}</span>
       )}
-      <img src={game.awayLogo} alt={game.awayTeam} className="w-10 h-10" />
-      <div className="flex flex-col">
-        <span className="font-semibold">{game.awayTeam}</span>
-        {game.awayRecord && (
-          <span className="text-xs text-gray-400">{game.awayRecord}</span>
-        )}
-      </div>
-    </div>
-
-    {/* TIME/LIVE/ODDS */}
-    <div className="flex flex-col items-start text-left flex-shrink-0">
-      {game.isLive && (
-        <>
-          <div className="text-red-500 text-xs font-semibold">LIVE</div>
-          <div className="text-xs text-gray-400">
-            {game.period === 2 && game.clock === '0.0' ? 'Half' : `${game.period}Q • ${game.clock}`}
-          </div>
-        </>
-      )}
-      {game.isPreGame && (
-        <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
-      )}
-      {game.isFinal && (
-        <div className="text-xs font-semibold text-gray-300">FINAL</div>
-      )}
-      
-      {/* BETTING ODDS */}
-      {(() => {
-        const gameKey = `${game.awayTeam}-${game.homeTeam}`;
-        const odds = bettingOdds[gameKey];
-        
-        if (odds && odds.spread) {
-          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam);
-          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam);
-          
-          return (
-            <div className="text-xs mt-1">
-              <div className="text-orange-400">
-                {odds.favoriteTeam} by {odds.spread}
-              </div>
-              <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-                {game.awayTeam} {awayProb}%
-              </div>
-              <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-                {game.homeTeam} {homeProb}%
-              </div>
-            </div>
-          );
-        }
-        return null;
-      })()}
     </div>
   </div>
 
-  {/* Right side: Away Score */}
-  <span className={`text-2xl font-bold ${
+  {/* TIME/LIVE/STATUS - Right next to away team */}
+  <div className="flex flex-col items-start text-left">
+    {game.isLive && (
+      <>
+        <div className="text-red-500 text-xs font-semibold">LIVE</div>
+        <div className="text-xs text-gray-400 whitespace-nowrap">
+          {game.clock === '0.0' || game.clock === '0:00' 
+            ? (game.period === 2 ? 'Half' : `End Q${game.period}`)
+            : `${game.period}Q • ${game.clock}`}
+        </div>
+      </>
+    )}
+    {game.isPreGame && (
+      <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
+    )}
+    {game.isFinal && (
+      <div className="text-xs font-semibold text-gray-300">FINAL</div>
+    )}
+  </div>
+
+  {/* Away Score - pushed to right */}
+  <span className={`text-2xl font-bold ml-auto ${
     !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
       ? 'text-white' 
       : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
@@ -602,31 +575,59 @@ const calculateWinProbability = (spread, favoriteTeam, team) => {
   </span>
 </div>
 
-          {/* HOME TEAM ROW - clean, no time indicator */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 relative">
-              {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
-                <span className="text-white text-xs absolute -left-3">▶</span>
-              )}
-              <img src={game.homeLogo} alt={game.homeTeam} className="w-10 h-10" />
-              <div className="flex flex-col">
-                <span className="font-semibold">{game.homeTeam}</span>
-                {game.homeRecord && (
-                  <span className="text-xs text-gray-400">{game.homeRecord}</span>
-                )}
-              </div>
-            </div>
-            
-            <span className={`text-2xl font-bold ${
-              !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
-                ? 'text-white' 
-                : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
-                ? 'text-gray-500'
-                : 'text-white'
-            }`}>
-              {game.homeScore}
-            </span>
+{/* HOME TEAM ROW */}
+<div className="flex items-center gap-3">
+  {/* Home Team */}
+  <div className="flex items-center gap-3 relative">
+    {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
+      <span className="text-white text-xs absolute -left-3">▶</span>
+    )}
+    <img src={game.homeLogo} alt={game.homeTeam} className="w-10 h-10" />
+    <div className="flex flex-col">
+      <span className="font-semibold">{game.homeTeam}</span>
+      {game.homeRecord && (
+        <span className="text-xs text-gray-400">{game.homeRecord}</span>
+      )}
+    </div>
+  </div>
+
+  {/* BETTING ODDS - Right next to home team */}
+  {(() => {
+    const gameKey = `${game.awayTeam}-${game.homeTeam}`;
+    const odds = bettingOdds[gameKey];
+    
+    if (odds && odds.spread) {
+      const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam);
+      const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam);
+      
+      return (
+        <div className="text-xs text-left leading-tight">
+          <div className="text-orange-400">
+            {odds.favoriteTeam} by {odds.spread}
           </div>
+          <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+            {game.awayTeam} {awayProb}%
+          </div>
+          <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+            {game.homeTeam} {homeProb}%
+          </div>
+        </div>
+      );
+    }
+    return null;
+  })()}
+
+  {/* Home Score - pushed to right */}
+  <span className={`text-2xl font-bold ml-auto ${
+    !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
+      ? 'text-white' 
+      : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
+      ? 'text-gray-500'
+      : 'text-white'
+  }`}>
+    {game.homeScore}
+  </span>
+</div>
         </div>
       ))
     )}
@@ -723,17 +724,16 @@ const calculateWinProbability = (spread, favoriteTeam, team) => {
                   </svg>
                 </button>
               </div>
-
               <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-  <div className="flex items-start justify-between min-h-[200px]">
+              <div className="flex items-start justify-between min-h-[160px]">
     {/* AWAY TEAM - LEFT SIDE */}
     <div className="flex flex-col items-center flex-1">
-      <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-16 h-16 mb-2" />
-      <span className="text-xl font-bold">{selectedGame.awayTeam}</span>
-      {selectedGame.awayRecord && (
-        <span className="text-sm text-gray-400">{selectedGame.awayRecord}</span>
-      )}
-      <span className={`text-6xl font-bold mt-4 ${
+  <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-12 h-12 mb-1" />
+  <span className="text-base font-bold">{selectedGame.awayTeam}</span>
+  {selectedGame.awayRecord && (
+    <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
+  )}
+      <span className={`text-6xl font-bold mt-3 ${
         !selectedGame.isPreGame && parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) 
           ? 'text-white' 
           : !selectedGame.isPreGame && parseInt(selectedGame.awayScore) < parseInt(selectedGame.homeScore)
@@ -744,58 +744,92 @@ const calculateWinProbability = (spread, favoriteTeam, team) => {
       </span>
     </div>
 
-    {/* CENTER - TIME/LIVE/ODDS */}
-    <div className="flex flex-col items-center px-6 pt-2">
-      {selectedGame.isLive && (
-        <div className="text-center">
-          <span className="text-red-500 font-semibold text-sm">LIVE</span>
-          <div className="text-sm text-gray-400">{selectedGame.period}Q • {selectedGame.clock}</div>
-        </div>
-      )}
-     {selectedGame.isPreGame && (
-  <div className="text-center">
-    <div className="text-gray-400">{formatGameTime(selectedGame.gameTime)}</div>
-    {(() => {
-      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-      const odds = bettingOdds[gameKey];
-      
-      if (odds && odds.spread) {
-        const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
-        const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
-        
-        return (
-          <div className="mt-1">
-            <div className="text-xs text-orange-400">
-              {odds.favoriteTeam} by {odds.spread}
-            </div>
-            <div className="text-xs mt-1">
-  <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-    {selectedGame.awayTeam} {awayProb}%
-  </div>
-  <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-    {selectedGame.homeTeam} {homeProb}%
-  </div>
+ {/* CENTER - TIME/LIVE/ODDS */}
+<div className="flex flex-col items-center px-6 pt-2">
+  {selectedGame.isLive && (
+    <div className="text-center">
+      <span className="text-red-500 font-semibold text-sm">LIVE</span>
+      <div className="text-sm text-gray-400">
+  {selectedGame.clock === '0.0' || selectedGame.clock === '0:00'
+    ? (selectedGame.period === 2 ? 'Half' : `End Q${selectedGame.period}`)
+    : `${selectedGame.period}Q • ${selectedGame.clock}`}
 </div>
-          </div>
-        );
-      }
-      return null;
-    })()}
-  </div>
-)}
-      {selectedGame.isFinal && (
-        <div className="text-gray-400 font-semibold">FINAL</div>
-      )}
+      
+      {/* BETTING ODDS FOR LIVE GAMES */}
+      {(() => {
+        const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+        const odds = bettingOdds[gameKey];
+        
+        if (odds && odds.spread) {
+          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
+          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
+          
+          return (
+            <div className="mt-2">
+              <div className="text-xs text-orange-400">
+                {odds.favoriteTeam} by {odds.spread}
+              </div>
+              <div className="text-xs mt-1">
+                <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+                  {selectedGame.awayTeam} {awayProb}%
+                </div>
+                <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+                  {selectedGame.homeTeam} {homeProb}%
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
     </div>
+  )}
+  
+  {selectedGame.isPreGame && (
+    <div className="text-center">
+      <div className="text-gray-400">{formatGameTime(selectedGame.gameTime)}</div>
+      {(() => {
+        const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+        const odds = bettingOdds[gameKey];
+        
+        if (odds && odds.spread) {
+          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
+          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
+          
+          return (
+            <div className="mt-1">
+              <div className="text-xs text-orange-400">
+                {odds.favoriteTeam} by {odds.spread}
+              </div>
+              <div className="text-xs mt-1">
+                <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+                  {selectedGame.awayTeam} {awayProb}%
+                </div>
+                <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+                  {selectedGame.homeTeam} {homeProb}%
+                </div>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+    </div>
+  )}
+  
+  {selectedGame.isFinal && (
+    <div className="text-gray-400 font-semibold">FINAL</div>
+  )}
+</div>
 
     {/* HOME TEAM - RIGHT SIDE */}
     <div className="flex flex-col items-center flex-1">
-      <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-16 h-16 mb-2" />
-      <span className="text-xl font-bold">{selectedGame.homeTeam}</span>
-      {selectedGame.homeRecord && (
-        <span className="text-sm text-gray-400">{selectedGame.homeRecord}</span>
-      )}
-      <span className={`text-6xl font-bold mt-4 ${
+  <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-12 h-12 mb-1" />
+  <span className="text-base font-bold">{selectedGame.homeTeam}</span>
+  {selectedGame.homeRecord && (
+    <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
+  )}
+      <span className={`text-6xl font-bold mt-3 ${
         !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
           ? 'text-white' 
           : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
@@ -811,53 +845,74 @@ const calculateWinProbability = (spread, favoriteTeam, team) => {
 {/* Quarter-by-Quarter Breakdown */}
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
   <div className="bg-zinc-900 rounded-2xl p-4 mb-6">
-    <div className="grid grid-cols-5 gap-2 text-center">
-      {/* Headers */}
-      <div className="text-gray-400 text-sm font-semibold">Box</div>
-      <div className="text-gray-400 text-sm font-semibold">1st</div>
-      <div className="text-gray-400 text-sm font-semibold">2nd</div>
-      <div className="text-gray-400 text-sm font-semibold">3rd</div>
-      <div className="text-gray-400 text-sm font-semibold">4th</div>
+    <table className="w-full text-center">
+      <thead>
+        <tr className="text-gray-400 text-sm">
+          <th className="text-left pl-2 pb-3 w-32">Team</th>
+          <th className="pb-3 w-1/5">1st</th>
+          <th className="pb-3 w-1/5">2nd</th>
+          <th className="pb-3 w-1/5">3rd</th>
+          <th className="pb-3 w-1/5">4th</th>
+        </tr>
+      </thead>
+      <tbody>
+        {/* Away Team Row */}
+        <tr className="border-t border-zinc-800">
+          <td className="text-left py-3 pl-2">
+            <div className="flex items-center gap-2">
+              <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
+              <span className="font-semibold">{selectedGame.awayTeam}</span>
+            </div>
+          </td>
+          {(() => {
+            const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
+            const quarters = awayTeam?.linescores || [];
+            const currentPeriod = selectedGame.period;
+            
+            return (
+              <>
+                {[1, 2, 3, 4].map((quarterNum) => (
+                  <td key={`away-q${quarterNum}`} className="text-lg font-semibold py-3">
+                    {quarterNum <= currentPeriod && quarters[quarterNum - 1]?.displayValue 
+                      ? quarters[quarterNum - 1].displayValue 
+                      : '-'}
+                  </td>
+                ))}
+              </>
+            );
+          })()}
+        </tr>
 
-      {/* Away Team Row */}
-      <div className="flex items-center justify-center">
-        <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
-      </div>
-      {(() => {
-        const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
-        const quarters = awayTeam?.linescores || [];
-        return (
-          <>
-            {quarters.map((q, idx) => (
-              <div key={`away-${idx}`} className="text-lg font-semibold">
-                {q.displayValue}
-              </div>
-            ))}
-          </>
-        );
-      })()}
-
-      {/* Home Team Row */}
-      <div className="flex items-center justify-center">
-        <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-8 h-8" />
-      </div>
-      {(() => {
-        const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
-        const quarters = homeTeam?.linescores || [];
-        return (
-          <>
-            {quarters.map((q, idx) => (
-              <div key={`home-${idx}`} className="text-lg font-semibold">
-                {q.displayValue}
-              </div>
-            ))}
-          </>
-        );
-      })()}
-    </div>
+        {/* Home Team Row */}
+        <tr className="border-t border-zinc-800">
+          <td className="text-left py-3 pl-2">
+            <div className="flex items-center gap-2">
+              <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-8 h-8" />
+              <span className="font-semibold">{selectedGame.homeTeam}</span>
+            </div>
+          </td>
+          {(() => {
+            const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
+            const quarters = homeTeam?.linescores || [];
+            const currentPeriod = selectedGame.period;
+            
+            return (
+              <>
+                {[1, 2, 3, 4].map((quarterNum) => (
+                  <td key={`home-q${quarterNum}`} className="text-lg font-semibold py-3">
+                    {quarterNum <= currentPeriod && quarters[quarterNum - 1]?.displayValue 
+                      ? quarters[quarterNum - 1].displayValue 
+                      : '-'}
+                  </td>
+                ))}
+              </>
+            );
+          })()}
+        </tr>
+      </tbody>
+    </table>
   </div>
 )}
-
               {/* Team Selection Tabs */}
               <div className="flex gap-4 mb-6">
                 <button
