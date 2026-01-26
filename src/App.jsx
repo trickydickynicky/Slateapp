@@ -30,23 +30,92 @@ export default function SportsApp() {
   const [standings, setStandings] = useState({ eastern: [], western: [] });
   const [loadingStandings, setLoadingStandings] = useState(false);
   const [selectedConference, setSelectedConference] = useState('Eastern');
+  const [selectedTeamInfo, setSelectedTeamInfo] = useState(null);
+  const [teamStats, setTeamStats] = useState(null);
+  const [loadingTeamStats, setLoadingTeamStats] = useState(false);
+  
   const filters = [
-      { name: 'All', emoji: '🏀' },
-      { name: 'Football', emoji: '🏈' },
-      { name: 'Basketball', emoji: '🏀' },
-      { name: 'Baseball', emoji: '⚾' },
-      { name: 'Hockey', emoji: '🏒' },
-      { name: 'Soccer', emoji: '⚽' }
+    { name: 'All', emoji: '🏀' },
+    { name: 'Football', emoji: '🏈' },
+    { name: 'Basketball', emoji: '🏀' },
+    { name: 'Baseball', emoji: '⚾' },
+    { name: 'Hockey', emoji: '🏒' },
+    { name: 'Soccer', emoji: '⚽' }
   ];
-  // Add this line RIGHT BEFORE your first useEffect
+  
+  const teamFullNames = {
+    'ATL': 'Atlanta Hawks',
+    'BOS': 'Boston Celtics',
+    'BKN': 'Brooklyn Nets',
+    'CHA': 'Charlotte Hornets',
+    'CHI': 'Chicago Bulls',
+    'CLE': 'Cleveland Cavaliers',
+    'DAL': 'Dallas Mavericks',
+    'DEN': 'Denver Nuggets',
+    'DET': 'Detroit Pistons',
+    'GS': 'Golden State Warriors',
+    'HOU': 'Houston Rockets',
+    'IND': 'Indiana Pacers',
+    'LAC': 'LA Clippers',
+    'LAL': 'Los Angeles Lakers',
+    'MEM': 'Memphis Grizzlies',
+    'MIA': 'Miami Heat',
+    'MIL': 'Milwaukee Bucks',
+    'MIN': 'Minnesota Timberwolves',
+    'NO': 'New Orleans Pelicans',
+    'NY': 'New York Knicks',
+    'OKC': 'Oklahoma City Thunder',
+    'ORL': 'Orlando Magic',
+    'PHI': 'Philadelphia 76ers',
+    'PHX': 'Phoenix Suns',
+    'POR': 'Portland Trail Blazers',
+    'SAC': 'Sacramento Kings',
+    'SA': 'San Antonio Spurs',
+    'TOR': 'Toronto Raptors',
+    'UTAH': 'Utah Jazz',
+    'WSH': 'Washington Wizards'
+  };
+  
+  // Add this line RIGHT BEFORE your useEffects
   const hasFetchedOdds = React.useRef(false);
 
-useEffect(() => {
-  fetchLiveScores();
-  const interval = setInterval(fetchLiveScores, 30000);
-  return () => clearInterval(interval);
-}, [selectedDate]);
+  // Handle app visibility changes - refresh data when user returns
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // User returned to the app - refresh everything
+        console.log('App became visible - refreshing data');
+        fetchLiveScores();
+        fetchBettingOdds();
+        
+        // If game details modal is open, refresh that too
+        if (selectedGame) {
+          fetchGameDetails(selectedGame.id);
+        }
+        
+        // If standings are open, refresh those
+        if (showStandings && standings.eastern.length > 0) {
+          fetchStandings();
+        }
+      }
+    };
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also handle focus event (for when app comes to foreground)
+    window.addEventListener('focus', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
+    };
+  }, [selectedGame, showStandings, standings.eastern.length]);
+
+  useEffect(() => {
+    fetchLiveScores();
+    const interval = setInterval(fetchLiveScores, 30000);
+    return () => clearInterval(interval);
+  }, [selectedDate]);
 // Updated betting odds useEffect with duplicate prevention
 useEffect(() => {
   if (!hasFetchedOdds.current) {
@@ -353,6 +422,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     return `${displayHours}:${displayMinutes} ${ampm}`;
   };
 
+  const getOrdinalSuffix = (num) => {
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) return num + 'st';
+    if (j === 2 && k !== 12) return num + 'nd';
+    if (j === 3 && k !== 13) return num + 'rd';
+    return num + 'th';
+  };
+
   const fetchGameDetails = async (gameId) => {
     setLoadingDetails(true);
     try {
@@ -377,12 +455,14 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         awayRoster = awayData.athletes;
       }
       
-      console.log('Full game details:', data);
-      console.log('Boxscore teams:', data.boxscore?.teams);
-      console.log('Looking for linescores:', data.scoringPlays);
-      console.log('Header:', data.header);
-      console.log('Competitions:', data.header?.competitions);
-
+      // ADD THESE DEBUG LOGS
+      console.log('=== INJURY DEBUG ===');
+      console.log('Full game data injuries:', data.injuries);
+      console.log('Away team abbr:', data.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'away')?.team?.abbreviation);
+      console.log('Home team abbr:', data.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'home')?.team?.abbreviation);
+      console.log('Away roster IDs:', awayRoster?.map(p => p.id));
+      console.log('Home roster IDs:', homeRoster?.map(p => p.id));
+      
       setGameDetails({
         ...data,
         homeRoster,
@@ -393,7 +473,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     }
     setLoadingDetails(false);
   };
-
   const handleGameClick = (game) => {
     setSelectedGame(game);
     setSelectedTeam('away'); // Reset to away team
@@ -474,6 +553,115 @@ setStandings({ eastern, western });
   
   const closeStandings = () => {
     setShowStandings(false);
+  };
+
+  const handleTeamClick = (teamAbbr, teamLogo) => {
+    setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
+    fetchTeamStats(teamAbbr);
+  };
+  
+  const fetchTeamStats = async (teamAbbr) => {
+    setLoadingTeamStats(true);
+    try {
+      const fullName = teamFullNames[teamAbbr];
+      
+      const standingsResponse = await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings');
+      const standingsData = await standingsResponse.json();
+      
+      let teamId = null;
+      let teamRecord = null;
+      let conference = null;
+      let conferenceRank = null;
+      
+      // First, find which conference and get all teams in that conference
+      standingsData.children.forEach(conf => {
+        const teamEntry = conf.standings.entries.find(entry => entry.team.abbreviation === teamAbbr);
+        
+        if (teamEntry) {
+          teamId = teamEntry.team.id;
+          conference = conf.name.replace(' Conference', '');
+          
+          // Sort all teams in this conference by wins (descending)
+          const sortedTeams = [...conf.standings.entries].sort((a, b) => {
+            const aWins = parseInt(a.stats.find(s => s.name === 'wins')?.displayValue || 0);
+            const bWins = parseInt(b.stats.find(s => s.name === 'wins')?.displayValue || 0);
+            return bWins - aWins;
+          });
+          
+          // Find the rank by position in sorted array
+          conferenceRank = sortedTeams.findIndex(entry => entry.team.abbreviation === teamAbbr) + 1;
+          
+          const getStat = (name) => {
+            const stat = teamEntry.stats.find(s => s.name === name);
+            return stat ? stat.displayValue : '-';
+          };
+          
+          teamRecord = {
+            wins: getStat('wins'),
+            losses: getStat('losses'),
+            pct: getStat('winPercent'),
+            gb: getStat('gamesBehind'),
+            home: getStat('Home'),
+            away: getStat('Road'),
+            l10: getStat('Last Ten Games'),
+            streak: getStat('streak'),
+            oppg: getStat('avgPointsAgainst')
+          };
+        }
+      });
+      
+      if (!teamId) {
+        console.error('Team not found');
+        setLoadingTeamStats(false);
+        return;
+      }
+      
+// Fetch team statistics
+const statsResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/statistics`);
+const statsData = await statsResponse.json();
+
+// Fetch recent games for differentials
+const scheduleResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/schedule`);
+const scheduleData = await scheduleResponse.json();
+
+// Get last 10 completed games
+const recentGames = scheduleData.events
+  .filter(event => event.competitions[0].status.type.completed)
+  .slice(-10)
+  .map(event => {
+    const competition = event.competitions[0];
+    const teamScore = competition.competitors.find(c => c.team.id === teamId);
+    const opponentScore = competition.competitors.find(c => c.team.id !== teamId);
+    const opponent = opponentScore.team.abbreviation;
+    const isHome = teamScore.homeAway === 'home';
+    const differential = parseInt(teamScore.score) - parseInt(opponentScore.score);
+    
+    return {
+      opponent,
+      isHome,
+      differential
+    };
+  });
+
+  setTeamStats({
+    record: teamRecord,
+    conference,
+    conferenceRank,
+    stats: statsData.results?.stats?.categories || [],
+    recentGames
+  });
+
+
+      
+    } catch (error) {
+      console.error('Error fetching team stats:', error);
+    }
+    setLoadingTeamStats(false);
+  };
+  
+  const closeTeamModal = () => {
+    setSelectedTeamInfo(null);
+    setTeamStats(null);
   };
 
   const generateDateRange = () => {
@@ -862,11 +1050,15 @@ setStandings({ eastern, western });
                   </tr>
                 </thead>
                 <tbody>
-                  {(selectedConference === 'Eastern' ? standings.eastern : standings.western).map((team, idx) => (
-                  <tr key={idx} className={`border-t hover:bg-zinc-800 ${
-                    idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
- : 'border-zinc-800'
-                  }`}>
+  {(selectedConference === 'Eastern' ? standings.eastern : standings.western).map((team, idx) => (
+  <tr 
+    key={idx} 
+    onClick={() => handleTeamClick(team.team, team.logo)}
+    className={`border-t hover:bg-zinc-800 cursor-pointer transition-colors ${
+      idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
+   : 'border-zinc-800'
+    }`}
+  >
                       <td className="py-3 px-3 sticky left-0 bg-zinc-900 font-semibold text-blue-500">{idx + 1}</td>
                       <td className="py-3 px-3 sticky left-[40px] bg-zinc-900">
                         <div className="flex items-center gap-2">
@@ -879,7 +1071,7 @@ setStandings({ eastern, western });
                       <td className="text-center py-3 px-3 text-gray-300">{team.gb}</td>
                       <td className="text-center py-3 px-3 font-semibold">{team.wins}-{team.losses}</td>
                       <td className="text-center py-3 px-3">{team.pct}</td>
-                      <td className="text-center py-3 px-3">{team.l10}</td>
+                      <td className="text-center py-3 px-3 whitespace-nowrap">{team.l10}</td>
                       <td className="text-center py-3 px-3">
                         <span className={team.streak.startsWith('W') ? 'text-green-500' : 'text-red-500'}>
                           {team.streak}
@@ -919,7 +1111,10 @@ setStandings({ eastern, western });
               <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
               <div className="flex items-start justify-between min-h-[120px]">
     {/* AWAY TEAM - LEFT SIDE */}
-    <div className="flex flex-col items-center flex-1">
+    <div 
+  className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+  onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
+>
   <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
   <span className="text-base font-bold">{selectedGame.awayTeam}</span>
   {selectedGame.awayRecord && (
@@ -1014,23 +1209,26 @@ setStandings({ eastern, western });
   )}
 </div>
 
-    {/* HOME TEAM - RIGHT SIDE */}
-    <div className="flex flex-col items-center flex-1">
+  {/* HOME TEAM - RIGHT SIDE */}
+<div 
+  className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+  onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}
+>
   <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
   <span className="text-base font-bold">{selectedGame.homeTeam}</span>
   {selectedGame.homeRecord && (
     <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
   )}
-      <span className={`text-4xl font-bold mt-3 ${
-        !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
-          ? 'text-white' 
-          : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
-          ? 'text-gray-500'
-          : 'text-white'
-      }`}>
-        {selectedGame.homeScore}
-      </span>
-    </div>
+  <span className={`text-4xl font-bold mt-3 ${
+    !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
+      ? 'text-white' 
+      : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
+      ? 'text-gray-500'
+      : 'text-white'
+  }`}>
+    {selectedGame.homeScore}
+  </span>
+</div>
   </div>
 </div>
 
@@ -1271,86 +1469,210 @@ setStandings({ eastern, western });
         Team statistics will be available once the game starts
       </div>
     ) : selectedGame.isPreGame ? (
+      <div>
+      <div className="bg-zinc-900 rounded-2xl p-4">
+        <div className="space-y-2">
+        {(() => {
+  // Get the current team abbreviation and roster
+  const currentTeamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+  const roster = selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
+  
+  // Find the injury data for this specific team
+  const teamInjuryData = gameDetails.injuries?.find(
+    injData => injData.team?.abbreviation === currentTeamAbbr
+  );
+  
+  // Create a Set of player IDs already in the roster
+  const rosterPlayerIds = new Set(roster?.map(p => p.id) || []);
+  
+  // Add injured players who aren't in the roster
+  const injuredOnlyPlayers = teamInjuryData?.injuries
+    ?.filter(inj => !rosterPlayerIds.has(inj.athlete.id))
+    .map(inj => ({
+      id: inj.athlete.id,
+      displayName: inj.athlete.displayName,
+      jersey: inj.athlete.jersey || '-',
+      position: { abbreviation: inj.athlete.position?.abbreviation || '-' },
+      isInjuredOnly: true,
+      injury: inj
+    })) || [];
+  
+// Combine roster with injured-only players and sort
+const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
+  // Get injury status for both players
+  const aInjury = teamInjuryData?.injuries?.find(inj => inj.athlete.id === a.id);
+  const bInjury = teamInjuryData?.injuries?.find(inj => inj.athlete.id === b.id);
+  
+  // If one is injured/out and the other isn't, injured goes to bottom
+  if (aInjury && !bInjury) return 1;
+  if (!aInjury && bInjury) return -1;
+  
+  // Both injured or both healthy - maintain original order
+  return 0;
+});
+  
+  if (fullRoster.length === 0) {
+    return <div className="text-gray-400 text-center py-4">Roster not available</div>;
+  }
+  
+  return fullRoster.map((player, idx) => {
+    // Find injury for this specific player
+    const playerInjury = teamInjuryData?.injuries?.find(
+      inj => inj.athlete.id === player.id
+    );
+    
+    // Find stats for this player if game is not pre-game
+    let playerStats = null;
+    if (!selectedGame.isPreGame) {
+      playerStats = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
+        athlete => athlete.athlete.id === player.id
+      );
+    }
+    
+    return (
+      <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
+        <div className="flex items-center gap-3 flex-1">
+          <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
+          <div className="flex flex-col flex-1">
+            <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
+              {player.displayName}
+            </span>
+            {playerInjury && (
+              <span className="text-xs text-red-500">
+                {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+              </span>
+            )}
+          </div>
+          <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
+        </div>
+        {!selectedGame.isPreGame && playerStats && (
+          <div className="flex gap-4 text-sm">
+            <span className="text-gray-400">MIN: {playerStats.stats?.[0] || '0'}</span>
+            <span className="font-semibold">PTS: {playerStats.stats?.[1] || '0'}</span>
+            <span className="text-gray-400">REB: {playerStats.stats?.[5] || '0'}</span>
+            <span className="text-gray-400">AST: {playerStats.stats?.[6] || '0'}</span>
+          </div>
+        )}
+      </div>
+    );
+  });
+})()}
+        </div>
+      </div>
+    </div>
+                ) : (
                   <div>
-                    
-                    
-                    <div className="bg-zinc-900 rounded-2xl p-4">
-                      <div className="space-y-2">
-                        {(selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster)?.map((player, idx) => (
-                          <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
-                            <div className="flex items-center gap-3">
-                              <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
-                              <span>{player.displayName}</span>
-                            </div>
-                            <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
-                          </div>
-                        )) || <div className="text-gray-400 text-center py-4">Roster not available</div>}
-                      </div>
-                    </div>
-                  </div>
-                 ) : (
-                  <div>
-                    
-                    
                     <div className="bg-zinc-900 rounded-2xl p-4">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                        <thead>
-  <tr className="text-gray-400 border-b border-zinc-800">
-    <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
-    <th className="text-center py-2 px-2">MIN</th>
-    <th className="text-center py-2 px-2">PTS</th>
-    <th className="text-center py-2 px-2">REB</th>
-    <th className="text-center py-2 px-2">AST</th>
-    <th className="text-center py-2 px-2">STL</th>
-    <th className="text-center py-2 px-2">BLK</th>
-    <th className="text-center py-2 px-2">+/-</th>
-    <th className="text-center py-2 px-2">FG</th>
-    <th className="text-center py-2 px-2">3PT</th>
-    <th className="text-center py-2 px-2">FT</th>
-    <th className="text-center py-2 px-2">TO</th>
-    <th className="text-center py-2 px-2">PF</th>
-  </tr>
-</thead>
+                          <thead>
+                            <tr className="text-gray-400 border-b border-zinc-800">
+                              <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
+                              <th className="text-center py-2 px-2">MIN</th>
+                              <th className="text-center py-2 px-2">PTS</th>
+                              <th className="text-center py-2 px-2">REB</th>
+                              <th className="text-center py-2 px-2">AST</th>
+                              <th className="text-center py-2 px-2">STL</th>
+                              <th className="text-center py-2 px-2">BLK</th>
+                              <th className="text-center py-2 px-2">+/-</th>
+                              <th className="text-center py-2 px-2">FG</th>
+                              <th className="text-center py-2 px-2">3PT</th>
+                              <th className="text-center py-2 px-2">FT</th>
+                              <th className="text-center py-2 px-2">TO</th>
+                              <th className="text-center py-2 px-2">PF</th>
+                            </tr>
+                          </thead>
                           <tbody>
-  {gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes
-    ?.sort((a, b) => {
-      const aMinutes = parseFloat(a.stats?.[0]) || 0;
-      const bMinutes = parseFloat(b.stats?.[0]) || 0;
-      return bMinutes - aMinutes;
-    })
-    .map((player, idx) => (
-      <tr key={idx} className="border-b border-zinc-800 last:border-0">
-        <td className="py-2 sticky left-0 bg-zinc-900">
-          <div className="flex items-center gap-2">
-            {player.athlete.headshot && (
-              <img 
-                src={player.athlete.headshot.href} 
-                alt={player.athlete.shortName}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            )}
-                                    <span>{player.athlete.shortName}</span>
-                                  </div>
-                                </td>
-                                <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[1] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[5] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[6] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[8] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[9] || '-'}</td>
-<td className={`text-center px-2 ${
-  player.stats?.[13] && player.stats[13] !== '-' 
-    ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-    : ''
-}`}>{player.stats?.[13] || '-'}</td>
-<td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-<td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-<td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[7] || '-'}</td>
-<td className="text-center px-2">{player.stats?.[12] || '-'}</td>
-                              </tr>
-                            ))}
+                            {(() => {
+                              // Get players from boxscore
+                              const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
+                              
+                              // Get the current team abbreviation
+                              const currentTeamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+                              
+                              // Find the injury data for this specific team
+                              const teamInjuryData = gameDetails.injuries?.find(
+                                injData => injData.team?.abbreviation === currentTeamAbbr
+                              );
+                              
+                              // Create a Set of player IDs in the boxscore
+                              const boxscorePlayerIds = new Set(boxscorePlayers.map(p => p.athlete.id));
+                              
+                              // Add injured players who aren't in the boxscore
+                              const injuredOnlyPlayers = teamInjuryData?.injuries
+                                ?.filter(inj => !boxscorePlayerIds.has(inj.athlete.id))
+                                .map(inj => ({
+                                  athlete: {
+                                    id: inj.athlete.id,
+                                    shortName: inj.athlete.shortName,
+                                    headshot: inj.athlete.headshot
+                                  },
+                                  stats: null,
+                                  isInjuredOnly: true,
+                                  injury: inj
+                                })) || [];
+                              
+                              // Combine boxscore players with injured-only players
+                              const allPlayers = [...boxscorePlayers, ...injuredOnlyPlayers];
+                              
+                              // Sort by minutes played (injured players at bottom)
+                              return allPlayers
+                                .sort((a, b) => {
+                                  if (a.isInjuredOnly) return 1;
+                                  if (b.isInjuredOnly) return -1;
+                                  const aMinutes = parseFloat(a.stats?.[0]) || 0;
+                                  const bMinutes = parseFloat(b.stats?.[0]) || 0;
+                                  return bMinutes - aMinutes;
+                                })
+                                .map((player, idx) => {
+                                  // Find injury for this player
+                                  const playerInjury = teamInjuryData?.injuries?.find(
+                                    inj => inj.athlete.id === player.athlete.id
+                                  );
+                                  
+                                  return (
+                                    <tr key={idx} className="border-b border-zinc-800 last:border-0">
+                                      <td className="py-2 sticky left-0 bg-zinc-900">
+                                        <div className="flex items-center gap-2">
+                                          {player.athlete.headshot && (
+                                            <img 
+                                              src={player.athlete.headshot.href} 
+                                              alt={player.athlete.shortName}
+                                              className="w-8 h-8 rounded-full object-cover"
+                                            />
+                                          )}
+                                          <div className="flex flex-col">
+                                            <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
+                                              {player.athlete.shortName}
+                                            </span>
+                                            {playerInjury && (
+                                              <span className="text-xs text-red-500">
+                                                {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[9] || '-'}</td>
+                                      <td className={`text-center px-2 ${
+                                        player.stats?.[13] && player.stats[13] !== '-' 
+                                          ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
+                                          : ''
+                                      }`}>{player.stats?.[13] || '-'}</td>
+                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
+                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
+                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[7] || '-'}</td>
+                                      <td className="text-center px-2">{player.stats?.[12] || '-'}</td>
+                                    </tr>
+                                  );
+                                });
+                            })()}
                           </tbody>
                         </table>
                       </div>
@@ -1359,10 +1681,191 @@ setStandings({ eastern, western });
                 )}
                 </div>
               ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+  
+  {selectedTeamInfo && (
+    <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
+      <div className="min-h-screen px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">Team Stats</h2>
+            <button 
+              onClick={closeTeamModal}
+              className="text-gray-400 hover:text-white"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+  
+          {loadingTeamStats ? (
+            <div className="text-center py-12 text-gray-400">Loading team stats...</div>
+          ) : teamStats ? (
+            <div>
+              {/* Team Header */}
+              <div className="bg-zinc-900 rounded-2xl p-6 mb-6 flex items-center gap-6">
+                <img 
+                  src={selectedTeamInfo.logo} 
+                  alt={selectedTeamInfo.abbr}
+                  className="w-24 h-24"
+                />
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold mb-1">{teamFullNames[selectedTeamInfo.abbr]}</h3>
+                  <div className="text-gray-400 text-lg">
+  {teamStats.record.wins}-{teamStats.record.losses} • {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}
+</div>
+                  <div className="text-sm text-gray-400 mt-2">
+                    {teamStats.record.pct} PCT • {teamStats.record.streak}
+                  </div>
+                </div>
+              </div>
+  
+             {/* Offense Stats */}
+<div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+  <h4 className="text-xl font-bold mb-4">Offense</h4>
+  <div className="grid grid-cols-3 gap-4">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      if (!offenseCategory || !offenseCategory.stats) {
+        console.log('Offense category:', offenseCategory);
+        console.log('All categories:', teamStats.stats);
+        return <div className="text-gray-400">No data available</div>;
+      }
+      
+      const getStatValue = (name) => {
+        const stat = offenseCategory.stats.find(s => s.name === name);
+        return stat ? stat.displayValue : '-';
+      };
+                    return (
+                      <>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgPoints')}</div>
+                          <div className="text-sm text-gray-400 mt-1">PPG</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('fieldGoalPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">FG%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('threePointFieldGoalPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">3FG%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('freeThrowPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">FT%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgAssists')}</div>
+                          <div className="text-sm text-gray-400 mt-1">AST</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgTurnovers')}</div>
+                          <div className="text-sm text-gray-400 mt-1">TO</div>
+                        </div>
+                      </>
+                    );
+                    })()}
+                    </div>
+                    </div>
+                    
+{/* Defense Stats */}
+<div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+  <h4 className="text-xl font-bold mb-4">Defense</h4>
+  <div className="grid grid-cols-3 gap-4">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
+      
+      if (!offenseCategory && !defenseCategory) {
+        return <div className="text-gray-400">No data available</div>;
+      }
+      
+      // Helper to get stat from either category
+      const getStatValue = (name, preferredCategory = 'defensive') => {
+        const primaryCat = preferredCategory === 'defensive' ? defenseCategory : offenseCategory;
+        const secondaryCat = preferredCategory === 'defensive' ? offenseCategory : defenseCategory;
+        
+        let stat = primaryCat?.stats?.find(s => s.name === name);
+        if (!stat && secondaryCat) {
+          stat = secondaryCat.stats?.find(s => s.name === name);
+        }
+        return stat ? stat.displayValue : '-';
+      };
+      
+      // Calculate total rebounds (defensive + offensive)
+      const calcTotalRebounds = () => {
+        const dreb = parseFloat(getStatValue('avgDefensiveRebounds', 'defensive')) || 0;
+        const oreb = parseFloat(getStatValue('avgOffensiveRebounds', 'offensive')) || 0;
+        return (dreb + oreb).toFixed(1);
+      };
+      
+      return (
+        <>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{teamStats.record.oppg || '-'}</div>
+            <div className="text-sm text-gray-400 mt-1">OPPG</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">DREB</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{calcTotalRebounds()}</div>
+            <div className="text-sm text-gray-400 mt-1">REB</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgBlocks', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">BLK</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgSteals', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">STL</div>
+          </div>
+        </>
+      );
+    })()}
+  </div>
+</div>
+  
+              {/* Recent Differentials */}
+              <div className="bg-zinc-900 rounded-2xl p-6">
+                <h4 className="text-xl font-bold mb-4">Recent Differentials</h4>
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                  {teamStats.recentGames.map((game, idx) => (
+                    <div key={idx} className="flex flex-col items-center min-w-[60px]">
+                      <div className={`text-2xl font-bold ${
+                        game.differential > 0 ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {game.differential > 0 ? '+' : ''}{game.differential}
+                      </div>
+                      <div className="h-24 w-8 bg-zinc-800 rounded-t flex items-end justify-center mt-2">
+                        <div 
+                          className={`w-full rounded-t ${
+                            game.differential > 0 ? 'bg-blue-500' : 'bg-blue-900'
+                          }`}
+                          style={{ 
+                            height: `${Math.min(Math.abs(game.differential) * 2, 100)}%` 
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs text-gray-400 mt-2">
+                        {game.isHome ? 'vs' : '@'} {game.opponent}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
   )}
-    </div>
-  );
-}
+  
+      </div>
+    );
+  }
