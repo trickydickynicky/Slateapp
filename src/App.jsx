@@ -1071,7 +1071,7 @@ const recentGames = scheduleData.events
                       <td className="text-center py-3 px-3 text-gray-300">{team.gb}</td>
                       <td className="text-center py-3 px-3 font-semibold">{team.wins}-{team.losses}</td>
                       <td className="text-center py-3 px-3">{team.pct}</td>
-                      <td className="text-center py-3 px-3 whitespace-nowrap">{team.l10}</td>
+                  <td className="text-center py-3 px-3 whitespace-nowrap">{team.l10}</td>
                       <td className="text-center py-3 px-3">
                         <span className={team.streak.startsWith('W') ? 'text-green-500' : 'text-red-500'}>
                           {team.streak}
@@ -1345,14 +1345,73 @@ const recentGames = scheduleData.events
             console.log(`Stat name: "${stat.name}" = ${stat.displayValue}`);
           });
           
-          // Helper to find stat by name
-          const findStat = (stats, name) => {
-            const stat = stats.find(s => s.name === name);
-            return stat ? stat.displayValue : '0';
-          };
+         // Helper to find stat by name
+const findStat = (stats, name) => {
+  const stat = stats.find(s => s.name === name);
+  return stat ? stat.displayValue : '0';
+};
 
-           // Helper to parse made/attempted and get percentage
-           const parseShootingStat = (stats, pctName, combinedName) => {
+// ADD THIS NEW FUNCTION - Calculate Offensive Efficiency
+const calculateOffensiveEfficiency = (stats, teamIndex) => {
+  // Get FGA from the combined stat "fieldGoalsMade-fieldGoalsAttempted" (e.g., "43-93")
+  const fgCombined = findStat(stats, 'fieldGoalsMade-fieldGoalsAttempted');
+  const fga = parseFloat(fgCombined.split('-')[1]) || 0;
+  
+  // Get FTA from the combined stat "freeThrowsMade-freeThrowsAttempted" (e.g., "20-25")
+  const ftCombined = findStat(stats, 'freeThrowsMade-freeThrowsAttempted');
+  const fta = parseFloat(ftCombined.split('-')[1]) || 0;
+  
+  const oreb = parseFloat(findStat(stats, 'offensiveRebounds')) || 0;
+  const turnovers = parseFloat(findStat(stats, 'turnovers')) || 0;
+  
+  // Get points from the game - use selectedGame scores
+  const points = teamIndex === 0 
+    ? parseFloat(selectedGame.awayScore) || 0 
+    : parseFloat(selectedGame.homeScore) || 0;
+  
+  // Calculate possessions: FGA + 0.44*FTA - OffensiveRebounds + Turnovers
+  const possessions = fga + (0.44 * fta) - oreb + turnovers;
+  
+  // Calculate offensive efficiency: (Points / Possessions) * 100
+  const efficiency = possessions > 0 ? (points / possessions) * 100 : 0;
+  
+  return efficiency.toFixed(1);
+};
+
+// Calculate Defensive Efficiency (points allowed per 100 possessions)
+const calculateDefensiveEfficiency = (stats, teamIndex) => {
+  // For defensive efficiency, we need the OPPONENT's offensive stats
+  // Team 0's defense = Team 1's offense, and vice versa
+  const opponentStats = teamIndex === 0 ? homeStats : awayStats;
+  
+  // Get opponent's FGA from the combined stat
+  const fgCombined = findStat(opponentStats, 'fieldGoalsMade-fieldGoalsAttempted');
+  const fga = parseFloat(fgCombined.split('-')[1]) || 0;
+  
+  // Get opponent's FTA from the combined stat
+  const ftCombined = findStat(opponentStats, 'freeThrowsMade-freeThrowsAttempted');
+  const fta = parseFloat(ftCombined.split('-')[1]) || 0;
+  
+  // Get opponent's offensive rebounds and turnovers
+  const oreb = parseFloat(findStat(opponentStats, 'offensiveRebounds')) || 0;
+  const turnovers = parseFloat(findStat(opponentStats, 'turnovers')) || 0;
+  
+  // Get opponent's points (points this team allowed)
+  const points = teamIndex === 0 
+    ? parseFloat(selectedGame.homeScore) || 0 
+    : parseFloat(selectedGame.awayScore) || 0;
+  
+  // Calculate opponent's possessions
+  const possessions = fga + (0.44 * fta) - oreb + turnovers;
+  
+  // Calculate defensive efficiency: (Points Allowed / Possessions) * 100
+  const efficiency = possessions > 0 ? (points / possessions) * 100 : 0;
+  
+  return efficiency.toFixed(1);
+};
+
+// Helper to parse made/attempted and get percentage
+const parseShootingStat = (stats, pctName, combinedName) => {
             const pct = parseFloat(findStat(stats, pctName)) || 0;
             const combined = findStat(stats, combinedName); // e.g., "26-65"
             
@@ -1364,9 +1423,10 @@ const recentGames = scheduleData.events
             return { pct, made, attempted };
           };
 
-        // Define stats to compare (matching the image order)
-        const statsToCompare = [
-          { type: 'shooting', pctName: 'fieldGoalPct', combinedName: 'fieldGoalsMade-fieldGoalsAttempted', label: 'FG' },
+       // Define stats to compare (matching the image order)
+const statsToCompare = [
+  
+  { type: 'shooting', pctName: 'fieldGoalPct', combinedName: 'fieldGoalsMade-fieldGoalsAttempted', label: 'FG' },
           { type: 'shooting', pctName: 'threePointFieldGoalPct', combinedName: 'threePointFieldGoalsMade-threePointFieldGoalsAttempted', label: '3FG' },
           { type: 'shooting', pctName: 'freeThrowPct', combinedName: 'freeThrowsMade-freeThrowsAttempted', label: 'FTS' },
           { name: 'turnovers', label: 'Turnovers', format: 'number', inverse: true },
@@ -1382,11 +1442,86 @@ const recentGames = scheduleData.events
           { name: 'fouls', label: 'Personal fouls', format: 'number', inverse: true },
           { name: 'largestLead', label: 'Largest lead', format: 'number' },
           { name: 'leadChanges', label: 'Lead changes', format: 'number' },
-          { name: 'leadPercentage', label: 'Time leading', format: 'percentage' }
+          { name: 'leadPercentage', label: 'Time leading', format: 'percentage' },
+          { type: 'efficiency', label: 'Offensive Efficiency' },
+          { type: 'defEfficiency', label: 'Defensive Efficiency' }
         ];
 
-            return statsToCompare.map((statDef, idx) => {
-              if (statDef.type === 'shooting') {
+        return statsToCompare.map((statDef, idx) => {
+          if (statDef.type === 'efficiency') {
+            // Handle offensive efficiency
+            console.log('gameDetails.boxscore:', gameDetails.boxscore);
+            console.log('Team 0 score:', gameDetails.boxscore?.teams?.[0]?.team?.score);
+            console.log('Team 1 score:', gameDetails.boxscore?.teams?.[1]?.team?.score);
+            const awayEff = parseFloat(calculateOffensiveEfficiency(awayStats, 0));
+            const homeEff = parseFloat(calculateOffensiveEfficiency(homeStats, 1));
+            
+            const awayBetter = awayEff > homeEff;
+            const homeBetter = homeEff > awayEff;
+            
+            const total = awayEff + homeEff;
+            const awayBarPercent = total > 0 ? (awayEff / total) * 100 : 50;
+            const homeBarPercent = total > 0 ? (homeEff / total) * 100 : 50;
+            
+            return (
+              <div key={idx}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className={`text-lg font-bold ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                    {awayEff}
+                  </span>
+                  <span className="text-gray-400 text-sm font-semibold">{statDef.label}</span>
+                  <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                    {homeEff}
+                  </span>
+                </div>
+                <div className="flex h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-yellow-600" 
+                    style={{ width: `${awayBarPercent}%` }}
+                  />
+                  <div 
+                    className="bg-blue-900" 
+                    style={{ width: `${homeBarPercent}%` }}
+                  />
+                </div>
+              </div>
+        );
+      } else if (statDef.type === 'defEfficiency') {
+        // Handle defensive efficiency (LOWER is better)
+        const awayDefEff = parseFloat(calculateDefensiveEfficiency(awayStats, 0));
+        const homeDefEff = parseFloat(calculateDefensiveEfficiency(homeStats, 1));
+        
+        const awayBetter = awayDefEff < homeDefEff; // Lower is better for defense
+        const homeBetter = homeDefEff < awayDefEff;
+        
+        const total = awayDefEff + homeDefEff;
+        const awayBarPercent = total > 0 ? (awayDefEff / total) * 100 : 50;
+        const homeBarPercent = total > 0 ? (homeDefEff / total) * 100 : 50;
+        
+        return (
+          <div key={idx}>
+            <div className="flex justify-between items-center mb-2">
+              <span className={`text-lg font-bold ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                {awayDefEff}
+              </span>
+              <span className="text-gray-400 text-sm font-semibold">{statDef.label}</span>
+              <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                {homeDefEff}
+              </span>
+            </div>
+            <div className="flex h-2 rounded-full overflow-hidden">
+              <div 
+                className="bg-yellow-600" 
+                style={{ width: `${awayBarPercent}%` }}
+              />
+              <div 
+                className="bg-blue-900" 
+                style={{ width: `${homeBarPercent}%` }}
+              />
+            </div>
+          </div>
+        );
+      } else if (statDef.type === 'shooting') {
                 // Handle shooting stats (FG, 3FG, FTS)
                 const away = parseShootingStat(awayStats, statDef.pctName, statDef.combinedName);
                 const home = parseShootingStat(homeStats, statDef.pctName, statDef.combinedName);
