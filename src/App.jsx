@@ -901,7 +901,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 
         {/* Home Team Row */}
         <tr className="border-t border-zinc-800">
-          <td className="text-left py-3">
+          <td className="text-left py-2">
             <span className="font-semibold">{selectedGame.homeTeam}</span>
           </td>
           {(() => {
@@ -912,7 +912,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
             return (
               <>
                 {[1, 2, 3, 4].map((quarterNum) => (
-                  <td key={`home-q${quarterNum}`} className="text-lg font-semibold py-3">
+                  <td key={`home-q${quarterNum}`} className="text-lg font-semibold py-2">
                     {quarterNum <= currentPeriod && quarters[quarterNum - 1]?.displayValue 
                       ? quarters[quarterNum - 1].displayValue 
                       : '-'}
@@ -926,33 +926,178 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     </table>
   </div>
 )}
-              {/* Team Selection Tabs */}
-              <div className="flex gap-4 mb-6">
-                <button
-                  onClick={() => setSelectedTeam('away')}
-                  className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
-                    selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-                  }`}
-                >
-                  {selectedGame.awayTeam}
-                </button>
-                <button
-                  onClick={() => setSelectedTeam('home')}
-                  className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
-                    selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-                  }`}
-                >
-                  {selectedGame.homeTeam}
-                </button>
-              </div>
+             {/* Team Selection Tabs */}
+<div className="flex gap-2 mb-6">
+  <button
+    onClick={() => setSelectedTeam('away')}
+    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
+      selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+    }`}
+  >
+    {selectedGame.awayTeam}
+  </button>
+  <button
+    onClick={() => setSelectedTeam('game')}
+    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
+      selectedTeam === 'game' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+    }`}
+  >
+    Game
+  </button>
+  <button
+    onClick={() => setSelectedTeam('home')}
+    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
+      selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+    }`}
+  >
+    {selectedGame.homeTeam}
+  </button>
+</div>
 
               
 
-              {loadingDetails ? (
+{loadingDetails ? (
   <div className="text-center py-12 text-gray-400">Loading details...</div>
 ) : gameDetails ? (
   <div>
-    {selectedGame.isPreGame ? (
+    {selectedTeam === 'game' && !selectedGame.isPreGame ? (
+      /* TEAM COMPARISON VIEW */
+      <div className="bg-zinc-900 rounded-2xl p-4">
+        <div className="space-y-4">
+          {(() => {
+          const awayStats = gameDetails.boxscore?.teams?.[0]?.statistics || [];
+          const homeStats = gameDetails.boxscore?.teams?.[1]?.statistics || [];
+          
+          // DEBUG: Log all stat names so we can see what's available
+          console.log('=== ALL AVAILABLE STAT NAMES ===');
+          awayStats.forEach(stat => {
+            console.log(`Stat name: "${stat.name}" = ${stat.displayValue}`);
+          });
+          
+          // Helper to find stat by name
+          const findStat = (stats, name) => {
+            const stat = stats.find(s => s.name === name);
+            return stat ? stat.displayValue : '0';
+          };
+
+           // Helper to parse made/attempted and get percentage
+           const parseShootingStat = (stats, pctName, combinedName) => {
+            const pct = parseFloat(findStat(stats, pctName)) || 0;
+            const combined = findStat(stats, combinedName); // e.g., "26-65"
+            
+            // Split the "26-65" format into made and attempted
+            const parts = combined.split('-');
+            const made = parts[0] || '0';
+            const attempted = parts[1] || '0';
+            
+            return { pct, made, attempted };
+          };
+
+        // Define stats to compare (matching the image order)
+        const statsToCompare = [
+          { type: 'shooting', pctName: 'fieldGoalPct', combinedName: 'fieldGoalsMade-fieldGoalsAttempted', label: 'FG' },
+          { type: 'shooting', pctName: 'threePointFieldGoalPct', combinedName: 'threePointFieldGoalsMade-threePointFieldGoalsAttempted', label: '3FG' },
+          { type: 'shooting', pctName: 'freeThrowPct', combinedName: 'freeThrowsMade-freeThrowsAttempted', label: 'FTS' },
+          { name: 'turnovers', label: 'Turnovers', format: 'number', inverse: true },
+          { name: 'totalRebounds', label: 'Rebounds', format: 'number' },
+          { name: 'assists', label: 'Assists', format: 'number' },
+          { name: 'blocks', label: 'Blocks', format: 'number' },
+          { name: 'defensiveRebounds', label: 'Defensive rebounds', format: 'number' },
+          { name: 'offensiveRebounds', label: 'Offensive rebounds', format: 'number' },
+          { name: 'turnoverPoints', label: 'Points off turnovers', format: 'number' },
+          { name: 'pointsInPaint', label: 'Points-in-paint', format: 'number' },
+          { name: 'fastBreakPoints', label: 'Fastbreak points', format: 'number' },
+          { name: 'steals', label: 'Steals', format: 'number' },
+          { name: 'fouls', label: 'Personal fouls', format: 'number', inverse: true },
+          { name: 'largestLead', label: 'Largest lead', format: 'number' },
+          { name: 'leadChanges', label: 'Lead changes', format: 'number' },
+          { name: 'leadPercentage', label: 'Time leading', format: 'percentage' }
+        ];
+
+            return statsToCompare.map((statDef, idx) => {
+              if (statDef.type === 'shooting') {
+                // Handle shooting stats (FG, 3FG, FTS)
+                const away = parseShootingStat(awayStats, statDef.pctName, statDef.combinedName);
+                const home = parseShootingStat(homeStats, statDef.pctName, statDef.combinedName);
+                
+                // Log to see what data we're getting
+                console.log(`${statDef.label} - Away:`, away, 'Home:', home);
+                console.log('All away stats:', awayStats);
+                
+                const awayBetter = away.pct > home.pct;
+                const homeBetter = home.pct > away.pct;
+                
+                const total = away.pct + home.pct;
+                const awayBarPercent = total > 0 ? (away.pct / total) * 100 : 50;
+                const homeBarPercent = total > 0 ? (home.pct / total) * 100 : 50;
+
+                return (
+                  <div key={idx}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`text-lg font-bold ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                        {away.made}/{away.attempted} <span className="text-sm ml-1">{away.pct.toFixed(1)}%</span>
+                      </span>
+                      <span className="text-gray-400 text-sm font-semibold">{statDef.label}</span>
+                      <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                        <span className="text-sm mr-1">{home.pct.toFixed(1)}%</span> {home.made}/{home.attempted}
+                      </span>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-yellow-600" 
+                        style={{ width: `${awayBarPercent}%` }}
+                      />
+                      <div 
+                        className="bg-blue-900" 
+                        style={{ width: `${homeBarPercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              } else {
+                // Handle regular number stats
+                const awayValue = parseFloat(findStat(awayStats, statDef.name)) || 0;
+                const homeValue = parseFloat(findStat(homeStats, statDef.name)) || 0;
+                const total = awayValue + homeValue;
+                const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
+                const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
+
+                const awayBetter = statDef.inverse ? awayValue < homeValue : awayValue > homeValue;
+                const homeBetter = statDef.inverse ? homeValue < awayValue : homeValue > awayValue;
+
+                return (
+                  <div key={idx}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`text-lg font-bold ${awayBetter ? 'text-white' : 'text-gray-500'}`}>
+                        {statDef.format === 'percentage' ? `${awayValue.toFixed(0)}%` : awayValue}
+                      </span>
+                      <span className="text-gray-400 text-sm font-semibold">{statDef.label}</span>
+                      <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
+                        {statDef.format === 'percentage' ? `${homeValue.toFixed(0)}%` : homeValue}
+                      </span>
+                    </div>
+                    <div className="flex h-2 rounded-full overflow-hidden">
+                      <div 
+                        className="bg-yellow-600" 
+                        style={{ width: `${awayPercent}%` }}
+                      />
+                      <div 
+                        className="bg-blue-900" 
+                        style={{ width: `${homePercent}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            });
+          })()}
+        </div>
+      </div>
+    ) : selectedTeam === 'game' && selectedGame.isPreGame ? (
+      <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+        Team statistics will be available once the game starts
+      </div>
+    ) : selectedGame.isPreGame ? (
                   <div>
                     
                     
