@@ -26,17 +26,20 @@ export default function SportsApp() {
   const [playerStats, setPlayerStats] = useState(null);
   const [loadingPlayer, setLoadingPlayer] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState('away');
+  const [showStandings, setShowStandings] = useState(false);
+  const [standings, setStandings] = useState({ eastern: [], western: [] });
+  const [loadingStandings, setLoadingStandings] = useState(false);
+  const [selectedConference, setSelectedConference] = useState('Eastern');
   const filters = [
-    { name: 'All', emoji: '🏀' },
-    { name: 'Football', emoji: '🏈' },
-    { name: 'Basketball', emoji: '🏀' },
-    { name: 'Baseball', emoji: '⚾' },
-    { name: 'Hockey', emoji: '🏒' },
-    { name: 'Soccer', emoji: '⚽' }
+      { name: 'All', emoji: '🏀' },
+      { name: 'Football', emoji: '🏈' },
+      { name: 'Basketball', emoji: '🏀' },
+      { name: 'Baseball', emoji: '⚾' },
+      { name: 'Hockey', emoji: '🏒' },
+      { name: 'Soccer', emoji: '⚽' }
   ];
-
-// Add this line RIGHT BEFORE your first useEffect
-const hasFetchedOdds = React.useRef(false);
+  // Add this line RIGHT BEFORE your first useEffect
+  const hasFetchedOdds = React.useRef(false);
 
 useEffect(() => {
   fetchLiveScores();
@@ -407,6 +410,72 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     setPlayerStats(null);
   };
 
+  const fetchStandings = async () => {
+    setLoadingStandings(true);
+    try {
+      const response = await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings');
+      const data = await response.json();
+      
+      const eastern = [];
+      const western = [];
+      
+      // Process standings data
+      data.children.forEach(conference => {
+        const isEastern = conference.name === 'Eastern Conference';
+        const targetArray = isEastern ? eastern : western;
+        
+        conference.standings.entries.forEach(entry => {
+          const team = entry.team;
+          const stats = entry.stats;
+
+          console.log('Available stats:', stats.map(s => s.name)); 
+          
+          // Helper to find stat by name
+          const getStat = (name) => {
+            const stat = stats.find(s => s.name === name);
+            return stat ? stat.displayValue : '-';
+          };
+          
+          targetArray.push({
+            rank: getStat('rank'),
+            team: team.abbreviation,
+            logo: team.logos?.[0]?.href,
+            gb: getStat('gamesBehind'),
+            wins: getStat('wins'),
+            losses: getStat('losses'),
+            pct: getStat('winPercent'),
+            l10: getStat('Last Ten Games'),
+            streak: getStat('streak'),
+            home: getStat('Home'),
+            away: getStat('Road'),
+            ppg: getStat('avgPointsFor'),
+            oppg: getStat('avgPointsAgainst')
+          });
+        });
+      });
+      
+     // Sort teams by rank (best to worst)
+     eastern.sort((a, b) => parseInt(b.wins) - parseInt(a.wins));
+     western.sort((a, b) => parseInt(b.wins) - parseInt(a.wins));
+
+setStandings({ eastern, western });
+    } catch (error) {
+      console.error('Error fetching standings:', error);
+    }
+    setLoadingStandings(false);
+  };
+  
+  const openStandings = () => {
+    setShowStandings(true);
+    if (standings.eastern.length === 0) {
+      fetchStandings();
+    }
+  };
+  
+  const closeStandings = () => {
+    setShowStandings(false);
+  };
+
   const generateDateRange = () => {
     const dates = [];
     const today = new Date();
@@ -434,21 +503,30 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="px-4 pt-12 pb-4">
-        <div className="flex justify-between items-start mb-1">
-          <div>
-          <img 
+      <div className="flex justify-between items-start mb-1">
+  <div>
+  <img 
       
       src="/slate-logo.png" 
       alt="Slate" 
       className="h-8"
     
     />
-            <p className="text-gray-400 text-sm mt-1">{formatDate()}</p>
-          </div>
-        </div>
+  </div>
+</div>
 
-        <div className="mt-6 relative">
-          <div className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center">
+<div className="flex justify-between items-center mt-2 mb-4">
+  <p className="text-gray-400 text-sm">{formatDate()}</p>
+  <button
+    onClick={openStandings}
+    className="text-blue-500 font-semibold text-sm hover:text-blue-400"
+  >
+    Standings
+  </button>
+</div>
+
+<div className="mt-2 relative">
+  <div className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center">
             <Search className="w-5 h-5 text-gray-400 mr-3" />
             <input 
               type="text" 
@@ -727,6 +805,101 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
           </div>
         </div>
       )}
+      {showStandings && (
+  <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
+    <div className="min-h-screen px-4 py-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">NBA Standings</h2>
+          <button 
+            onClick={closeStandings}
+            className="text-gray-400 hover:text-white"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setSelectedConference('Eastern')}
+            className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
+              selectedConference === 'Eastern' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+            }`}
+          >
+            Eastern
+          </button>
+          <button
+            onClick={() => setSelectedConference('Western')}
+            className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
+              selectedConference === 'Western' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+            }`}
+          >
+            Western
+          </button>
+        </div>
+
+        {loadingStandings ? (
+          <div className="text-center py-12 text-gray-400">Loading standings...</div>
+        ) : (
+          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800 sticky top-0">
+                  <tr className="text-gray-400">
+                    <th className="text-left py-3 px-3 sticky left-0 bg-zinc-800 z-10">#</th>
+                    <th className="text-left py-3 px-3 sticky left-[40px] bg-zinc-800 z-10">Team</th>
+                    <th className="text-center py-3 px-3">GB</th>
+                    <th className="text-center py-3 px-3">W-L</th>
+                    <th className="text-center py-3 px-3">PCT</th>
+                    <th className="text-center py-3 px-3">L10</th>
+                    <th className="text-center py-3 px-3">STRK</th>
+                    <th className="text-center py-3 px-3">HOME</th>
+                    <th className="text-center py-3 px-3">AWAY</th>
+                    <th className="text-center py-3 px-3">PPG</th>
+                    <th className="text-center py-3 px-3">OPPG</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(selectedConference === 'Eastern' ? standings.eastern : standings.western).map((team, idx) => (
+                  <tr key={idx} className={`border-t hover:bg-zinc-800 ${
+                    idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
+ : 'border-zinc-800'
+                  }`}>
+                      <td className="py-3 px-3 sticky left-0 bg-zinc-900 font-semibold text-blue-500">{idx + 1}</td>
+                      <td className="py-3 px-3 sticky left-[40px] bg-zinc-900">
+                        <div className="flex items-center gap-2">
+                          {team.logo && (
+                            <img src={team.logo} alt={team.team} className="w-6 h-6" />
+                          )}
+                          <span className="font-semibold">{team.team}</span>
+                        </div>
+                      </td>
+                      <td className="text-center py-3 px-3 text-gray-300">{team.gb}</td>
+                      <td className="text-center py-3 px-3 font-semibold">{team.wins}-{team.losses}</td>
+                      <td className="text-center py-3 px-3">{team.pct}</td>
+                      <td className="text-center py-3 px-3">{team.l10}</td>
+                      <td className="text-center py-3 px-3">
+                        <span className={team.streak.startsWith('W') ? 'text-green-500' : 'text-red-500'}>
+                          {team.streak}
+                        </span>
+                      </td>
+                      <td className="text-center py-3 px-3">{team.home}</td>
+                      <td className="text-center py-3 px-3">{team.away}</td>
+                      <td className="text-center py-3 px-3">{team.ppg}</td>
+                      <td className="text-center py-3 px-3">{team.oppg}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
 {selectedGame && (
   <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
