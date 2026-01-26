@@ -1441,10 +1441,10 @@ const statsToCompare = [
           { name: 'steals', label: 'Steals', format: 'number' },
           { name: 'fouls', label: 'Personal fouls', format: 'number', inverse: true },
           { name: 'largestLead', label: 'Largest lead', format: 'number' },
-          { name: 'leadChanges', label: 'Lead changes', format: 'number' },
           { name: 'leadPercentage', label: 'Time leading', format: 'percentage' },
           { type: 'efficiency', label: 'Offensive Efficiency' },
-          { type: 'defEfficiency', label: 'Defensive Efficiency' }
+          { type: 'defEfficiency', label: 'Defensive Efficiency' },
+          { name: 'leadChanges', label: 'Lead changes', format: 'number' }
         ];
 
         return statsToCompare.map((statDef, idx) => {
