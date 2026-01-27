@@ -75,6 +75,39 @@ export default function SportsApp() {
     'UTAH': 'Utah Jazz',
     'WSH': 'Washington Wizards'
   };
+
+  const teamColors = {
+    'ATL': '#E03A3E',
+    'BOS': '#007A33',
+    'BKN': '#000000',
+    'CHA': '#1D1160',
+    'CHI': '#CE1141',
+    'CLE': '#860038',
+    'DAL': '#00538C',
+    'DEN': '#0E2240',
+    'DET': '#C8102E',
+    'GS': '#1D428A',
+    'HOU': '#CE1141',
+    'IND': '#002D62',
+    'LAC': '#C8102E',
+    'LAL': '#552583',
+    'MEM': '#5D76A9',
+    'MIA': '#98002E',
+    'MIL': '#00471B',
+    'MIN': '#0C2340',
+    'NO': '#0C2340',
+    'NY': '#006BB6',
+    'OKC': '#007AC1',
+    'ORL': '#0077C0',
+    'PHI': '#006BB6',
+    'PHX': '#1D1160',
+    'POR': '#E03A3E',
+    'SAC': '#5A2D81',
+    'SA': '#C4CED4',
+    'TOR': '#CE1141',
+    'UTAH': '#002B5C',
+    'WSH': '#002B5C'
+  };
   
   // Add this line RIGHT BEFORE your useEffects
   const hasFetchedOdds = React.useRef(false);
@@ -183,6 +216,11 @@ useEffect(() => {
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
   try {
+
+// CLEAR OLD CACHE
+localStorage.removeItem('bettingOdds');
+localStorage.removeItem('lastOddsFetch');
+
     // Check if we fetched recently (within last 60 seconds)
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
@@ -203,6 +241,17 @@ const fetchBettingOdds = async () => {
     }
     
     const lines = await linesResponse.json();
+
+// ADD THESE LINES HERE:
+console.log('=== DEBUGGING TOTALS ===');
+if (lines.length > 0) {
+  console.log('First line example:', lines[0]);
+  console.log('Does it have total?', lines[0].total);
+  console.log('Does it have totals?', lines[0].totals);
+  console.log('Full line object keys:', Object.keys(lines[0]));
+}
+
+console.log('Lines data:', lines);
     
     console.log('Lines data:', lines);
     
@@ -222,31 +271,43 @@ const yesterdayStr = yesterday.toDateString();
 const todayStr = today.toDateString();
 const tomorrowStr = tomorrow.toDateString();
     
-    // Filter for NBA games only and process
-    lines.forEach(line => {
-      if (line.event?.league?.key === 'basketball_nba' && line.spread?.home?.point) {
-        const gameDate = new Date(line.event.commence_time);
-        const gameDateStr = gameDate.toDateString();
+   // Filter for NBA games only and process
+lines.forEach(line => {
+  if (line.event?.league?.key === 'basketball_nba' && line.spread?.home) {
+    console.log('NBA Game found:', line.event.away_team, '@', line.event.home_team, 'Total:', line.total?.number);
+    const gameDate = new Date(line.event.commence_time);
+    const gameDateStr = gameDate.toDateString();
         
         console.log(`API Game: ${line.event.away_team} @ ${line.event.home_team} on ${gameDateStr}`);
 
         // Only include today's and tomorrow's games
         // Include yesterday's, today's, and tomorrow's games
 if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === tomorrowStr) {
-          const homeAbbr = getTeamAbbreviation(line.event.home_team);
-          const awayAbbr = getTeamAbbreviation(line.event.away_team);
-          
-          const gameKey = `${awayAbbr}-${homeAbbr}`;
-          const homeSpread = parseFloat(line.spread.home.point);
+  const homeAbbr = getTeamAbbreviation(line.event.home_team);
+  const awayAbbr = getTeamAbbreviation(line.event.away_team);
+  
+  console.log('Spread structure:', line.spread);
+  console.log('Spread home:', line.spread.home);
+  console.log('Spread away:', line.spread.away);
+  
+  const gameKey = `${awayAbbr}-${homeAbbr}`;
+  const homeSpread = parseFloat(line.spread.home.point);
           const spread = Math.abs(homeSpread);
           const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
           
+          console.log('About to store odds for', gameKey);
+          console.log('line.total:', line.total);
+          console.log('line.total?.number:', line.total?.number);
+
           oddsMap[gameKey] = {
             favoriteTeam,
             spread,
             homeSpread,
-            awaySpread: parseFloat(line.spread.away.point)
+            awaySpread: parseFloat(line.spread.away.point),
+            total: line.total?.number ? parseFloat(line.total.number) : null
           };
+          console.log('Created odds for', gameKey, ':', oddsMap[gameKey]);
+
         }
       }
     });
@@ -498,25 +559,21 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       const eastern = [];
       const western = [];
       
-      // Process standings data
       data.children.forEach(conference => {
         const isEastern = conference.name === 'Eastern Conference';
         const targetArray = isEastern ? eastern : western;
         
-        conference.standings.entries.forEach(entry => {
+        conference.standings.entries.forEach((entry, index) => {
           const team = entry.team;
           const stats = entry.stats;
-
-          console.log('Available stats:', stats.map(s => s.name)); 
           
-          // Helper to find stat by name
           const getStat = (name) => {
             const stat = stats.find(s => s.name === name);
             return stat ? stat.displayValue : '-';
           };
           
           targetArray.push({
-            rank: getStat('rank'),
+            rank: conference.standings.entries.length - index, // Reverse the rank
             team: team.abbreviation,
             logo: team.logos?.[0]?.href,
             gb: getStat('gamesBehind'),
@@ -533,11 +590,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         });
       });
       
-     // Sort teams by rank (best to worst)
-     eastern.sort((a, b) => parseInt(b.wins) - parseInt(a.wins));
-     western.sort((a, b) => parseInt(b.wins) - parseInt(a.wins));
-
-setStandings({ eastern, western });
+      // Sort by rank (ascending)
+      eastern.sort((a, b) => a.rank - b.rank);
+      western.sort((a, b) => a.rank - b.rank);
+      
+      setStandings({ eastern, western });
     } catch (error) {
       console.error('Error fetching standings:', error);
     }
@@ -796,123 +853,127 @@ const recentGames = scheduleData.events
 <div className="px-4 mt-0 pb-8">
   
 
-  <div className="space-y-3">
-    {loading ? (
-      <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-        Loading games...
-      </div>
-    ) : liveGames.length === 0 ? (
-      <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-        No live games right now
-      </div>
+  <div className="grid grid-cols-2 gap-3">
+  {loading ? (
+  <div className="col-span-2 bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+    Loading games...
+  </div>
+) : liveGames.length === 0 ? (
+  <div className="col-span-2 bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+    No live games right now
+  </div>
     ) : (
       liveGames.map(game => (
         <div 
           key={game.id} 
-          className="bg-zinc-900 rounded-2xl p-4 cursor-pointer hover:bg-zinc-800 transition-colors"
+          className="bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors"
           onClick={() => handleGameClick(game)}
         >
-{/* AWAY TEAM ROW */}
-<div className="flex items-center gap-3 mb-1">
-  {/* Away Team */}
-  <div className="flex items-center gap-3 relative">
-    {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
-      <span className="text-white text-xs absolute -left-3">▶</span>
-    )}
-    <img src={game.awayLogo} alt={game.awayTeam} className="w-10 h-10" />
-    <div className="flex flex-col">
-      <span className="font-semibold">{game.awayTeam}</span>
-      {game.awayRecord && (
-        <span className="text-xs text-gray-400">{game.awayRecord}</span>
-      )}
-    </div>
-  </div>
-
-  {/* TIME/LIVE/STATUS - Right next to away team */}
-  <div className="flex flex-col items-start text-left">
-    {game.isLive && (
-      <>
-        <div className="text-red-500 text-xs font-semibold">LIVE</div>
-        <div className="text-xs text-gray-400 whitespace-nowrap">
-          {game.clock === '0.0' || game.clock === '0:00' 
-            ? (game.period === 2 ? 'Half' : `End Q${game.period}`)
-            : `${game.period}Q • ${game.clock}`}
-        </div>
-      </>
-    )}
-    {game.isPreGame && (
-      <div className="text-xs text-gray-400">{formatGameTime(game.gameTime)}</div>
-    )}
-    {game.isFinal && (
-      <div className="text-xs font-semibold text-gray-300">FINAL</div>
-    )}
-  </div>
-
-  {/* Away Score - pushed to right */}
-  <span className={`text-2xl font-bold ml-auto ${
-    !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
-      ? 'text-white' 
-      : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
-      ? 'text-gray-500'
-      : 'text-white'
-  }`}>
-    {game.awayScore}
-  </span>
-</div>
-
-{/* HOME TEAM ROW */}
-<div className="flex items-center gap-3">
-  {/* Home Team */}
-  <div className="flex items-center gap-3 relative">
-    {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
-      <span className="text-white text-xs absolute -left-3">▶</span>
-    )}
-    <img src={game.homeLogo} alt={game.homeTeam} className="w-10 h-10" />
-    <div className="flex flex-col">
-      <span className="font-semibold">{game.homeTeam}</span>
-      {game.homeRecord && (
-        <span className="text-xs text-gray-400">{game.homeRecord}</span>
-      )}
-    </div>
-  </div>
-
-  {/* BETTING ODDS - Right next to home team */}
-  {(() => {
-    const gameKey = `${game.awayTeam}-${game.homeTeam}`;
-    const odds = bettingOdds[gameKey];
-    
-    if (odds && odds.spread) {
-      const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam);
-      const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam);
+          <div className="flex flex-col">
+            {/* TOP: Status/Time - Left aligned above teams */}
+            <div className="mb-2">
+              {game.isLive && (
+                <div className="flex items-center gap-2">
+                  <span className="text-red-500 text-xs font-semibold">LIVE</span>
+                  <span className="text-gray-400 text-xs">
+                    {game.clock === '0.0' || game.clock === '0:00' 
+                      ? (game.period === 2 ? 'Half' : `End Q${game.period}`)
+                      : game.period === 4 ? `${game.clock}` : `${game.period}Q`}
+                  </span>
+                </div>
+              )}
+              {game.isPreGame && (
+                <div className="text-gray-400 text-xs">{formatGameTime(game.gameTime)}</div>
+              )}
+              {game.isFinal && (
+                <div className="text-gray-300 text-xs font-semibold">FINAL</div>
+              )}
+            </div>
       
-      return (
-        <div className="text-xs text-left leading-tight">
-          <div className="text-orange-400">
-            {odds.favoriteTeam} by {odds.spread}
-          </div>
-          <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-            {game.awayTeam} {awayProb}%
-          </div>
-          <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-            {game.homeTeam} {homeProb}%
-          </div>
+            {/* MIDDLE: Teams + Scores in rows */}
+            <div className="space-y-1 mb-3">
+              {/* Away Team Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
+                    <span className="text-white text-xs">▶</span>
+                  )}
+                  <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm">{game.awayTeam}</span>
+                    {game.awayRecord && (
+                      <span className="text-xs text-gray-400">{game.awayRecord}</span>
+                    )}
+                  </div>
+                </div>
+                <span className={`text-3xl font-bold ${
+                  !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
+                    ? 'text-white' 
+                    : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
+                    ? 'text-gray-500'
+                    : 'text-white'
+                }`}>
+                  {game.awayScore}
+                </span>
+              </div>
+      
+              {/* Home Team Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
+                    <span className="text-white text-xs">▶</span>
+                  )}
+                  <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm">{game.homeTeam}</span>
+                    {game.homeRecord && (
+                      <span className="text-xs text-gray-400">{game.homeRecord}</span>
+                    )}
+                  </div>
+                </div>
+                <span className={`text-3xl font-bold ${
+                  !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
+                    ? 'text-white' 
+                    : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
+                    ? 'text-gray-500'
+                    : 'text-white'
+                }`}>
+                  {game.homeScore}
+                </span>
+              </div>
+            </div>
+      
+            {/* BOTTOM: Betting Odds - Below teams */}
+{(() => {
+  const gameKey = `${game.awayTeam}-${game.homeTeam}`;
+  const odds = bettingOdds[gameKey];
+  
+  if (odds && odds.spread) {
+    console.log('Game:', game.awayTeam, '@', game.homeTeam, 'Odds object:', odds);
+    
+    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam, game);
+    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam, game);
+    
+    return (
+      <div className="flex items-start justify-between text-xs pt-2 border-t border-zinc-800">
+        <div className="flex flex-col text-orange-400">
+          <span>{odds.favoriteTeam} by {odds.spread}</span>
+          {odds.total && <span>o{odds.total}</span>}
         </div>
-      );
-    }
-    return null;
-  })()}
-
-  {/* Home Score - pushed to right */}
-  <span className={`text-2xl font-bold ml-auto ${
-    !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
-      ? 'text-white' 
-      : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
-      ? 'text-gray-500'
-      : 'text-white'
-  }`}>
-    {game.homeScore}
-  </span>
-</div>
+        <div className="flex flex-col items-end">
+          <span className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+            {game.awayTeam} {awayProb}%
+          </span>
+          <span className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+            {game.homeTeam} {homeProb}%
+          </span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+})()}
+          </div>
         </div>
       ))
     )}
@@ -1142,33 +1203,38 @@ const recentGames = scheduleData.events
     : `${selectedGame.period}Q • ${selectedGame.clock}`}
 </div>
       
-      {/* BETTING ODDS FOR LIVE GAMES */}
-      {(() => {
-        const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-        const odds = bettingOdds[gameKey];
-        
-        if (odds && odds.spread) {
-          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
-          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
-          
-          return (
-            <div className="mt-2">
-              <div className="text-xs text-orange-400">
-                {odds.favoriteTeam} by {odds.spread}
-              </div>
-              <div className="text-xs mt-1">
-                <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-                  {selectedGame.awayTeam} {awayProb}%
-                </div>
-                <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-                  {selectedGame.homeTeam} {homeProb}%
-                </div>
-              </div>
-            </div>
-          );
-        }
-        return null;
-      })()}
+     {/* Betting Odds FOR LIVE GAMES */}
+{(() => {
+  const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+  const odds = bettingOdds[gameKey];
+  
+  if (odds && odds.spread) {
+    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame);
+    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame);
+    
+    return (
+      <div className="mt-2">
+        <div className="text-xs text-orange-400">
+          {odds.favoriteTeam} by {odds.spread}
+        </div>
+        {odds.total && (
+          <div className="text-xs text-orange-400">
+            o{odds.total}
+          </div>
+        )}
+        <div className="text-xs mt-1">
+          <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+            {selectedGame.awayTeam} {awayProb}%
+          </div>
+          <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+            {selectedGame.homeTeam} {homeProb}%
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+})()}
     </div>
   )}
   
@@ -1188,6 +1254,11 @@ const recentGames = scheduleData.events
               <div className="text-xs text-orange-400">
                 {odds.favoriteTeam} by {odds.spread}
               </div>
+              {odds.total && (
+                <div className="text-xs text-orange-400">
+                  o{odds.total}
+                </div>
+              )}
               <div className="text-xs mt-1">
                 <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
                   {selectedGame.awayTeam} {awayProb}%
@@ -1475,15 +1546,19 @@ const statsToCompare = [
                   </span>
                 </div>
                 <div className="flex h-2 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-yellow-600" 
-                    style={{ width: `${awayBarPercent}%` }}
-                  />
-                  <div 
-                    className="bg-blue-900" 
-                    style={{ width: `${homeBarPercent}%` }}
-                  />
-                </div>
+  <div 
+    style={{ 
+      width: `${awayBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+    }}
+  />
+  <div 
+    style={{ 
+      width: `${homeBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.homeTeam] || '#1E3A8A'
+    }}
+  />
+</div>
               </div>
         );
       } else if (statDef.type === 'defEfficiency') {
@@ -1510,15 +1585,19 @@ const statsToCompare = [
               </span>
             </div>
             <div className="flex h-2 rounded-full overflow-hidden">
-              <div 
-                className="bg-yellow-600" 
-                style={{ width: `${awayBarPercent}%` }}
-              />
-              <div 
-                className="bg-blue-900" 
-                style={{ width: `${homeBarPercent}%` }}
-              />
-            </div>
+  <div 
+    style={{ 
+      width: `${awayBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+    }}
+  />
+  <div 
+    style={{ 
+      width: `${homeBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.homeTeam] || '#1E3A8A'
+    }}
+  />
+</div>
           </div>
         );
       } else if (statDef.type === 'shooting') {
@@ -1549,15 +1628,19 @@ const statsToCompare = [
                       </span>
                     </div>
                     <div className="flex h-2 rounded-full overflow-hidden">
-                      <div 
-                        className="bg-yellow-600" 
-                        style={{ width: `${awayBarPercent}%` }}
-                      />
-                      <div 
-                        className="bg-blue-900" 
-                        style={{ width: `${homeBarPercent}%` }}
-                      />
-                    </div>
+  <div 
+    style={{ 
+      width: `${awayBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+    }}
+  />
+  <div 
+    style={{ 
+      width: `${homeBarPercent}%`,
+      backgroundColor: teamColors[selectedGame.homeTeam] || '#1E3A8A'
+    }}
+  />
+</div>
                   </div>
                 );
               } else {
@@ -1581,15 +1664,19 @@ const statsToCompare = [
                       <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
                         {statDef.format === 'percentage' ? `${homeValue.toFixed(0)}%` : homeValue}
                       </span>
-                    </div>
+                      </div>
                     <div className="flex h-2 rounded-full overflow-hidden">
                       <div 
-                        className="bg-yellow-600" 
-                        style={{ width: `${awayPercent}%` }}
+                        style={{ 
+                          width: `${awayPercent}%`,
+                          backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+                        }}
                       />
                       <div 
-                        className="bg-blue-900" 
-                        style={{ width: `${homePercent}%` }}
+                        style={{ 
+                          width: `${homePercent}%`,
+                          backgroundColor: teamColors[selectedGame.homeTeam] || '#1E3A8A'
+                        }}
                       />
                     </div>
                   </div>
