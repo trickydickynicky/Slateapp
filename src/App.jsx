@@ -216,11 +216,6 @@ useEffect(() => {
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
   try {
-
-// CLEAR OLD CACHE
-localStorage.removeItem('bettingOdds');
-localStorage.removeItem('lastOddsFetch');
-
     // Check if we fetched recently (within last 60 seconds)
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
