@@ -872,16 +872,16 @@ const recentGames = scheduleData.events
           <div className="flex flex-col">
             {/* TOP: Status/Time - Left aligned above teams */}
             <div className="mb-2">
-              {game.isLive && (
-                <div className="flex items-center gap-2">
-                  <span className="text-red-500 text-xs font-semibold">LIVE</span>
-                  <span className="text-gray-400 text-xs">
-                    {game.clock === '0.0' || game.clock === '0:00' 
-                      ? (game.period === 2 ? 'Half' : `End Q${game.period}`)
-                      : game.period === 4 ? `${game.clock}` : `${game.period}Q`}
-                  </span>
-                </div>
-              )}
+            {game.isLive && (
+  <div className="flex items-center gap-2">
+    <span className="text-red-500 text-xs font-semibold">LIVE</span>
+    <span className="text-gray-400 text-xs">
+      {game.clock === '0.0' || game.clock === '0:00' 
+        ? (game.period === 2 ? 'Half' : `End Q${game.period}`)
+        : `${game.period}Q ${game.clock}`}
+    </span>
+  </div>
+)}
               {game.isPreGame && (
                 <div className="text-gray-400 text-xs">{formatGameTime(game.gameTime)}</div>
               )}
@@ -892,13 +892,13 @@ const recentGames = scheduleData.events
       
             {/* MIDDLE: Teams + Scores in rows */}
             <div className="space-y-1 mb-3">
-              {/* Away Team Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {!game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) && (
-                    <span className="text-white text-xs">▶</span>
-                  )}
-                  <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
+            {/* Away Team Row */}
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-2">
+    {game.isFinal && parseInt(game.awayScore) > parseInt(game.homeScore) && (
+      <span className="text-blue-500 text-lg font-thin">|</span>
+    )}
+    <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
                     <span className="font-semibold text-sm">{game.awayTeam}</span>
                     {game.awayRecord && (
@@ -918,12 +918,12 @@ const recentGames = scheduleData.events
               </div>
       
               {/* Home Team Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {!game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) && (
-                    <span className="text-white text-xs">▶</span>
-                  )}
-                  <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-2">
+    {game.isFinal && parseInt(game.homeScore) > parseInt(game.awayScore) && (
+      <span className="text-blue-500 text-lg font-thin">|</span>
+    )}
+    <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
                     <span className="font-semibold text-sm">{game.homeTeam}</span>
                     {game.homeRecord && (
@@ -1687,12 +1687,12 @@ const statsToCompare = [
         </div>
       </div>
    ) : selectedTeam === 'game' && selectedGame.isPreGame ? (
-    <div className="grid grid-cols-2 gap-4">
-      {/* Away Team Injuries - LEFT */}
-      <div className="bg-zinc-900 rounded-2xl p-4">
-        <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-6 h-6" />
-          {selectedGame.awayTeam}
+    <div className="space-y-3">
+      {/* Away Team Injuries */}
+      <div className="bg-zinc-900 rounded-2xl p-3">
+        <h3 className="text-base font-bold mb-2 flex items-center gap-2">
+          <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-5 h-5" />
+          {selectedGame.awayTeam} Injuries
         </h3>
         {(() => {
           const awayInjuries = gameDetails?.injuries?.find(
@@ -1700,25 +1700,31 @@ const statsToCompare = [
           );
           
           if (!awayInjuries || awayInjuries.injuries.length === 0) {
-            return <div className="text-gray-400 text-sm">No injuries</div>;
+            return <div className="text-gray-400 text-xs">No injuries reported</div>;
           }
           
           return (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {awayInjuries.injuries.map((inj, idx) => (
-                <div key={idx} className="flex items-center gap-2 pb-2 border-b border-zinc-800 last:border-0">
-                  {inj.athlete.headshot && (
-                    <img 
+                <div key={idx} className="flex justify-between items-center py-1.5 border-b border-zinc-800 last:border-0">
+                  <div className="flex items-center gap-2">
+                    {inj.athlete.headshot && (
+                      <img 
                       src={inj.athlete.headshot.href} 
                       alt={inj.athlete.displayName}
-                      className="w-8 h-8 rounded-full"
+                      className="w-8 h-8 rounded-full object-cover"
                     />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm">{inj.athlete.displayName}</div>
-                    <div className="text-xs text-gray-400">
-                      {inj.athlete.position?.abbreviation || 'N/A'} • <span className="text-red-500">{inj.status}</span> - {inj.details?.type || 'Injury'}
+                    )}
+                    <div>
+                      <div className="font-semibold text-xs">{inj.athlete.displayName}</div>
+                      <div className="text-xs text-gray-400">
+                        {inj.athlete.position?.abbreviation || 'N/A'}
+                      </div>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-red-500 text-xs font-semibold">{inj.status}</div>
+                    <div className="text-xs text-gray-400">{inj.details?.type || 'Injury'}</div>
                   </div>
                 </div>
               ))}
@@ -1727,11 +1733,11 @@ const statsToCompare = [
         })()}
       </div>
   
-      {/* Home Team Injuries - RIGHT */}
-      <div className="bg-zinc-900 rounded-2xl p-4">
-        <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-          <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-6 h-6" />
-          {selectedGame.homeTeam}
+      {/* Home Team Injuries */}
+      <div className="bg-zinc-900 rounded-2xl p-3">
+        <h3 className="text-base font-bold mb-2 flex items-center gap-2">
+          <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-5 h-5" />
+          {selectedGame.homeTeam} Injuries
         </h3>
         {(() => {
           const homeInjuries = gameDetails?.injuries?.find(
@@ -1739,25 +1745,31 @@ const statsToCompare = [
           );
           
           if (!homeInjuries || homeInjuries.injuries.length === 0) {
-            return <div className="text-gray-400 text-sm">No injuries</div>;
+            return <div className="text-gray-400 text-xs">No injuries reported</div>;
           }
           
           return (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {homeInjuries.injuries.map((inj, idx) => (
-                <div key={idx} className="flex items-center gap-2 pb-2 border-b border-zinc-800 last:border-0">
-                  {inj.athlete.headshot && (
+                <div key={idx} className="flex justify-between items-center py-1.5 border-b border-zinc-800 last:border-0">
+                  <div className="flex items-center gap-2">
+                    {inj.athlete.headshot && (
                     <img 
-                      src={inj.athlete.headshot.href} 
-                      alt={inj.athlete.displayName}
-                      className="w-8 h-8 rounded-full"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-semibold text-sm">{inj.athlete.displayName}</div>
-                    <div className="text-xs text-gray-400">
-                      {inj.athlete.position?.abbreviation || 'N/A'} • <span className="text-red-500">{inj.status}</span> - {inj.details?.type || 'Injury'}
+                    src={inj.athlete.headshot.href} 
+                    alt={inj.athlete.displayName}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                    )}
+                    <div>
+                      <div className="font-semibold text-xs">{inj.athlete.displayName}</div>
+                      <div className="text-xs text-gray-400">
+                        {inj.athlete.position?.abbreviation || 'N/A'}
+                      </div>
                     </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-red-500 text-xs font-semibold">{inj.status}</div>
+                    <div className="text-xs text-gray-400">{inj.details?.type || 'Injury'}</div>
                   </div>
                 </div>
               ))}
@@ -1766,7 +1778,6 @@ const statsToCompare = [
         })()}
       </div>
     </div>
- 
     ) : selectedGame.isPreGame ? (
       <div>
       <div className="bg-zinc-900 rounded-2xl p-4">
