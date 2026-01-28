@@ -893,12 +893,13 @@ const recentGames = scheduleData.events
             {/* MIDDLE: Teams + Scores in rows */}
             <div className="space-y-1 mb-3">
             {/* Away Team Row */}
-<div className="flex items-center justify-between">
-  <div className="flex items-center gap-2">
-    {game.isFinal && parseInt(game.awayScore) > parseInt(game.homeScore) && (
-      <span className="text-blue-500 text-lg font-thin">|</span>
-    )}
-    <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
+<div className={`flex items-center justify-between ${
+  game.isFinal && parseInt(game.awayScore) > parseInt(game.homeScore) 
+    ? 'border-l-2 border-blue-500 -ml-3 pl-3' 
+    : ''
+}`}>
+ <div className="flex items-center gap-2">
+ <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
                     <span className="font-semibold text-sm">{game.awayTeam}</span>
                     {game.awayRecord && (
@@ -917,13 +918,14 @@ const recentGames = scheduleData.events
                 </span>
               </div>
       
-              {/* Home Team Row */}
-<div className="flex items-center justify-between">
-  <div className="flex items-center gap-2">
-    {game.isFinal && parseInt(game.homeScore) > parseInt(game.awayScore) && (
-      <span className="text-blue-500 text-lg font-thin">|</span>
-    )}
-    <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
+            {/* Home Team Row */}
+<div className={`flex items-center justify-between ${
+  game.isFinal && parseInt(game.homeScore) > parseInt(game.awayScore) 
+    ? 'border-l-2 border-blue-500 -ml-3 pl-3' 
+    : ''
+}`}>
+<div className="flex items-center gap-2">
+<img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
                     <span className="font-semibold text-sm">{game.homeTeam}</span>
                     {game.homeRecord && (
