@@ -1947,118 +1947,133 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     </div>
                 ) : (
                   <div>
-                    <div className="bg-zinc-900 rounded-2xl p-4">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-gray-400 border-b border-zinc-800">
-                              <th className="text-left py-2 sticky left-0 bg-zinc-900">Player</th>
-                              <th className="text-center py-2 px-2">MIN</th>
-                              <th className="text-center py-2 px-2">PTS</th>
-                              <th className="text-center py-2 px-2">REB</th>
-                              <th className="text-center py-2 px-2">AST</th>
-                              <th className="text-center py-2 px-2">STL</th>
-                              <th className="text-center py-2 px-2">BLK</th>
-                              <th className="text-center py-2 px-2">+/-</th>
-                              <th className="text-center py-2 px-2">FG</th>
-                              <th className="text-center py-2 px-2">3PT</th>
-                              <th className="text-center py-2 px-2">FT</th>
-                              <th className="text-center py-2 px-2">TO</th>
-                              <th className="text-center py-2 px-2">PF</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              // Get players from boxscore
-                              const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
-                              
-                              // Get the current team abbreviation
-                              const currentTeamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
-                              
-                              // Find the injury data for this specific team
-                              const teamInjuryData = gameDetails.injuries?.find(
-                                injData => injData.team?.abbreviation === currentTeamAbbr
-                              );
-                              
-                              // Create a Set of player IDs in the boxscore
-                              const boxscorePlayerIds = new Set(boxscorePlayers.map(p => p.athlete.id));
-                              
-                              // Add injured players who aren't in the boxscore
-                              const injuredOnlyPlayers = teamInjuryData?.injuries
-                                ?.filter(inj => !boxscorePlayerIds.has(inj.athlete.id))
-                                .map(inj => ({
-                                  athlete: {
-                                    id: inj.athlete.id,
-                                    shortName: inj.athlete.shortName,
-                                    headshot: inj.athlete.headshot
-                                  },
-                                  stats: null,
-                                  isInjuredOnly: true,
-                                  injury: inj
-                                })) || [];
-                              
-                              // Combine boxscore players with injured-only players
-                              const allPlayers = [...boxscorePlayers, ...injuredOnlyPlayers];
-                              
-                              // Sort by minutes played (injured players at bottom)
-                              return allPlayers
-                                .sort((a, b) => {
-                                  if (a.isInjuredOnly) return 1;
-                                  if (b.isInjuredOnly) return -1;
-                                  const aMinutes = parseFloat(a.stats?.[0]) || 0;
-                                  const bMinutes = parseFloat(b.stats?.[0]) || 0;
-                                  return bMinutes - aMinutes;
-                                })
-                                .map((player, idx) => {
-                                  // Find injury for this player
-                                  const playerInjury = teamInjuryData?.injuries?.find(
-                                    inj => inj.athlete.id === player.athlete.id
-                                  );
-                                  
-                                  return (
-                                    <tr key={idx} className="border-b border-zinc-800 last:border-0">
-                                      <td className="py-2 sticky left-0 bg-zinc-900">
-                                        <div className="flex items-center gap-2">
-                                          {player.athlete.headshot && (
-                                            <img 
-                                              src={player.athlete.headshot.href} 
-                                              alt={player.athlete.shortName}
-                                              className="w-8 h-8 rounded-full object-cover"
-                                            />
-                                          )}
-                                          <div className="flex flex-col">
-                                            <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
-                                              {player.athlete.shortName}
-                                            </span>
-                                            {playerInjury && (
-                                              <span className="text-xs text-red-500">
-                                                {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td className="text-center px-2">{player.stats?.[0] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[1] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[5] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[6] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[8] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[9] || '-'}</td>
-                                      <td className={`text-center px-2 ${
-                                        player.stats?.[13] && player.stats[13] !== '-' 
-                                          ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-                                          : ''
-                                      }`}>{player.stats?.[13] || '-'}</td>
-                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-                                      <td className="text-center px-2 whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[7] || '-'}</td>
-                                      <td className="text-center px-2">{player.stats?.[12] || '-'}</td>
-                                    </tr>
-                                  );
-                                });
-                            })()}
-                          </tbody>
+  <div className="bg-zinc-900 rounded-2xl p-4 pr-0">
+  <div className="overflow-x-auto -ml-4">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="text-gray-400 border-b border-zinc-800">
+        <th className="text-left py-2 sticky left-0 bg-zinc-900">
+  <img 
+    src={selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo} 
+    alt={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
+    className="w-6 h-6 ml-1"
+  />
+</th>
+          <th className="text-center py-2 px-2">MIN</th>
+          <th className="text-center py-2 px-2">PTS</th>
+          <th className="text-center py-2 px-2">REB</th>
+          <th className="text-center py-2 px-2">AST</th>
+          <th className="text-center py-2 px-2">STL</th>
+          <th className="text-center py-2 px-2">BLK</th>
+          <th className="text-center py-2 px-2">+/-</th>
+          <th className="text-center py-2 px-2">FG</th>
+          <th className="text-center py-2 px-2">3PT</th>
+          <th className="text-center py-2 px-2">FT</th>
+          <th className="text-center py-2 px-2">TO</th>
+          <th className="text-center py-2 px-2">PF</th>
+        </tr>
+      </thead>
+      <tbody>
+{(() => {
+    // Get players from boxscore
+    const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
+    
+    // Get the current team abbreviation
+    const currentTeamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+    
+    // Find the injury data for this specific team
+    const teamInjuryData = gameDetails.injuries?.find(
+      injData => injData.team?.abbreviation === currentTeamAbbr
+    );
+    
+    // Create a Set of player IDs in the boxscore
+    const boxscorePlayerIds = new Set(boxscorePlayers.map(p => p.athlete.id));
+    
+    // Add injured players who aren't in the boxscore
+    const injuredOnlyPlayers = teamInjuryData?.injuries
+      ?.filter(inj => !boxscorePlayerIds.has(inj.athlete.id))
+      .map(inj => ({
+        athlete: {
+          id: inj.athlete.id,
+          shortName: inj.athlete.shortName,
+          headshot: inj.athlete.headshot
+        },
+        stats: null,
+        isInjuredOnly: true,
+        injury: inj
+      })) || [];
+    
+    // Combine boxscore players with injured-only players
+    const allPlayers = [...boxscorePlayers, ...injuredOnlyPlayers];
+    
+    // Sort by minutes played (injured players at bottom)
+    return allPlayers
+      .sort((a, b) => {
+        if (a.isInjuredOnly) return 1;
+        if (b.isInjuredOnly) return -1;
+        const aMinutes = parseFloat(a.stats?.[0]) || 0;
+        const bMinutes = parseFloat(b.stats?.[0]) || 0;
+        return bMinutes - aMinutes;
+      })
+      .map((player, idx) => {
+    // Find injury for this player
+// Show injury if: (1) game is not final OR (2) player didn't play (isInjuredOnly)
+const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjuryData?.injuries?.find(
+  inj => inj.athlete.id === player.athlete.id
+) : null;
+        
+        return (
+          <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-16">
+            <td className="py-2 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0">
+  <div className="flex items-center gap-3 -ml-1">
+    {/* Square headshot */}
+    {player.athlete.headshot && (
+      <img 
+        src={player.athlete.headshot.href} 
+        alt={player.athlete.shortName}
+        className="w-12 h-12 rounded-md object-cover flex-shrink-0"
+      />
+    )}
+                {/* Floating name badge - positioned above the stats */}
+                <div className="absolute left-14 top-1 z-30">
+  <span className={`text-sm font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-white'}`}>
+    {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
+  </span>
+  {playerInjury && (
+    <div className="text-xs text-red-500 whitespace-nowrap">
+      {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+    </div>
+  )}
+</div>
+              </div>
+              </td>
+              {player.isInjuredOnly ? (
+  <td className="text-center px-2" colSpan="12"></td>
+) : (
+  <>
+    <td className="text-center px-2 font-semibold">{player.stats?.[0] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[1] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[5] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[6] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
+    <td className={`text-center px-2 font-semibold ${
+      player.stats?.[13] && player.stats[13] !== '-' 
+        ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
+        : ''
+    }`}>{player.stats?.[13] || '-'}</td>
+    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[2] || '-'}</td>
+    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[3] || '-'}</td>
+    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[4] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[7] || '-'}</td>
+    <td className="text-center px-2 font-semibold">{player.stats?.[12] || '-'}</td>
+  </>
+)}
+</tr>
+);
+});
+})()}
+</tbody>
                         </table>
                       </div>
                     </div>
