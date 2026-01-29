@@ -1444,34 +1444,33 @@ const recentGames = scheduleData.events
     </table>
   </div>
 )}
-             {/* Team Selection Tabs */}
-<div className="flex gap-2 mb-6">
-  <button
-    onClick={() => setSelectedTeam('away')}
-    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
-      selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-    }`}
-  >
-    {selectedGame.awayTeam}
-  </button>
-  <button
-    onClick={() => setSelectedTeam('game')}
-    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
-      selectedTeam === 'game' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-    }`}
-  >
+{/* Team Selection Tabs */}
+<div className="flex gap-2 mb-3">
+<button
+onClick={() => setSelectedTeam('away')}
+className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
+selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+}`}
+>
+{selectedGame.awayTeam}
+</button>
+<button
+onClick={() => setSelectedTeam('game')}
+className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
+selectedTeam === 'game' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+}`}
+>
     Game
-  </button>
-  <button
-    onClick={() => setSelectedTeam('home')}
-    className={`flex-1 py-3 rounded-xl font-bold text-lg transition-colors ${
-      selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-    }`}
-  >
-    {selectedGame.homeTeam}
-  </button>
+</button>
+<button
+onClick={() => setSelectedTeam('home')}
+className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
+selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+}`}
+>
+{selectedGame.homeTeam}
+</button>
 </div>
-
               
 
 {loadingDetails ? (
