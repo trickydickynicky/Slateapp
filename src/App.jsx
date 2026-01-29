@@ -1952,7 +1952,7 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     <table className="w-full text-sm">
       <thead>
         <tr className="text-gray-400 border-b border-zinc-800">
-        <th className="text-left py-2 sticky left-0 bg-zinc-900">
+        <th className="text-left py-2 sticky left-0 bg-zinc-900 min-w-[80px]">
   <img 
     src={selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo} 
     alt={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
@@ -2024,7 +2024,7 @@ const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjur
         
         return (
           <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-16">
-            <td className="py-2 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0">
+        <td className="py-2 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 min-w-[80px]">
   <div className="flex items-center gap-3 -ml-1">
     {/* Square headshot */}
     {player.athlete.headshot && (
