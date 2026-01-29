@@ -1380,7 +1380,8 @@ const recentGames = scheduleData.events
 
 {/* Quarter-by-Quarter Breakdown */}
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
-  <div className="bg-zinc-900 rounded-2xl p-4 mb-6">
+  <div className="bg-transparent rounded-2xl p-4 mb-6">
+
     <table className="w-full text-center">
       <thead>
         <tr className="text-gray-400 text-sm">
