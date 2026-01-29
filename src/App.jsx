@@ -1952,11 +1952,11 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     <table className="w-full text-sm">
       <thead>
         <tr className="text-gray-400 border-b border-zinc-800">
-        <th className="text-left py-2 sticky left-0 bg-zinc-900 min-w-[60px]">
+        <th className="text-center py-2 sticky left-0 bg-zinc-900 w-14">
   <img 
     src={selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo} 
     alt={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
-    className="w-6 h-6 ml-1"
+    className="w-6 h-6 mx-auto"
   />
 </th>
           <th className="text-center py-2 px-2">MIN</th>
