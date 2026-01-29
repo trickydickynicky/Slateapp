@@ -519,9 +519,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       'MNMT': 'SN-LA',
       'KUNP 16': 'KUNP',
       'Altitude Sports': 'ALT',
-      'NBA League Pass': 'NBATV',
+      'NBA League Pass': 'NBALP',
       'Peacock': 'PEA',
-      'ALT2/KTVD': 'ALT2'
+      'ALT2/KTVD': 'ALT2',
+      'KJZZ-TV': 'KJZZ',
+      'Jazz+': 'JAZZ+'
     };
     
     // Check for exact match first
