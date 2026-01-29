@@ -2023,30 +2023,30 @@ const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjur
 ) : null;
         
         return (
-          <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-16">
-        <td className="py-2 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
-  <div className="flex items-center gap-0">
-    {/* Square headshot */}
-    {player.athlete.headshot && (
-      <img 
-        src={player.athlete.headshot.href} 
-        alt={player.athlete.shortName}
-        className="w-12 h-12 rounded-md object-cover flex-shrink-0"
-      />
-    )}
-                {/* Floating name badge - positioned above the stats */}
-                <div className="absolute left-14 top-1 z-30">
-  <span className={`text-sm font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-white'}`}>
-    {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
-  </span>
-  {playerInjury && (
-    <div className="text-xs text-red-500 whitespace-nowrap">
-      {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+          <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
+  <td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
+    <div className="flex items-center gap-0">
+      {/* Smaller square headshot */}
+      {player.athlete.headshot && (
+        <img 
+          src={player.athlete.headshot.href} 
+          alt={player.athlete.shortName}
+          className="w-10 h-10 rounded-md object-cover flex-shrink-0"
+        />
+      )}
+      {/* Floating name badge - positioned above the stats */}
+      <div className="absolute left-14 -top-1 z-30">
+        <span className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-white'}`}>
+          {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
+        </span>
+        {playerInjury && (
+          <div className="text-xs text-red-500 whitespace-nowrap">
+            {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+          </div>
+        )}
+      </div>
     </div>
-  )}
-</div>
-              </div>
-              </td>
+  </td>
               {player.isInjuredOnly ? (
   <td className="text-center px-2" colSpan="12"></td>
 ) : (
