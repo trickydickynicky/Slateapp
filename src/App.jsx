@@ -2039,7 +2039,7 @@ className="w-10 h-10 rounded-md object-cover flex-shrink-0"
 />
       )}
 {/* Floating name badge - positioned above the stats */}
-<div className="absolute left-14 -top-1 z-30">
+<div className="absolute left-14 -top-0.5 z-30">
 <span className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}>
 {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
 </span>
