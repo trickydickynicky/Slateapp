@@ -1963,14 +1963,15 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
           <th className="text-center py-2 px-2">PTS</th>
           <th className="text-center py-2 px-2">REB</th>
           <th className="text-center py-2 px-2">AST</th>
-          <th className="text-center py-2 px-2">STL</th>
-          <th className="text-center py-2 px-2">BLK</th>
+      
           <th className="text-center py-2 px-2">+/-</th>
           <th className="text-center py-2 px-2">FG</th>
           <th className="text-center py-2 px-2">FG%</th>
           <th className="text-center py-2 px-2">3PT</th>
 <th className="text-center py-2 px-2">3PT%</th>
 <th className="text-center py-2 px-2">FT</th>
+<th className="text-center py-2 px-2">STL</th>
+<th className="text-center py-2 px-2">BLK</th>
           <th className="text-center py-2 px-2">TO</th>
           <th className="text-center py-2 px-2">PF</th>
         </tr>
@@ -2050,15 +2051,13 @@ className="w-10 h-10 rounded-md object-cover flex-shrink-0"
 </div>
 </td>
 {player.isInjuredOnly ? (
-<td className="text-center px-2" colSpan="13"></td>
+<td className="text-center px-2" colSpan="15"></td>
 ) : (
 <>
 <td className="text-center px-2 font-semibold">{player.stats?.[0] || '-'}</td>
 <td className="text-center px-2 font-semibold">{player.stats?.[1] || '-'}</td>
 <td className="text-center px-2 font-semibold">{player.stats?.[5] || '-'}</td>
 <td className="text-center px-2 font-semibold">{player.stats?.[6] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
 <td className={`text-center px-2 font-semibold ${
 player.stats?.[13] && player.stats[13] !== '-' 
 ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
@@ -2070,7 +2069,7 @@ player.stats?.[13] && player.stats[13] !== '-'
 const fgStat = player.stats?.[2];
 if (!fgStat || fgStat === '-') return '-';
 const [made, attempted] = fgStat.split('-').map(n => parseFloat(n));
-if (!attempted || attempted === 0) return '-';
+if (!attempted || attempted === 0) return '0';
 const percentage = ((made / attempted) * 100);
 return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   })()}
@@ -2081,12 +2080,14 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
 const threePtStat = player.stats?.[3];
 if (!threePtStat || threePtStat === '-') return '-';
 const [made, attempted] = threePtStat.split('-').map(n => parseFloat(n));
-if (!attempted || attempted === 0) return '-';
+if (!attempted || attempted === 0) return '0';
 const percentage = ((made / attempted) * 100);
 return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   })()}
 </td>
 <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[4] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
 <td className="text-center px-2 font-semibold">{player.stats?.[7] || '-'}</td>
 <td className="text-center px-2 font-semibold">{player.stats?.[12] || '-'}</td>
 </>
