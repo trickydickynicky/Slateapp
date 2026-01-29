@@ -1967,8 +1967,10 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
           <th className="text-center py-2 px-2">BLK</th>
           <th className="text-center py-2 px-2">+/-</th>
           <th className="text-center py-2 px-2">FG</th>
+          <th className="text-center py-2 px-2">FG%</th>
           <th className="text-center py-2 px-2">3PT</th>
-          <th className="text-center py-2 px-2">FT</th>
+<th className="text-center py-2 px-2">3PT%</th>
+<th className="text-center py-2 px-2">FT</th>
           <th className="text-center py-2 px-2">TO</th>
           <th className="text-center py-2 px-2">PF</th>
         </tr>
@@ -2022,52 +2024,72 @@ const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjur
   inj => inj.athlete.id === player.athlete.id
 ) : null;
         
-        return (
-          <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
-  <td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
-    <div className="flex items-center gap-0">
-      {/* Smaller square headshot */}
-      {player.athlete.headshot && (
-        <img 
-          src={player.athlete.headshot.href} 
-          alt={player.athlete.shortName}
-          className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-        />
+return (
+  <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
+<td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
+<div className="flex items-center gap-0">
+{/* Smaller square headshot */}
+{player.athlete.headshot && (
+<img 
+src={player.athlete.headshot.href} 
+alt={player.athlete.shortName}
+className="w-10 h-10 rounded-md object-cover flex-shrink-0"
+/>
       )}
-      {/* Floating name badge - positioned above the stats */}
-      <div className="absolute left-14 -top-1 z-30">
-        <span className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-white'}`}>
-          {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
-        </span>
-        {playerInjury && (
-          <div className="text-xs text-red-500 whitespace-nowrap">
-            {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
-          </div>
+{/* Floating name badge - positioned above the stats */}
+<div className="absolute left-14 -top-1 z-30">
+<span className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-white'}`}>
+{player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
+</span>
+{playerInjury && (
+<div className="text-xs text-red-500 whitespace-nowrap">
+{playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+</div>
         )}
-      </div>
-    </div>
-  </td>
-              {player.isInjuredOnly ? (
-  <td className="text-center px-2" colSpan="12"></td>
+</div>
+</div>
+</td>
+{player.isInjuredOnly ? (
+<td className="text-center px-2" colSpan="13"></td>
 ) : (
-  <>
-    <td className="text-center px-2 font-semibold">{player.stats?.[0] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[1] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[5] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[6] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
-    <td className={`text-center px-2 font-semibold ${
-      player.stats?.[13] && player.stats[13] !== '-' 
-        ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-        : ''
-    }`}>{player.stats?.[13] || '-'}</td>
-    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-    <td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[7] || '-'}</td>
-    <td className="text-center px-2 font-semibold">{player.stats?.[12] || '-'}</td>
-  </>
+<>
+<td className="text-center px-2 font-semibold">{player.stats?.[0] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[1] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[5] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[6] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
+<td className={`text-center px-2 font-semibold ${
+player.stats?.[13] && player.stats[13] !== '-' 
+? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
+: ''
+}`}>{player.stats?.[13] || '-'}</td>
+<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[2] || '-'}</td>
+<td className="text-center px-2 font-semibold whitespace-nowrap">
+{(() => {
+const fgStat = player.stats?.[2];
+if (!fgStat || fgStat === '-') return '-';
+const [made, attempted] = fgStat.split('-').map(n => parseFloat(n));
+if (!attempted || attempted === 0) return '-';
+const percentage = ((made / attempted) * 100);
+return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
+  })()}
+</td>
+<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[3] || '-'}</td>
+<td className="text-center px-2 font-semibold whitespace-nowrap">
+{(() => {
+const threePtStat = player.stats?.[3];
+if (!threePtStat || threePtStat === '-') return '-';
+const [made, attempted] = threePtStat.split('-').map(n => parseFloat(n));
+if (!attempted || attempted === 0) return '-';
+const percentage = ((made / attempted) * 100);
+return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
+  })()}
+</td>
+<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[4] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[7] || '-'}</td>
+<td className="text-center px-2 font-semibold">{player.stats?.[12] || '-'}</td>
+</>
 )}
 </tr>
 );
