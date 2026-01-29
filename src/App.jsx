@@ -1091,23 +1091,7 @@ const recentGames = scheduleData.events
                     </div>
                   </div>
 
-                  <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-                    <h4 className="text-xl font-bold mb-4">2024-25 Season Stats</h4>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-500">23.5</div>
-                        <div className="text-sm text-gray-400 mt-1">PPG</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-500">7.2</div>
-                        <div className="text-sm text-gray-400 mt-1">RPG</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-3xl font-bold text-blue-500">5.8</div>
-                        <div className="text-sm text-gray-400 mt-1">APG</div>
-                      </div>
-                    </div>
-                  </div>
+                  
 
                   {playerStats.strDescriptionEN && (
                     <div className="bg-zinc-900 rounded-2xl p-6">
