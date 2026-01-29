@@ -519,7 +519,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       'MNMT': 'SN-LA',
       'KUNP 16': 'KUNP',
       'Altitude Sports': 'ALT',
-      'NBA League Pass': 'NBALP',
+      'NBA League Pass': 'NBATV',
       'Peacock': 'PEA',
       'ALT2/KTVD': 'ALT2'
     };
@@ -560,9 +560,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     try {
       const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`);
       const data = await response.json();
-
-          console.log('Game details full data:', data);  // ADD THIS LINE HERE
-
       
       const homeTeamId = data.boxscore?.teams?.[1]?.team?.id;
       const awayTeamId = data.boxscore?.teams?.[0]?.team?.id;
@@ -605,7 +602,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     setSelectedTeam('away'); // Reset to away team
     fetchGameDetails(game.id);
   };
-  
 
   const closeModal = () => {
     setSelectedGame(null);
@@ -1445,108 +1441,6 @@ const recentGames = scheduleData.events
     </table>
   </div>
 )}
-
-{/* Differential Chart - For Live and Final Games */}
-{!selectedGame.isPreGame && gameDetails?.plays && (
-  <div className="bg-zinc-900 rounded-2xl p-4 mb-6">
-    <h4 className="text-lg font-bold mb-4 text-gray-400">Differential</h4>
-    <div className="relative h-40">
-      <svg className="w-full h-full" viewBox="0 0 1000 160" preserveAspectRatio="none">
-        {/* Center line */}
-        <line x1="0" y1="80" x2="1000" y2="80" stroke="#3f3f46" strokeWidth="1" strokeDasharray="5,5" />
-        
-        {/* Quarter markers */}
-        <line x1="250" y1="0" x2="250" y2="160" stroke="#3f3f46" strokeWidth="1" strokeDasharray="5,5" />
-        <line x1="500" y1="0" x2="500" y2="160" stroke="#3f3f46" strokeWidth="1" strokeDasharray="5,5" />
-        <line x1="750" y1="0" x2="750" y2="160" stroke="#3f3f46" strokeWidth="1" strokeDasharray="5,5" />
-        
-        {/* Differential curve */}
-        {(() => {
-          const plays = gameDetails.plays;
-          const totalPlays = plays.length;
-          
-          // Sample plays to create smooth curve (every 5th play to avoid too many points)
-          const sampledPlays = plays.filter((_, idx) => idx % 5 === 0);
-          
-          // Create path points
-          const points = sampledPlays.map((play, idx) => {
-            const x = (idx / sampledPlays.length) * 1000;
-            const awayScore = play.awayScore || 0;
-            const homeScore = play.homeScore || 0;
-            const diff = awayScore - homeScore; // Positive = away winning
-            
-            // Map differential to Y position (80 is center, scale by max diff)
-            const maxDiff = 30; // Scale: ±30 points fills the chart
-            const y = 80 - (diff / maxDiff) * 70; // Clamp to chart bounds
-            
-            return { x, y: Math.max(10, Math.min(150, y)) };
-          });
-          
-          // Create smooth SVG path
-          if (points.length === 0) return null;
-          
-          const pathData = points.map((point, idx) => {
-            if (idx === 0) return `M ${point.x} ${point.y}`;
-            return `L ${point.x} ${point.y}`;
-          }).join(' ');
-          
-          // Determine which team is winning at end
-          const finalDiff = points[points.length - 1].y < 80 ? 'away' : 'home';
-          const fillColor = finalDiff === 'away' 
-            ? `url(#awayGradient)` 
-            : `url(#homeGradient)`;
-          
-          return (
-            <>
-              {/* Gradients */}
-              <defs>
-                <linearGradient id="awayGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-                <linearGradient id="homeGradient" x1="0%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              
-              {/* Fill area */}
-              <path 
-                d={`${pathData} L 1000 80 L 0 80 Z`}
-                fill={fillColor}
-              />
-              
-              {/* Line */}
-              <path 
-                d={pathData}
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="3"
-              />
-            </>
-          );
-        })()}
-      </svg>
-      
-      {/* Team logos */}
-      <div className="absolute top-2 left-2">
-        <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
-      </div>
-      <div className="absolute bottom-2 left-2">
-        <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-8 h-8" />
-      </div>
-      
-      {/* Quarter labels */}
-      <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 text-xs text-gray-400">
-        <span>Q1</span>
-        <span>Q2</span>
-        <span>Q3</span>
-        <span>Q4</span>
-      </div>
-    </div>
-  </div>
-)}
-
              {/* Team Selection Tabs */}
 <div className="flex gap-2 mb-6">
   <button
@@ -2213,110 +2107,110 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
                 </div>
               </div>
   
-      {/* Combined Offense & Defense Stats */}
+             {/* Offense Stats */}
 <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-  <div className="mb-6">
-  <h4 className="text-xl font-bold mb-4 text-center text-gray-400">Offense</h4>
-    <div className="grid grid-cols-3 gap-4">
-      {(() => {
-        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-        if (!offenseCategory || !offenseCategory.stats) {
-          return <div className="text-gray-400">No data available</div>;
+  <h4 className="text-xl font-bold mb-4">Offense</h4>
+  <div className="grid grid-cols-3 gap-4">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      if (!offenseCategory || !offenseCategory.stats) {
+        console.log('Offense category:', offenseCategory);
+        console.log('All categories:', teamStats.stats);
+        return <div className="text-gray-400">No data available</div>;
+      }
+      
+      const getStatValue = (name) => {
+        const stat = offenseCategory.stats.find(s => s.name === name);
+        return stat ? stat.displayValue : '-';
+      };
+                    return (
+                      <>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgPoints')}</div>
+                          <div className="text-sm text-gray-400 mt-1">PPG</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('fieldGoalPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">FG%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('threePointFieldGoalPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">3FG%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('freeThrowPct')}</div>
+                          <div className="text-sm text-gray-400 mt-1">FT%</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgAssists')}</div>
+                          <div className="text-sm text-gray-400 mt-1">AST</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-500">{getStatValue('avgTurnovers')}</div>
+                          <div className="text-sm text-gray-400 mt-1">TO</div>
+                        </div>
+                      </>
+                    );
+                    })()}
+                    </div>
+                    </div>
+                    
+{/* Defense Stats */}
+<div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+  <h4 className="text-xl font-bold mb-4">Defense</h4>
+  <div className="grid grid-cols-3 gap-4">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
+      
+      if (!offenseCategory && !defenseCategory) {
+        return <div className="text-gray-400">No data available</div>;
+      }
+      
+      // Helper to get stat from either category
+      const getStatValue = (name, preferredCategory = 'defensive') => {
+        const primaryCat = preferredCategory === 'defensive' ? defenseCategory : offenseCategory;
+        const secondaryCat = preferredCategory === 'defensive' ? offenseCategory : defenseCategory;
+        
+        let stat = primaryCat?.stats?.find(s => s.name === name);
+        if (!stat && secondaryCat) {
+          stat = secondaryCat.stats?.find(s => s.name === name);
         }
-        console.log('Offense stats with rank data:', offenseCategory.stats);
-
-        
-        const getStatValue = (name) => {
-          const stat = offenseCategory.stats.find(s => s.name === name);
-          return stat ? stat.displayValue : '-';
-        };
-        
-        return (
-          <>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">PPG</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgPoints')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">FG%</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('fieldGoalPct')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">3FG%</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('threePointFieldGoalPct')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">FT%</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('freeThrowPct')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">AST</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgAssists')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">TO</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgTurnovers')}</div>
-            </div>
-          </>
-        );
-      })()}
-    </div>
-  </div>
-
-  <div>
-  <h4 className="text-xl font-bold mb-4 text-center text-gray-400">Defense</h4>
-    <div className="grid grid-cols-3 gap-4">
-      {(() => {
-        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-        const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
-        
-        if (!offenseCategory && !defenseCategory) {
-          return <div className="text-gray-400">No data available</div>;
-        }
-        
-        const getStatValue = (name, preferredCategory = 'defensive') => {
-          const primaryCat = preferredCategory === 'defensive' ? defenseCategory : offenseCategory;
-          const secondaryCat = preferredCategory === 'defensive' ? offenseCategory : defenseCategory;
-          
-          let stat = primaryCat?.stats?.find(s => s.name === name);
-          if (!stat && secondaryCat) {
-            stat = secondaryCat.stats?.find(s => s.name === name);
-          }
-          return stat ? stat.displayValue : '-';
-        };
-        
-        const calcTotalRebounds = () => {
-          const dreb = parseFloat(getStatValue('avgDefensiveRebounds', 'defensive')) || 0;
-          const oreb = parseFloat(getStatValue('avgOffensiveRebounds', 'offensive')) || 0;
-          return (dreb + oreb).toFixed(1);
-        };
-        
-        return (
-          <>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">OPPG</div>
-              <div className="text-2xl font-bold text-white">{teamStats.record.oppg || '-'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">DREB</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">REB</div>
-              <div className="text-2xl font-bold text-white">{calcTotalRebounds()}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">BLK</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgBlocks', 'defensive')}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-gray-400 mb-1">STL</div>
-              <div className="text-2xl font-bold text-white">{getStatValue('avgSteals', 'defensive')}</div>
-            </div>
-          </>
-        );
-      })()}
-    </div>
+        return stat ? stat.displayValue : '-';
+      };
+      
+      // Calculate total rebounds (defensive + offensive)
+      const calcTotalRebounds = () => {
+        const dreb = parseFloat(getStatValue('avgDefensiveRebounds', 'defensive')) || 0;
+        const oreb = parseFloat(getStatValue('avgOffensiveRebounds', 'offensive')) || 0;
+        return (dreb + oreb).toFixed(1);
+      };
+      
+      return (
+        <>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{teamStats.record.oppg || '-'}</div>
+            <div className="text-sm text-gray-400 mt-1">OPPG</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">DREB</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{calcTotalRebounds()}</div>
+            <div className="text-sm text-gray-400 mt-1">REB</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgBlocks', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">BLK</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-500">{getStatValue('avgSteals', 'defensive')}</div>
+            <div className="text-sm text-gray-400 mt-1">STL</div>
+          </div>
+        </>
+      );
+    })()}
   </div>
 </div>
   
