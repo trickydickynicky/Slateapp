@@ -2025,7 +2025,7 @@ const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjur
         return (
           <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-16">
         <td className="py-2 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
-  <div className="flex items-center gap-0 -ml-1">
+  <div className="flex items-center gap-0">
     {/* Square headshot */}
     {player.athlete.headshot && (
       <img 
