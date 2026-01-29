@@ -1224,7 +1224,7 @@ const recentGames = scheduleData.events
 )}
 
 {selectedGame && (
-  <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-y-auto">
+  <div className="fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto">
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
@@ -1380,22 +1380,22 @@ const recentGames = scheduleData.events
 
 {/* Quarter-by-Quarter Breakdown */}
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
-  <div className="bg-transparent rounded-2xl p-4 mb-6">
+  <div className="bg-transparent rounded-2xl px-2 py-0..5 mb-4">
 
     <table className="w-full text-center">
       <thead>
         <tr className="text-gray-400 text-sm">
-          <th className="text-left pb-3 w-20">Team</th>
-          <th className="pb-3 w-1/5">1st</th>
-          <th className="pb-3 w-1/5">2nd</th>
-          <th className="pb-3 w-1/5">3rd</th>
-          <th className="pb-3 w-1/5">4th</th>
+          <th className="text-left pb-1 w-20">Team</th>
+          <th className="pb-1 w-1/5">1st</th>
+          <th className="pb-1 w-1/5">2nd</th>
+          <th className="pb-1 w-1/5">3rd</th>
+          <th className="pb-1 w-1/5">4th</th>
         </tr>
       </thead>
       <tbody>
         {/* Away Team Row */}
         <tr className="border-t border-zinc-800">
-          <td className="text-left py-3">
+          <td className="text-left py-1">
             <span className="font-semibold">{selectedGame.awayTeam}</span>
           </td>
           {(() => {
