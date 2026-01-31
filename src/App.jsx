@@ -683,33 +683,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     fetchGameDetails(game.id);
   };
 
-  const closeModal = () => {
-    if (navigationStack.length > 0) {
-      // Go back to previous state
-      const previous = navigationStack[navigationStack.length - 1];
-      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
-      
-      if (previous.type === 'teamStats') {
-        // Open team stats FIRST
-        setSelectedTeamInfo(previous.teamInfo);
-        fetchTeamStats(previous.teamInfo.abbr);
-        
-        // Then close game modal after a tiny delay
-        setTimeout(() => {
-          setSelectedGame(null);
-          setGameDetails(null);
-        }, 50);
-      } else if (previous.type === 'home') {
-        // Go back to home
-        setSelectedGame(null);
-        setGameDetails(null);
-      }
-    } else {
-      // No history, just close
-      setSelectedGame(null);
-      setGameDetails(null);
-    }
-  };
+  
 
   const closePlayerModal = () => {
     setSelectedPlayer(null);
@@ -786,7 +760,8 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     fetchTeamStats(teamAbbr);
-    
+    setSelectedGame(null);
+    setGameDetails(null);
   };
   
   const fetchTeamStats = async (teamAbbr) => {
@@ -913,28 +888,29 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   
   const closeTeamModal = () => {
     if (navigationStack.length > 0) {
+      // Go back to previous state
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'game') {
-        // Game is already open underneath, just close team modal
-        setSelectedTeamInfo(null);
-        setTeamStats(null);
+        // Open game FIRST
+        setSelectedGame(previous.data);
+        setGameDetails(previous.details);
+        
+        // Then close team modal after a tiny delay
+        setTimeout(() => {
+          setSelectedTeamInfo(null);
+          setTeamStats(null);
+        }, 50);
       } else if (previous.type === 'home') {
-        // Going back to home - close BOTH team modal and game modal
+        // Go back to home
         setSelectedTeamInfo(null);
         setTeamStats(null);
-        setSelectedGame(null);
-        setGameDetails(null);
       } else {
-        // No history, just close team modal
+        // No history, just close
         setSelectedTeamInfo(null);
         setTeamStats(null);
       }
-    } else {
-      // No navigation stack, just close team modal
-      setSelectedTeamInfo(null);
-      setTeamStats(null);
     }
   };
   
