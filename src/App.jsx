@@ -919,15 +919,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'game') {
-        // Open game FIRST
+        // Set everything SIMULTANEOUSLY instead of using setTimeout
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
-        
-        // Then close team modal after a tiny delay
-        setTimeout(() => {
-          setSelectedTeamInfo(null);
-          setTeamStats(null);
-        }, 50);
+        setSelectedTeamInfo(null);
+        setTeamStats(null);
       } else if (previous.type === 'home') {
         // Go back to home
         setSelectedTeamInfo(null);
@@ -937,6 +933,10 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         setSelectedTeamInfo(null);
         setTeamStats(null);
       }
+    } else {
+      // No history, just close
+      setSelectedTeamInfo(null);
+      setTeamStats(null);
     }
   };
   
