@@ -34,6 +34,8 @@ export default function SportsApp() {
   const [teamStats, setTeamStats] = useState(null);
   const [loadingTeamStats, setLoadingTeamStats] = useState(false);
   const [previousTeamInfo, setPreviousTeamInfo] = useState(null);
+  const [navigationStack, setNavigationStack] = useState([]); // NEW: Track navigation history
+
   
   const filters = [
     { name: 'All', emoji: '🏀' },
@@ -601,22 +603,37 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     setLoadingDetails(false);
   };
   const handleGameClick = (game) => {
+    // Add current state to navigation stack
+    setNavigationStack(prev => [...prev, { type: 'home' }]);
+    
     setSelectedGame(game);
-    setSelectedTeam('away'); // Reset to away team
+    setSelectedTeam('away');
     fetchGameDetails(game.id);
   };
 
   const closeModal = () => {
-  setSelectedGame(null);
-  setGameDetails(null);
-  
-  // If we came from team stats, go back to it
-  if (previousTeamInfo) {
-    setSelectedTeamInfo(previousTeamInfo);
-    fetchTeamStats(previousTeamInfo.abbr);
-    setPreviousTeamInfo(null);  // Clear it
-  }
-};
+    if (navigationStack.length > 0) {
+      // Go back to previous state
+      const previous = navigationStack[navigationStack.length - 1];
+      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+      
+      if (previous.type === 'teamStats') {
+        // Go back to team stats
+        setSelectedGame(null);
+        setGameDetails(null);
+        setSelectedTeamInfo(previous.teamInfo);
+        fetchTeamStats(previous.teamInfo.abbr);
+      } else if (previous.type === 'home') {
+        // Go back to home
+        setSelectedGame(null);
+        setGameDetails(null);
+      }
+    } else {
+      // No history, just close
+      setSelectedGame(null);
+      setGameDetails(null);
+    }
+  };
 
   const closePlayerModal = () => {
     setSelectedPlayer(null);
@@ -686,8 +703,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
 
   const handleTeamClick = (teamAbbr, teamLogo) => {
+    // Add current game to navigation stack
+    if (selectedGame) {
+      setNavigationStack(prev => [...prev, { type: 'game', data: selectedGame, details: gameDetails }]);
+    }
+    
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     fetchTeamStats(teamAbbr);
+    setSelectedGame(null);
+    setGameDetails(null);
   };
   
   const fetchTeamStats = async (teamAbbr) => {
@@ -813,18 +837,38 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
   
   const closeTeamModal = () => {
-    setSelectedTeamInfo(null);
-    setTeamStats(null);
+    if (navigationStack.length > 0) {
+      // Go back to previous state
+      const previous = navigationStack[navigationStack.length - 1];
+      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+      
+      if (previous.type === 'game') {
+        // Go back to game
+        setSelectedTeamInfo(null);
+        setTeamStats(null);
+        setSelectedGame(previous.data);
+        setGameDetails(previous.details);
+      } else if (previous.type === 'home') {
+        // Go back to home
+        setSelectedTeamInfo(null);
+        setTeamStats(null);
+      }
+    } else {
+      // No history, just close
+      setSelectedTeamInfo(null);
+      setTeamStats(null);
+    }
   };
   
   const handleRecentGameClick = (recentGame) => {
-    // Save the current team info before closing
-    setPreviousTeamInfo(selectedTeamInfo);
+    // Add current team stats to navigation stack
+    setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
     
-    // Close the team stats modal
-    closeTeamModal();
+    // Close team stats
+    setSelectedTeamInfo(null);
+    setTeamStats(null);
     
-    // Create a game object that matches what handleGameClick expects
+    // Create and open game
     const gameObj = {
       id: recentGame.gameId,
       awayTeam: recentGame.isHome ? recentGame.opponent : recentGame.teamAbbr,
@@ -841,9 +885,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       isLive: false
     };
     
-  
-    
-    // Open the game details modal
     setSelectedGame(gameObj);
     fetchGameDetails(recentGame.gameId);
   };
@@ -1115,17 +1156,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
           <div className="min-h-screen px-4 py-8">
             <div className="max-w-2xl mx-auto">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Player Stats</h2>
-                <button 
-                  onClick={closePlayerModal}
-                  className="text-gray-400 hover:text-white"
-                >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+            <div className="flex items-center mb-6">
+  <button 
+    onClick={closePlayerModal}
+    className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+  >
+    ‹
+  </button>
+  <h2 className="text-2xl font-bold">Player Stats</h2>
+</div>
 
               {loadingPlayer ? (
                 <div className="text-center py-12 text-gray-400">Loading player data...</div>
@@ -1173,17 +1212,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">NBA Standings</h2>
-          <button 
-            onClick={closeStandings}
-            className="text-gray-400 hover:text-white"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+      <div className="flex items-center mb-6">
+  <button 
+    onClick={closeStandings}
+    className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+  >
+    ‹
+  </button>
+  <h2 className="text-2xl font-bold">NBA Standings</h2>
+</div>
 
         <div className="flex gap-2 mb-6">
           <button
@@ -1273,16 +1310,14 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   <div className="fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto">
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Game Details</h2>
+        <div className="flex items-center mb-6">
                 <button 
                   onClick={closeModal}
-                  className="text-gray-400 hover:text-white"
+                  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
                 >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  ‹
                 </button>
+                <h2 className="text-2xl font-bold">Game Details</h2>
               </div>
               <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
               <div className="flex items-start justify-between min-h-[120px]">
@@ -2159,17 +2194,15 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
     <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
       <div className="min-h-screen px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Team Stats</h2>
-            <button 
-              onClick={closeTeamModal}
-              className="text-gray-400 hover:text-white"
-            >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="flex items-center mb-6">
+  <button 
+    onClick={closeTeamModal}
+    className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+  >
+    ‹
+  </button>
+  <h2 className="text-2xl font-bold">Team Stats</h2>
+</div>
   
           {loadingTeamStats ? (
             <div className="text-center py-12 text-gray-400">Loading team stats...</div>
