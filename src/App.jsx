@@ -72,9 +72,10 @@ useEffect(() => {
     const touchEndX = e.changedTouches[0].screenX;
     const swipeDistance = touchEndX - touchStartX;
     
-    // If swiped more than 100px, close with animation
+    // If swiped more than 50px, close with animation
     if (swipeDistance > 50) {
       setIsSwipeClosing(true);
+      setSwipeOffset(window.innerWidth); // Snap to full width immediately
       setTimeout(() => {
         if (selectedGame) {
           closeModal();
