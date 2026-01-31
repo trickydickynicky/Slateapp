@@ -36,6 +36,45 @@ export default function SportsApp() {
   const [previousTeamInfo, setPreviousTeamInfo] = useState(null);
   const [navigationStack, setNavigationStack] = useState([]); // NEW: Track navigation history
 
+  // Swipe to go back functionality
+useEffect(() => {
+  let touchStartX = 0;
+  let touchEndX = 0;
+  
+  const handleTouchStart = (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  };
+  
+  const handleTouchEnd = (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    handleSwipe();
+  };
+  
+  const handleSwipe = () => {
+    // Swipe from left edge (< 50px) to right (> 100px)
+    if (touchStartX < 50 && touchEndX - touchStartX > 100) {
+      // Determine which modal is open and close it
+      if (selectedGame) {
+        closeModal();
+      } else if (selectedTeamInfo) {
+        closeTeamModal();
+      } else if (selectedPlayer) {
+        closePlayerModal();
+      } else if (showStandings) {
+        closeStandings();
+      }
+    }
+  };
+  
+  document.addEventListener('touchstart', handleTouchStart);
+  document.addEventListener('touchend', handleTouchEnd);
+  
+  return () => {
+    document.removeEventListener('touchstart', handleTouchStart);
+    document.removeEventListener('touchend', handleTouchEnd);
+  };
+}, [selectedGame, selectedTeamInfo, selectedPlayer, showStandings]);
+
   
   const filters = [
     { name: 'All', emoji: '🏀' },
