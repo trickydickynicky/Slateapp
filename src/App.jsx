@@ -786,7 +786,8 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     fetchTeamStats(teamAbbr);
-   
+    setSelectedGame(null);
+    setGameDetails(null);
   };
   
   const fetchTeamStats = async (teamAbbr) => {
@@ -913,28 +914,29 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   
   const closeTeamModal = () => {
     if (navigationStack.length > 0) {
+      // Go back to previous state
       const previous = navigationStack[navigationStack.length - 1];
-      setNavigationStack(prev => prev.slice(0, -1));
+      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'game') {
-        // Just close team modal - game is already there underneath
-        setSelectedTeamInfo(null);
-        setTeamStats(null);
+        // Open game FIRST
+        setSelectedGame(previous.data);
+        setGameDetails(previous.details);
+        
+        // Then close team modal after a tiny delay
+        setTimeout(() => {
+          setSelectedTeamInfo(null);
+          setTeamStats(null);
+        }, 50);
       } else if (previous.type === 'home') {
-        // Close both team AND game modals
+        // Go back to home
         setSelectedTeamInfo(null);
         setTeamStats(null);
-        setSelectedGame(null);
-        setGameDetails(null);
       } else {
         // No history, just close
         setSelectedTeamInfo(null);
         setTeamStats(null);
       }
-    } else {
-      // No history, just close
-      setSelectedTeamInfo(null);
-      setTeamStats(null);
     }
   };
   
