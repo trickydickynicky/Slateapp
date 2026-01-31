@@ -74,21 +74,24 @@ useEffect(() => {
     
     // If swiped more than 50px, close with animation
     if (swipeDistance > 50) {
+      // CALL CLOSE IMMEDIATELY - before animation
+      if (selectedTeamInfo) {
+        closeTeamModal();
+      } else if (selectedGame) {
+        closeModal();
+      } else if (selectedPlayer) {
+        closePlayerModal();
+      } else if (showStandings) {
+        closeStandings();
+      }
+      
+      // THEN animate
       setIsSwipeClosing(true);
-      setSwipeOffset(window.innerWidth); // Snap to full width immediately
+      setSwipeOffset(window.innerWidth);
       setTimeout(() => {
-        if (selectedGame) {
-          closeModal();
-        } else if (selectedTeamInfo) {
-          closeTeamModal();
-        } else if (selectedPlayer) {
-          closePlayerModal();
-        } else if (showStandings) {
-          closeStandings();
-        }
         setIsSwipeClosing(false);
         setSwipeOffset(0);
-      }, 300); // Match transition duration
+      }, 300);
     } else {
       // Snap back
       setSwipeOffset(0);
