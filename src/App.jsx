@@ -35,42 +35,74 @@ export default function SportsApp() {
   const [loadingTeamStats, setLoadingTeamStats] = useState(false);
   const [previousTeamInfo, setPreviousTeamInfo] = useState(null);
   const [navigationStack, setNavigationStack] = useState([]); // NEW: Track navigation history
+  const [isSwipeClosing, setIsSwipeClosing] = useState(false);
+const [swipeOffset, setSwipeOffset] = useState(0);
 
-  // Swipe to go back functionality
+// Swipe to go back functionality
 useEffect(() => {
   let touchStartX = 0;
-  let touchEndX = 0;
+  let touchStartY = 0;
+  let currentX = 0;
+  let isSwiping = false;
   
   const handleTouchStart = (e) => {
     touchStartX = e.changedTouches[0].screenX;
-  };
-  
-  const handleTouchEnd = (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  };
-  
-  const handleSwipe = () => {
-    // Swipe from left edge (< 50px) to right (> 100px)
-    if (touchStartX < 50 && touchEndX - touchStartX > 100) {
-      // Determine which modal is open and close it
-      if (selectedGame) {
-        closeModal();
-      } else if (selectedTeamInfo) {
-        closeTeamModal();
-      } else if (selectedPlayer) {
-        closePlayerModal();
-      } else if (showStandings) {
-        closeStandings();
-      }
+    touchStartY = e.changedTouches[0].screenY;
+    if (touchStartX < 50) {
+      isSwiping = true;
     }
   };
   
+  const handleTouchMove = (e) => {
+    if (!isSwiping) return;
+    
+    currentX = e.changedTouches[0].screenX;
+    const deltaX = currentX - touchStartX;
+    const deltaY = Math.abs(e.changedTouches[0].screenY - touchStartY);
+    
+    // Only track horizontal swipes
+    if (deltaX > 0 && deltaX > deltaY) {
+      setSwipeOffset(deltaX);
+    }
+  };
+  
+  const handleTouchEnd = (e) => {
+    if (!isSwiping) return;
+    
+    const touchEndX = e.changedTouches[0].screenX;
+    const swipeDistance = touchEndX - touchStartX;
+    
+    // If swiped more than 100px, close with animation
+    if (swipeDistance > 100) {
+      setIsSwipeClosing(true);
+      setTimeout(() => {
+        if (selectedGame) {
+          closeModal();
+        } else if (selectedTeamInfo) {
+          closeTeamModal();
+        } else if (selectedPlayer) {
+          closePlayerModal();
+        } else if (showStandings) {
+          closeStandings();
+        }
+        setIsSwipeClosing(false);
+        setSwipeOffset(0);
+      }, 300); // Match transition duration
+    } else {
+      // Snap back
+      setSwipeOffset(0);
+    }
+    
+    isSwiping = false;
+  };
+  
   document.addEventListener('touchstart', handleTouchStart);
+  document.addEventListener('touchmove', handleTouchMove);
   document.addEventListener('touchend', handleTouchEnd);
   
   return () => {
     document.removeEventListener('touchstart', handleTouchStart);
+    document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', handleTouchEnd);
   };
 }, [selectedGame, selectedTeamInfo, selectedPlayer, showStandings]);
@@ -1191,8 +1223,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   </div>
 </div>
 
-      {selectedPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
+{selectedPlayer && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    style={{ transform: `translateX(${swipeOffset}px)` }}
+  >
           <div className="min-h-screen px-4 py-8">
             <div className="max-w-2xl mx-auto">
             <div className="flex items-center mb-6">
@@ -1247,8 +1282,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
           </div>
         </div>
       )}
-      {showStandings && (
-  <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
+     {showStandings && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    style={{ transform: `translateX(${swipeOffset}px)` }}
+  >
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-6xl mx-auto">
       <div className="flex items-center mb-6">
@@ -1346,7 +1384,10 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 )}
 
 {selectedGame && (
-  <div className="fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto">
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto transition-transform duration-300 ease-out"
+    style={{ transform: `translateX(${swipeOffset}px)` }}
+  >
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
@@ -2230,7 +2271,10 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
       )}
   
   {selectedTeamInfo && (
-    <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto">
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    style={{ transform: `translateX(${swipeOffset}px)` }}
+  >
       <div className="min-h-screen px-4 py-8">
         <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
