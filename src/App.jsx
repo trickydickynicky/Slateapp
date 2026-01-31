@@ -690,11 +690,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'teamStats') {
-        // Go back to team stats - set team info FIRST
+        // Open team stats FIRST
         setSelectedTeamInfo(previous.teamInfo);
         fetchTeamStats(previous.teamInfo.abbr);
-        setSelectedGame(null);
-        setGameDetails(null);
+        
+        // Then close game modal after a tiny delay
+        setTimeout(() => {
+          setSelectedGame(null);
+          setGameDetails(null);
+        }, 50);
       } else if (previous.type === 'home') {
         // Go back to home
         setSelectedGame(null);
@@ -915,20 +919,24 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'game') {
-        // Go back to game - set game FIRST before closing team modal
+        // Open game FIRST
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
-        setSelectedTeamInfo(null);
-        setTeamStats(null);
+        
+        // Then close team modal after a tiny delay
+        setTimeout(() => {
+          setSelectedTeamInfo(null);
+          setTeamStats(null);
+        }, 50);
       } else if (previous.type === 'home') {
         // Go back to home
         setSelectedTeamInfo(null);
         setTeamStats(null);
+      } else {
+        // No history, just close
+        setSelectedTeamInfo(null);
+        setTeamStats(null);
       }
-    } else {
-      // No history, just close
-      setSelectedTeamInfo(null);
-      setTeamStats(null);
     }
   };
   
