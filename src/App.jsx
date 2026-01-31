@@ -76,23 +76,19 @@ useEffect(() => {
     if (swipeDistance > 50) {
       setIsSwipeClosing(true);
       setSwipeOffset(window.innerWidth); // Snap to full width immediately
-      
-      // Call the close function IMMEDIATELY, not after timeout
-      if (selectedGame) {
-        closeModal();
-      } else if (selectedTeamInfo) {
-        closeTeamModal();
-      } else if (selectedPlayer) {
-        closePlayerModal();
-      } else if (showStandings) {
-        closeStandings();
-      }
-      
-      // Reset swipe states after animation completes
       setTimeout(() => {
+        if (selectedGame) {
+          closeModal();
+        } else if (selectedTeamInfo) {
+          closeTeamModal();
+        } else if (selectedPlayer) {
+          closePlayerModal();
+        } else if (showStandings) {
+          closeStandings();
+        }
         setIsSwipeClosing(false);
         setSwipeOffset(0);
-      }, 300);
+      }, 300); // Match transition duration
     } else {
       // Snap back
       setSwipeOffset(0);
@@ -790,8 +786,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     fetchTeamStats(teamAbbr);
-    setSelectedGame(null);
-    setGameDetails(null);
+   
   };
   
   const fetchTeamStats = async (teamAbbr) => {
@@ -918,20 +913,19 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   
   const closeTeamModal = () => {
     if (navigationStack.length > 0) {
-      // Go back to previous state
       const previous = navigationStack[navigationStack.length - 1];
-      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+      setNavigationStack(prev => prev.slice(0, -1));
       
       if (previous.type === 'game') {
-        // Set everything SIMULTANEOUSLY instead of using setTimeout
-        setSelectedGame(previous.data);
-        setGameDetails(previous.details);
+        // Just close team modal - game is already there underneath
         setSelectedTeamInfo(null);
         setTeamStats(null);
       } else if (previous.type === 'home') {
-        // Go back to home
+        // Close both team AND game modals
         setSelectedTeamInfo(null);
         setTeamStats(null);
+        setSelectedGame(null);
+        setGameDetails(null);
       } else {
         // No history, just close
         setSelectedTeamInfo(null);
