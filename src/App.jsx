@@ -2302,7 +2302,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   
   {selectedTeamInfo && (
   <div 
-    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    className={`fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ transform: `translateX(${teamSwipeOffset}px)` }}
   >
       <div className="min-h-screen px-4 py-8">
