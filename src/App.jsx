@@ -48,7 +48,7 @@ useEffect(() => {
   const handleTouchStart = (e) => {
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
-    if (touchStartX < 50) {
+    if (touchStartX < 100) {
       isSwiping = true;
     }
   };
@@ -73,7 +73,7 @@ useEffect(() => {
     const swipeDistance = touchEndX - touchStartX;
     
     // If swiped more than 100px, close with animation
-    if (swipeDistance > 100) {
+    if (swipeDistance > 50) {
       setIsSwipeClosing(true);
       setTimeout(() => {
         if (selectedGame) {
