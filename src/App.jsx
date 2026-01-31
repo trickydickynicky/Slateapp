@@ -38,6 +38,7 @@ export default function SportsApp() {
   const [isSwipeClosing, setIsSwipeClosing] = useState(false);
 const [swipeOffset, setSwipeOffset] = useState(0);
 const [teamSwipeOffset, setTeamSwipeOffset] = useState(0);
+const [isTransitioning, setIsTransitioning] = useState(false);
 
 // Swipe to go back functionality
 useEffect(() => {
@@ -77,8 +78,9 @@ useEffect(() => {
     if (swipeDistance > 50) {
       setIsSwipeClosing(true);
       
-      // Apply to the correct modal
+      // If swiping from team stats, set transitioning
       if (selectedTeamInfo) {
+        setIsTransitioning(true);
         setTeamSwipeOffset(window.innerWidth);
       } else {
         setSwipeOffset(window.innerWidth);
@@ -97,6 +99,7 @@ useEffect(() => {
         setIsSwipeClosing(false);
         setSwipeOffset(0);
         setTeamSwipeOffset(0);
+        setIsTransitioning(false);
       }, 300);
     } else {
       // Snap back
@@ -1244,6 +1247,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     )}
   </div>
 </div>
+
+{/* Black transitioning overlay */}
+{isTransitioning && (
+  <div className="fixed inset-0 bg-black z-[60]" />
+)}
 
 {selectedPlayer && (
   <div 
