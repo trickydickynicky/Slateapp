@@ -37,6 +37,7 @@ export default function SportsApp() {
   const [navigationStack, setNavigationStack] = useState([]); // NEW: Track navigation history
   const [isSwipeClosing, setIsSwipeClosing] = useState(false);
 const [swipeOffset, setSwipeOffset] = useState(0);
+const [teamSwipeOffset, setTeamSwipeOffset] = useState(0);
 
 // Swipe to go back functionality
 useEffect(() => {
@@ -74,27 +75,36 @@ useEffect(() => {
     
     // If swiped more than 50px, close with animation
     if (swipeDistance > 50) {
-      // CALL CLOSE IMMEDIATELY - before animation
+      setIsSwipeClosing(true);
+      
+      // Apply to the correct modal
       if (selectedTeamInfo) {
-        closeTeamModal();
-      } else if (selectedGame) {
-        closeModal();
-      } else if (selectedPlayer) {
-        closePlayerModal();
-      } else if (showStandings) {
-        closeStandings();
+        setTeamSwipeOffset(window.innerWidth);
+      } else {
+        setSwipeOffset(window.innerWidth);
       }
       
-      // THEN animate
-      setIsSwipeClosing(true);
-      setSwipeOffset(window.innerWidth);
       setTimeout(() => {
+        if (selectedGame && !selectedTeamInfo) {
+          closeModal();
+        } else if (selectedTeamInfo) {
+          closeTeamModal();
+        } else if (selectedPlayer) {
+          closePlayerModal();
+        } else if (showStandings) {
+          closeStandings();
+        }
         setIsSwipeClosing(false);
         setSwipeOffset(0);
+        setTeamSwipeOffset(0);
       }, 300);
     } else {
       // Snap back
-      setSwipeOffset(0);
+      if (selectedTeamInfo) {
+        setTeamSwipeOffset(0);
+      } else {
+        setSwipeOffset(0);
+      }
     }
     
     isSwiping = false;
@@ -2285,7 +2295,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   {selectedTeamInfo && (
   <div 
     className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
-    style={{ transform: `translateX(${swipeOffset}px)` }}
+    style={{ transform: `translateX(${teamSwipeOffset}px)` }}
   >
       <div className="min-h-screen px-4 py-8">
         <div className="max-w-2xl mx-auto">
