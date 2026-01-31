@@ -33,6 +33,7 @@ export default function SportsApp() {
   const [selectedTeamInfo, setSelectedTeamInfo] = useState(null);
   const [teamStats, setTeamStats] = useState(null);
   const [loadingTeamStats, setLoadingTeamStats] = useState(false);
+  const [previousTeamInfo, setPreviousTeamInfo] = useState(null);
   
   const filters = [
     { name: 'All', emoji: '🏀' },
@@ -606,9 +607,16 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
 
   const closeModal = () => {
-    setSelectedGame(null);
-    setGameDetails(null);
-  };
+  setSelectedGame(null);
+  setGameDetails(null);
+  
+  // If we came from team stats, go back to it
+  if (previousTeamInfo) {
+    setSelectedTeamInfo(previousTeamInfo);
+    fetchTeamStats(previousTeamInfo.abbr);
+    setPreviousTeamInfo(null);  // Clear it
+  }
+};
 
   const closePlayerModal = () => {
     setSelectedPlayer(null);
@@ -810,6 +818,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
   
   const handleRecentGameClick = (recentGame) => {
+    // Save the current team info before closing
+    setPreviousTeamInfo(selectedTeamInfo);
+    
     // Close the team stats modal
     closeTeamModal();
     
@@ -822,13 +833,15 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       homeLogo: recentGame.isHome ? recentGame.teamLogo : recentGame.opponentLogo,
       awayScore: String(recentGame.isHome ? recentGame.opponentScore : recentGame.teamScore),
       homeScore: String(recentGame.isHome ? recentGame.teamScore : recentGame.opponentScore),
-      awayRecord: '',  // We don't have this for old games
-      homeRecord: '',  // We don't have this for old games
-      period: 4,  // Assume finished games went 4 quarters
+      awayRecord: '',
+      homeRecord: '',
+      period: 4,
       isFinal: true,
       isPreGame: false,
       isLive: false
     };
+    
+  
     
     // Open the game details modal
     setSelectedGame(gameObj);
