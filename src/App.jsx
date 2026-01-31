@@ -1416,7 +1416,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 {selectedGame && (
   <div 
     className="fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto transition-transform duration-300 ease-out"
-    style={{ transform: `translateX(${swipeOffset}px)` }}
+    style={{ transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)` }}
   >
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
