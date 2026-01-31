@@ -748,38 +748,48 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   
       // Get last 10 completed games - with better error handling
       const recentGames = scheduleData.events
-        .filter(event => event.competitions?.[0]?.status?.type?.completed)
-        .slice(-10)
-        .map(event => {
-          try {
-            const competition = event.competitions[0];
-            const teamScore = competition.competitors.find(c => c.team?.id === teamId);
-            const opponentScore = competition.competitors.find(c => c.team?.id !== teamId);
-            
-            if (!teamScore || !opponentScore) {
-              console.log('Could not find team or opponent in:', competition);
-              return null;
-            }
-            
-            const opponent = opponentScore.team.abbreviation;
-            const isHome = teamScore.homeAway === 'home';
-            
-            // Try to get score from different possible locations
-            const teamScoreValue = teamScore.score?.value || teamScore.score || 0;
-            const opponentScoreValue = opponentScore.score?.value || opponentScore.score || 0;
-            const differential = parseInt(teamScoreValue) - parseInt(opponentScoreValue);
-            
-            return {
-              opponent,
-              isHome,
-              differential
-            };
-          } catch (err) {
-            console.error('Error processing game:', err, event);
-            return null;
-          }
-        })
-        .filter(game => game !== null);
+  .filter(event => event.competitions?.[0]?.status?.type?.completed)
+  .slice(-10)
+  .map(event => {
+    try {
+      const competition = event.competitions[0];
+      const teamScore = competition.competitors.find(c => c.team?.id === teamId);
+      const opponentScore = competition.competitors.find(c => c.team?.id !== teamId);
+      
+      if (!teamScore || !opponentScore) {
+        console.log('Could not find team or opponent in:', competition);
+        return null;
+      }
+      
+      const opponent = opponentScore.team.abbreviation;
+      const isHome = teamScore.homeAway === 'home';
+      
+      // Try to get score from different possible locations
+      const teamScoreValue = teamScore.score?.value || teamScore.score || 0;
+      const opponentScoreValue = opponentScore.score?.value || opponentScore.score || 0;
+      const differential = parseInt(teamScoreValue) - parseInt(opponentScoreValue);
+      
+      // Get logos - they should be in the team object
+      const teamLogo = teamScore.team?.logo || teamScore.team?.logos?.[0]?.href || null;
+      const opponentLogo = opponentScore.team?.logo || opponentScore.team?.logos?.[0]?.href || null;
+      
+      return {
+        gameId: event.id,
+        opponent,
+        opponentLogo,
+        teamAbbr: teamScore.team.abbreviation,
+        teamLogo,
+        isHome,
+        differential,
+        teamScore: teamScoreValue,
+        opponentScore: opponentScoreValue
+      };
+    } catch (err) {
+      console.error('Error processing game:', err, event);
+      return null;
+    }
+  })
+  .filter(game => game !== null);
   
       setTeamStats({
         record: teamRecord,
@@ -798,7 +808,33 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     setSelectedTeamInfo(null);
     setTeamStats(null);
   };
-
+  
+  const handleRecentGameClick = (recentGame) => {
+    // Close the team stats modal
+    closeTeamModal();
+    
+    // Create a game object that matches what handleGameClick expects
+    const gameObj = {
+      id: recentGame.gameId,
+      awayTeam: recentGame.isHome ? recentGame.opponent : recentGame.teamAbbr,
+      homeTeam: recentGame.isHome ? recentGame.teamAbbr : recentGame.opponent,
+      awayLogo: recentGame.isHome ? recentGame.opponentLogo : recentGame.teamLogo,
+      homeLogo: recentGame.isHome ? recentGame.teamLogo : recentGame.opponentLogo,
+      awayScore: String(recentGame.isHome ? recentGame.opponentScore : recentGame.teamScore),
+      homeScore: String(recentGame.isHome ? recentGame.teamScore : recentGame.opponentScore),
+      awayRecord: '',  // We don't have this for old games
+      homeRecord: '',  // We don't have this for old games
+      period: 4,  // Assume finished games went 4 quarters
+      isFinal: true,
+      isPreGame: false,
+      isLive: false
+    };
+    
+    // Open the game details modal
+    setSelectedGame(gameObj);
+    fetchGameDetails(recentGame.gameId);
+  };
+  
   const generateDateRange = () => {
     const dates = [];
     const today = new Date();
@@ -2263,8 +2299,11 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
       
       return (
         <div key={idx} className="flex flex-col items-center flex-1">
-          {/* Bar chart container WITHOUT background */}
-          <div className="relative h-24 w-full flex items-center justify-center">
+  {/* Bar chart container - NOW CLICKABLE */}
+  <div 
+    className="relative h-24 w-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+    onClick={() => handleRecentGameClick(game)}
+  >
             {/* Horizon line in middle */}
             <div className="absolute w-full h-0.5 bg-zinc-700" style={{ top: '50%' }}></div>
             
