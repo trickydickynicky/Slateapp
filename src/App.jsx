@@ -683,7 +683,33 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     fetchGameDetails(game.id);
   };
 
-  
+  const closeModal = () => {
+  if (navigationStack.length > 0) {
+    // Go back to previous state
+    const previous = navigationStack[navigationStack.length - 1];
+    setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+    
+    if (previous.type === 'teamStats') {
+      // Open team stats FIRST
+      setSelectedTeamInfo(previous.teamInfo);
+      fetchTeamStats(previous.teamInfo.abbr);
+      
+      // Then close game modal after a tiny delay
+      setTimeout(() => {
+        setSelectedGame(null);
+        setGameDetails(null);
+      }, 50);
+    } else if (previous.type === 'home') {
+      // Go back to home
+      setSelectedGame(null);
+      setGameDetails(null);
+    }
+  } else {
+    // No history, just close
+    setSelectedGame(null);
+    setGameDetails(null);
+  }
+};
 
   const closePlayerModal = () => {
     setSelectedPlayer(null);
