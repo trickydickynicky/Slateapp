@@ -91,6 +91,8 @@ useEffect(() => {
           closeModal();
         } else if (selectedTeamInfo) {
           closeTeamModal();
+          // Reset team offset AFTER modal is closed
+          setTimeout(() => setTeamSwipeOffset(0), 50);
         } else if (selectedPlayer) {
           closePlayerModal();
         } else if (showStandings) {
@@ -98,7 +100,6 @@ useEffect(() => {
         }
         setIsSwipeClosing(false);
         setSwipeOffset(0);
-        setTeamSwipeOffset(0);
         setIsTransitioning(false);
       }, 300);
     } else {
