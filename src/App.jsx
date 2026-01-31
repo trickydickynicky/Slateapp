@@ -690,11 +690,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'teamStats') {
-        // Go back to team stats
-        setSelectedGame(null);
-        setGameDetails(null);
+        // Go back to team stats - set team info FIRST
         setSelectedTeamInfo(previous.teamInfo);
         fetchTeamStats(previous.teamInfo.abbr);
+        setSelectedGame(null);
+        setGameDetails(null);
       } else if (previous.type === 'home') {
         // Go back to home
         setSelectedGame(null);
@@ -915,11 +915,11 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
       
       if (previous.type === 'game') {
-        // Go back to game
-        setSelectedTeamInfo(null);
-        setTeamStats(null);
+        // Go back to game - set game FIRST before closing team modal
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
+        setSelectedTeamInfo(null);
+        setTeamStats(null);
       } else if (previous.type === 'home') {
         // Go back to home
         setSelectedTeamInfo(null);
