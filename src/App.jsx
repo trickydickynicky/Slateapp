@@ -41,6 +41,21 @@ const [teamSwipeOffset, setTeamSwipeOffset] = useState(0);
 const [isTransitioning, setIsTransitioning] = useState(false);
 const [showSearch, setShowSearch] = useState(false);
 const [slideDirection, setSlideDirection] = useState('right'); // 'right' = coming in, 'left' = going out
+const [favoriteTeams, setFavoriteTeams] = useState(() => {
+  const saved = localStorage.getItem('favoriteTeams');
+  return saved ? JSON.parse(saved) : [];
+});
+
+const toggleFavorite = (teamAbbr) => {
+  setFavoriteTeams(prev => {
+    const newFavorites = prev.includes(teamAbbr)
+      ? prev.filter(t => t !== teamAbbr)
+      : [...prev, teamAbbr];
+    
+    localStorage.setItem('favoriteTeams', JSON.stringify(newFavorites));
+    return newFavorites;
+  });
+};
 
 // Swipe to go back functionality - ONLY when viewing a game from home
 useEffect(() => {
@@ -287,24 +302,32 @@ console.log('Broadcasts:', competition.broadcasts);
         };
       });
       
-      // SORT GAMES: Live first, then Pre-game, then Final
-      const sortedGames = games.sort((a, b) => {
-        if (a.isLive && !b.isLive) return -1;
-        if (!a.isLive && b.isLive) return 1;
-        if (a.isPreGame && !b.isPreGame && !b.isLive) return -1;
-        if (!a.isPreGame && b.isPreGame && !a.isLive) return 1;
-        if (a.isFinal && !b.isFinal) return 1;
-        if (!a.isFinal && b.isFinal) return -1;
-        return 0;
-      });
-      
-      setLiveGames(sortedGames);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching scores:', error);
-      setLoading(false);
-    }
-  };
+      // SORT GAMES: Favorites first, then Live, then Pre-game, then Final
+const sortedGames = games.sort((a, b) => {
+  const aIsFavorite = favoriteTeams.includes(a.homeTeam) || favoriteTeams.includes(a.awayTeam);
+  const bIsFavorite = favoriteTeams.includes(b.homeTeam) || favoriteTeams.includes(b.awayTeam);
+  
+  // Favorites always first
+  if (aIsFavorite && !bIsFavorite) return -1;
+  if (!aIsFavorite && bIsFavorite) return 1;
+  
+  // Then sort by game status
+  if (a.isLive && !b.isLive) return -1;
+  if (!a.isLive && b.isLive) return 1;
+  if (a.isPreGame && !b.isPreGame && !b.isLive) return -1;
+  if (!a.isPreGame && b.isPreGame && !a.isLive) return 1;
+  if (a.isFinal && !b.isFinal) return 1;
+  if (!a.isFinal && b.isFinal) return -1;
+  return 0;
+});
+
+setLiveGames(sortedGames);
+setLoading(false);
+} catch (error) {
+  console.error('Error fetching scores:', error);
+  setLoading(false);
+}
+};
   
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
@@ -1185,7 +1208,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
  <div className="flex items-center gap-2">
  <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                    <span className="font-semibold text-sm">{game.awayTeam}</span>
+                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.awayTeam) ? 'text-blue-500' : ''}`}>
+  {game.awayTeam}
+</span>
                     {game.awayRecord && (
                       <span className="text-xs text-gray-400">{game.awayRecord}</span>
                     )}
@@ -1211,7 +1236,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 <div className="flex items-center gap-2">
 <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                    <span className="font-semibold text-sm">{game.homeTeam}</span>
+                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.homeTeam) ? 'text-blue-500' : ''}`}>
+  {game.homeTeam}
+</span>
                     {game.homeRecord && (
                       <span className="text-xs text-gray-400">{game.homeRecord}</span>
                     )}
@@ -2353,14 +2380,22 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
                   className="w-24 h-24"
                 />
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-1">{teamFullNames[selectedTeamInfo.abbr]}</h3>
-                  <div className="text-gray-400 text-lg">
-  {teamStats.record.wins}-{teamStats.record.losses} • {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}
+  <div className="flex items-center gap-3">
+    <h3 className="text-2xl font-bold mb-1">{teamFullNames[selectedTeamInfo.abbr]}</h3>
+    <button
+      onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
+      className="text-2xl hover:scale-110 transition-transform"
+    >
+      {favoriteTeams.includes(selectedTeamInfo.abbr) ? '❤️' : '🤍'}
+    </button>
+  </div>
+  <div className="text-gray-400 text-lg">
+    {teamStats.record.wins}-{teamStats.record.losses} • {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}
+  </div>
+  <div className="text-sm text-gray-400 mt-2">
+    {teamStats.record.pct} PCT • {teamStats.record.streak}
+  </div>
 </div>
-                  <div className="text-sm text-gray-400 mt-2">
-                    {teamStats.record.pct} PCT • {teamStats.record.streak}
-                  </div>
-                </div>
               </div>
   
          {/* Combined Offense & Defense Stats */}
