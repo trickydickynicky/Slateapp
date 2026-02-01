@@ -1005,7 +1005,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="px-4 pt-12 pb-4">
       <div className="flex justify-between items-start mb-1">
   <div>
@@ -1132,7 +1132,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         />
       )}
 
-<div className="px-4 mt-0 pb-8">
+<div className="px-4 -mt-3 pb-8">
   
 
   <div className="grid grid-cols-2 gap-3">
