@@ -717,16 +717,19 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
 
   const closeModal = () => {
-    setSlideDirection('left'); // Going back to left
+    setSlideDirection('left');
     
     if (navigationStack.length > 0) {
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       
       if (previous.type === 'teamStats') {
+        // First set the team info BEFORE closing the game modal
         setSelectedTeamInfo(previous.teamInfo);
+        setTeamStats(null); // Clear old stats
         fetchTeamStats(previous.teamInfo.abbr);
         
+        // Then close game modal after a brief delay
         setTimeout(() => {
           setSelectedGame(null);
           setGameDetails(null);
@@ -943,16 +946,18 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
   
   const closeTeamModal = () => {
-    setSlideDirection('left'); // Add this line
+    setSlideDirection('left');
     
     if (navigationStack.length > 0) {
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       
       if (previous.type === 'game') {
+        // First set the game BEFORE closing the team modal
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
         
+        // Then close team modal after a brief delay
         setTimeout(() => {
           setSelectedTeamInfo(null);
           setTeamStats(null);
@@ -964,6 +969,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
         setSelectedTeamInfo(null);
         setTeamStats(null);
       }
+    } else {
+      setSelectedTeamInfo(null);
+      setTeamStats(null);
     }
   };
   
