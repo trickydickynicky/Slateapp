@@ -77,16 +77,24 @@ useEffect(() => {
     const swipeDistance = touchEndX - touchStartX;
     
     // If swiped more than 50px, close with animation
-    if (swipeDistance > 50) {
-      setIsSwipeClosing(true);
-      
-      // If swiping from team stats, set transitioning
-      if (selectedTeamInfo) {
-        setIsTransitioning(true);
-        setTeamSwipeOffset(window.innerWidth);
-      } else {
-        setSwipeOffset(window.innerWidth);
-      }
+if (swipeDistance > 50) {
+  setIsSwipeClosing(true);
+  
+  // Check if we're going back to team stats (game opened from recent differentials)
+  const goingBackToTeamStats = navigationStack.length > 0 && 
+    navigationStack[navigationStack.length - 1].type === 'teamStats';
+  
+  // If swiping from team stats OR going back to team stats, set transitioning
+  if (selectedTeamInfo || goingBackToTeamStats) {
+    setIsTransitioning(true);
+    if (selectedTeamInfo) {
+      setTeamSwipeOffset(window.innerWidth);
+    } else {
+      setSwipeOffset(window.innerWidth);
+    }
+  } else {
+    setSwipeOffset(window.innerWidth);
+  }
       
       setTimeout(() => {
         if (selectedGame && !selectedTeamInfo) {
@@ -1284,7 +1292,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 
 {selectedPlayer && (
   <div 
-    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
     style={{ transform: `translateX(${swipeOffset}px)` }}
   >
           <div className="min-h-screen px-4 py-8">
@@ -1343,7 +1351,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       )}
      {showStandings && (
   <div 
-    className="fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
+    className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
     style={{ transform: `translateX(${swipeOffset}px)` }}
   >
     <div className="min-h-screen px-4 py-8">
@@ -1444,7 +1452,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 
 {selectedGame && (
   <div 
-    className={`fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)`,
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
@@ -2334,7 +2342,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   
   {selectedTeamInfo && (
   <div 
-    className={`fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${teamSwipeOffset}px)`,
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
