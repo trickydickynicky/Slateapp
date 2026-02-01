@@ -1006,7 +1006,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 
   return (
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      <div className="px-4 pt-8 pb-4">
+      <div className="px-4 pt-12 pb-4">
       <div className="flex justify-between items-start mb-1">
   <div>
   <img 
@@ -1276,7 +1276,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
     style={{ transform: `translateX(${swipeOffset}px)` }}
   >
-          <div className="min-h-screen px-4 py-8">
+          <div className="min-h-screen px-4 pt-12 pb-4">
             <div className="max-w-2xl mx-auto">
             <div className="flex items-center mb-6">
   <button 
@@ -1335,7 +1335,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
     style={{ transform: `translateX(${swipeOffset}px)` }}
   >
-    <div className="min-h-screen px-4 py-8">
+    <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-6xl mx-auto">
       <div className="flex items-center mb-6">
   <button 
@@ -1439,7 +1439,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
     }}
   >
-    <div className="min-h-screen px-4 py-8">
+    <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
           <button 
@@ -2329,7 +2329,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
     }}
   >
-      <div className="min-h-screen px-4 py-8">
+      <div className="min-h-screen px-4 pt-12 pb-8">
         <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
   <button 
