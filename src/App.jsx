@@ -1170,10 +1170,12 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     ) : (
       liveGames.map(game => (
         <div 
-          key={game.id} 
-          className="bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors"
-          onClick={() => handleGameClick(game)}
-        >
+  key={game.id} 
+  className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors ${
+    game.isLive ? 'border-2 border-blue-500' : ''
+  }`}
+  onClick={() => handleGameClick(game)}
+>
           <div className="flex flex-col">
             {/* TOP: Status/Time - Left aligned above teams */}
             <div className="mb-2">
