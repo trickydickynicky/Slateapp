@@ -42,11 +42,18 @@ const [isTransitioning, setIsTransitioning] = useState(false);
 const [showSearch, setShowSearch] = useState(false);
 const [slideDirection, setSlideDirection] = useState('right'); // 'right' = coming in, 'left' = going out
 
-// Swipe to go back functionality
+// Swipe to go back functionality - ONLY when viewing a game from home
 useEffect(() => {
+  // ONLY enable swipe if: we're on a game AND we came from home
+  const cameFromHome = navigationStack.length > 0 && 
+                       navigationStack[navigationStack.length - 1].type === 'home';
+  
+  if (!selectedGame || !cameFromHome || selectedTeamInfo) {
+    return; // Don't add event listeners
+  }
+  
   let touchStartX = 0;
   let touchStartY = 0;
-  let currentX = 0;
   let isSwiping = false;
   
   const handleTouchStart = (e) => {
@@ -60,11 +67,10 @@ useEffect(() => {
   const handleTouchMove = (e) => {
     if (!isSwiping) return;
     
-    currentX = e.changedTouches[0].screenX;
+    const currentX = e.changedTouches[0].screenX;
     const deltaX = currentX - touchStartX;
     const deltaY = Math.abs(e.changedTouches[0].screenY - touchStartY);
     
-    // Only track horizontal swipes
     if (deltaX > 0 && deltaX > deltaY) {
       setSwipeOffset(deltaX);
     }
@@ -76,49 +82,16 @@ useEffect(() => {
     const touchEndX = e.changedTouches[0].screenX;
     const swipeDistance = touchEndX - touchStartX;
     
-    // If swiped more than 50px, close with animation
-if (swipeDistance > 50) {
-  setIsSwipeClosing(true);
-  
-  // Check if we're going back to team stats (game opened from recent differentials)
-  const goingBackToTeamStats = navigationStack.length > 0 && 
-    navigationStack[navigationStack.length - 1].type === 'teamStats';
-  
-  // If swiping from team stats OR going back to team stats, set transitioning
-  if (selectedTeamInfo || goingBackToTeamStats) {
-    setIsTransitioning(true);
-    if (selectedTeamInfo) {
-      setTeamSwipeOffset(window.innerWidth);
-    } else {
+    if (swipeDistance > 50) {
       setSwipeOffset(window.innerWidth);
-    }
-  } else {
-    setSwipeOffset(window.innerWidth);
-  }
-      
       setTimeout(() => {
-        if (selectedGame && !selectedTeamInfo) {
-          closeModal();
-        } else if (selectedTeamInfo) {
-          closeTeamModal();
-          // Reset team offset AFTER modal is closed
-          setTimeout(() => setTeamSwipeOffset(0), 50);
-        } else if (selectedPlayer) {
-          closePlayerModal();
-        } else if (showStandings) {
-          closeStandings();
-        }
-        setIsSwipeClosing(false);
+        setSelectedGame(null);
+        setGameDetails(null);
+        setNavigationStack([]);
         setSwipeOffset(0);
-        setIsTransitioning(false);
       }, 300);
     } else {
-      // Snap back
-      if (selectedTeamInfo) {
-        setTeamSwipeOffset(0);
-      } else {
-        setSwipeOffset(0);
-      }
+      setSwipeOffset(0);
     }
     
     isSwiping = false;
@@ -133,7 +106,7 @@ if (swipeDistance > 50) {
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', handleTouchEnd);
   };
-}, [selectedGame, selectedTeamInfo, selectedPlayer, showStandings]);
+}, [selectedGame, navigationStack, selectedTeamInfo]);
 
   
   const filters = [
