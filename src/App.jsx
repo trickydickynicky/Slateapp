@@ -40,6 +40,7 @@ const [swipeOffset, setSwipeOffset] = useState(0);
 const [teamSwipeOffset, setTeamSwipeOffset] = useState(0);
 const [isTransitioning, setIsTransitioning] = useState(false);
 const [showSearch, setShowSearch] = useState(false);
+const [slideDirection, setSlideDirection] = useState('right'); // 'right' = coming in, 'left' = going out
 
 // Swipe to go back functionality
 useEffect(() => {
@@ -701,38 +702,36 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     // Add current state to navigation stack
     setNavigationStack(prev => [...prev, { type: 'home' }]);
     
+    setSlideDirection('right'); // Coming in from right
     setSelectedGame(game);
     setSelectedTeam('away');
     fetchGameDetails(game.id);
   };
 
   const closeModal = () => {
-  if (navigationStack.length > 0) {
-    // Go back to previous state
-    const previous = navigationStack[navigationStack.length - 1];
-    setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+    setSlideDirection('left'); // Going back to left
     
-    if (previous.type === 'teamStats') {
-      // Open team stats FIRST
-      setSelectedTeamInfo(previous.teamInfo);
-      fetchTeamStats(previous.teamInfo.abbr);
+    if (navigationStack.length > 0) {
+      const previous = navigationStack[navigationStack.length - 1];
+      setNavigationStack(prev => prev.slice(0, -1));
       
-      // Then close game modal after a tiny delay
-      setTimeout(() => {
+      if (previous.type === 'teamStats') {
+        setSelectedTeamInfo(previous.teamInfo);
+        fetchTeamStats(previous.teamInfo.abbr);
+        
+        setTimeout(() => {
+          setSelectedGame(null);
+          setGameDetails(null);
+        }, 50);
+      } else if (previous.type === 'home') {
         setSelectedGame(null);
         setGameDetails(null);
-      }, 50);
-    } else if (previous.type === 'home') {
-      // Go back to home
+      }
+    } else {
       setSelectedGame(null);
       setGameDetails(null);
     }
-  } else {
-    // No history, just close
-    setSelectedGame(null);
-    setGameDetails(null);
-  }
-};
+  };
 
   const closePlayerModal = () => {
     setSelectedPlayer(null);
@@ -807,10 +806,10 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       setNavigationStack(prev => [...prev, { type: 'game', data: selectedGame, details: gameDetails }]);
     }
     
+    setSlideDirection('right'); // Add this line
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     fetchTeamStats(teamAbbr);
-    setSelectedGame(null);
-    setGameDetails(null);
+    
   };
   
   const fetchTeamStats = async (teamAbbr) => {
@@ -936,27 +935,24 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   };
   
   const closeTeamModal = () => {
+    setSlideDirection('left'); // Add this line
+    
     if (navigationStack.length > 0) {
-      // Go back to previous state
       const previous = navigationStack[navigationStack.length - 1];
-      setNavigationStack(prev => prev.slice(0, -1)); // Pop from stack
+      setNavigationStack(prev => prev.slice(0, -1));
       
       if (previous.type === 'game') {
-        // Open game FIRST
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
         
-        // Then close team modal after a tiny delay
         setTimeout(() => {
           setSelectedTeamInfo(null);
           setTeamStats(null);
         }, 50);
       } else if (previous.type === 'home') {
-        // Go back to home
         setSelectedTeamInfo(null);
         setTeamStats(null);
       } else {
-        // No history, just close
         setSelectedTeamInfo(null);
         setTeamStats(null);
       }
@@ -967,6 +963,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     // Add current team stats to navigation stack
     setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
     
+    setSlideDirection('right'); // ADD THIS LINE
+
+
     // Close team stats
     setSelectedTeamInfo(null);
     setTeamStats(null);
@@ -1446,26 +1445,29 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 {selectedGame && (
   <div 
     className={`fixed inset-0 bg-black bg-opacity-95 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
-    style={{ transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)` }}
+    style={{ 
+      transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)`,
+      animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
+    }}
   >
     <div className="min-h-screen px-4 py-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
-                <button 
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-                >
-                  ‹
-                </button>
-                <h2 className="text-2xl font-bold">Game Details</h2>
-              </div>
-              <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-              <div className="flex items-start justify-between min-h-[120px]">
-    {/* AWAY TEAM - LEFT SIDE */}
-    <div 
-  className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-  onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
->
+          <button 
+            onClick={closeModal}
+            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+          >
+            ‹
+          </button>
+          <h2 className="text-2xl font-bold">Game Details</h2>
+        </div>
+        <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+          <div className="flex items-start justify-between min-h-[120px]">
+            {/* AWAY TEAM - LEFT SIDE */}
+            <div 
+              className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
+            >
   <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
   <span className="text-base font-bold">{selectedGame.awayTeam}</span>
   {selectedGame.awayRecord && (
@@ -2333,7 +2335,10 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   {selectedTeamInfo && (
   <div 
     className={`fixed inset-0 bg-black bg-opacity-95 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
-    style={{ transform: `translateX(${teamSwipeOffset}px)` }}
+    style={{ 
+      transform: `translateX(${teamSwipeOffset}px)`,
+      animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
+    }}
   >
       <div className="min-h-screen px-4 py-8">
         <div className="max-w-2xl mx-auto">
