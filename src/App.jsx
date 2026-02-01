@@ -39,6 +39,7 @@ export default function SportsApp() {
 const [swipeOffset, setSwipeOffset] = useState(0);
 const [teamSwipeOffset, setTeamSwipeOffset] = useState(0);
 const [isTransitioning, setIsTransitioning] = useState(false);
+const [showSearch, setShowSearch] = useState(false);
 
 // Swipe to go back functionality
 useEffect(() => {
@@ -290,9 +291,12 @@ console.log('Broadcasts:', competition.broadcasts);
           broadcast: (() => {
             const broadcasts = competition.broadcasts || [];
             for (const broadcast of broadcasts) {
-              const channelName = broadcast.names?.[0];
-              if (channelName && channelName !== 'NBA League Pass') {
-                return channelName;
+              const names = broadcast.names || [];
+              // Find first channel that isn't NBA League Pass
+              for (const channelName of names) {
+                if (channelName && channelName !== 'NBA League Pass') {
+                  return channelName;
+                }
               }
             }
             return null;
@@ -615,7 +619,9 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       'Peacock': 'PEA',
       'ALT2/KTVD': 'ALT2',
       'KJZZ-TV': 'KJZZ',
-      'Jazz+': 'JAZZ+'
+      'Jazz+': 'JAZZ+',
+      'BlazerVision': 'BV',
+      'Sportsnet': 'SN'
     };
     
     // Check for exact match first
@@ -1027,85 +1033,108 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 
 <div className="flex justify-between items-center mt-2 mb-4">
   <p className="text-gray-400 text-sm">{formatDate()}</p>
-  <button
-    onClick={openStandings}
-    className="text-blue-500 font-semibold text-sm hover:text-blue-400"
-  >
-    Standings
-  </button>
+  <div className="flex items-center gap-3">
+    <button
+      onClick={() => setShowSearch(true)}
+      className="text-gray-400 hover:text-white"
+    >
+      <Search className="w-5 h-5" />
+    </button>
+    <button
+      onClick={openStandings}
+      className="text-blue-500 font-semibold text-sm hover:text-blue-400"
+    >
+      Standings
+    </button>
+  </div>
 </div>
 
-<div className="mt-2 relative">
-  <div className="bg-zinc-900 rounded-xl px-4 py-3 flex items-center">
-            <Search className="w-5 h-5 text-gray-400 mr-3" />
-            <input 
-              type="text" 
-              placeholder="Search for players..." 
-              value={searchQuery}
-              onChange={handleSearchChange}
-              onFocus={() => searchQuery && setShowSearchResults(true)}
-              className="bg-transparent text-white placeholder-gray-400 outline-none flex-1"
-            />
-          </div>
-
-          {showSearchResults && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 rounded-xl max-h-96 overflow-y-auto z-50 shadow-lg border border-zinc-800">
-              {isSearching ? (
-                <div className="p-4 text-center text-gray-400">Searching...</div>
-              ) : searchResults.length > 0 ? (
-                <div className="py-2">
-                  {searchResults.map((player) => (
-                    <div
-                      key={player.idPlayer}
-                      className="px-4 py-3 hover:bg-zinc-800 cursor-pointer flex items-center gap-3"
-                      onClick={() => handlePlayerClick(player)}
-                    >
-                      {player.strThumb && (
-                        <img 
-                          src={player.strThumb} 
-                          alt={player.strPlayer}
-                          className="w-12 h-12 rounded-full object-cover"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <div className="font-semibold">{player.strPlayer}</div>
-                        <div className="text-sm text-gray-400">
-                          {player.strTeam} • {player.strPosition}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : searchQuery ? (
-                <div className="p-4 text-center text-gray-400">No players found</div>
-              ) : null}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 overflow-x-auto pb-2 scrollbar-hide">
-          <div className="flex gap-2">
-            {generateDateRange().map((date, idx) => {
-              const { month, day, dayOfWeek } = formatDateHeader(date);
-              const isSelected = isSameDay(date, selectedDate);
-              
-              return (
-                <button
-                key={idx}
-                onClick={() => setSelectedDate(date)}
-                className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-colors ${
-                  isSelected ? 'bg-blue-600' : 'bg-zinc-900'
-                }`}
+{showSearch && (
+  <div className="mt-2 relative bg-zinc-900 rounded-xl px-4 py-3 flex items-center">
+    <Search className="w-5 h-5 text-gray-400 mr-3" />
+    <input 
+      type="text" 
+      placeholder="Search for players..." 
+      value={searchQuery}
+      onChange={handleSearchChange}
+      onFocus={() => searchQuery && setShowSearchResults(true)}
+      autoFocus
+      className="bg-transparent text-white placeholder-gray-400 outline-none flex-1"
+    />
+    <button
+      onClick={() => {
+        setShowSearch(false);
+        setSearchQuery('');
+        setShowSearchResults(false);
+      }}
+      className="text-gray-400 hover:text-white ml-2"
+    >
+      ✕
+    </button>
+    
+    {showSearchResults && (
+      <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 rounded-xl max-h-96 overflow-y-auto z-50 shadow-lg border border-zinc-800">
+        {isSearching ? (
+          <div className="p-4 text-center text-gray-400">Searching...</div>
+        ) : searchResults.length > 0 ? (
+          <div className="py-2">
+            {searchResults.map((player) => (
+              <div
+                key={player.idPlayer}
+                className="px-4 py-3 hover:bg-zinc-800 cursor-pointer flex items-center gap-3"
+                onClick={() => handlePlayerClick(player)}
               >
-             <span className="text-xs text-gray-400 whitespace-nowrap">{month} {day}</span>
-                <span className={`text-base font-semibold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
-                  {dayOfWeek}
-                </span>
-              </button>
-              );
-            })}
+                {player.strThumb && (
+                  <img 
+                    src={player.strThumb} 
+                    alt={player.strPlayer}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                )}
+                <div className="flex-1">
+                  <div className="font-semibold">{player.strPlayer}</div>
+                  <div className="text-sm text-gray-400">
+                    {player.strTeam} • {player.strPosition}
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        ) : searchQuery ? (
+          <div className="p-4 text-center text-gray-400">No players found</div>
+        ) : null}
+      </div>
+    )}
+  </div>
+)}
+
+
+
+<div className="mt-6 overflow-x-auto scrollbar-hide py-4">
+  <div className="flex gap-2">
+    {generateDateRange().map((date, idx) => {
+      const { month, day, dayOfWeek } = formatDateHeader(date);
+      const isSelected = isSameDay(date, selectedDate);
+      
+      return (
+        <button
+          key={idx}
+          onClick={() => setSelectedDate(date)}
+          className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-all ${
+            isSelected 
+              ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.7)]' 
+              : 'bg-zinc-900'
+          }`}
+        >
+          <span className="text-xs text-gray-400 whitespace-nowrap">{month} {day}</span>
+          <span className={`text-base font-semibold ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+            {dayOfWeek}
+          </span>
+        </button>
+      );
+    })}
+  </div>
+</div>
       </div>
 
       {showSearchResults && !selectedPlayer && (
