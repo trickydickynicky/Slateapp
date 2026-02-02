@@ -413,7 +413,6 @@ if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === 
           console.log('About to store odds for', gameKey);
           console.log('line.total:', line.total);
           console.log('line.total?.number:', line.total?.number);
-
           oddsMap[gameKey] = {
             favoriteTeam,
             spread,
@@ -421,6 +420,18 @@ if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === 
             awaySpread: parseFloat(line.spread.away.point),
             total: line.total?.number ? parseFloat(line.total.number) : null
           };
+          
+          // Save as opening odds if we don't have opening odds for this game yet
+          // This will capture odds when games are still pre-game
+          if (!openingOdds[gameKey]) {
+            setOpeningOdds(prev => {
+              const newOpening = { ...prev, [gameKey]: oddsMap[gameKey] };
+              localStorage.setItem('openingOdds', JSON.stringify(newOpening));
+              return newOpening;
+            });
+          }
+          
+          console.log('Created odds for', gameKey, ':', oddsMap[gameKey]);
           
           // Save as opening odds if this game is still pre-game
           const gameIsPreGame = liveGames.find(g => 
@@ -1616,21 +1627,20 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     <div className="text-gray-400 font-semibold">FINAL</div>
     {(() => {
       const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-      const odds = openingOdds[gameKey]; // Changed from bettingOdds to openingOdds
+      const odds = openingOdds[gameKey];
       
       if (odds && odds.spread) {
         const awayScore = parseInt(selectedGame.awayScore) || 0;
         const homeScore = parseInt(selectedGame.homeScore) || 0;
-        const actualMargin = homeScore - awayScore;
+        const actualMargin = homeScore - awayScore; // Positive = home won, negative = away won
         
-        // Check if favorite covered
+        // If favorite is home: they cover if they win by MORE than spread
+        // If favorite is away: they cover if away wins by MORE than spread (actualMargin more negative)
         const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
-          ? actualMargin > odds.spread
-          : actualMargin < -odds.spread;
+          ? actualMargin > odds.spread  // Home favorite covers if margin > spread
+          : -actualMargin > odds.spread; // Away favorite covers if they win by more than spread
         
-        const coveredTeam = favoriteCovered 
-          ? odds.favoriteTeam 
-          : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
+        const coveredTeam = favoriteCovered ? odds.favoriteTeam : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
         
         return (
           <div className="text-xs text-orange-400 mt-1">
