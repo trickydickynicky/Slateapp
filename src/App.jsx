@@ -45,6 +45,10 @@ const [favoriteTeams, setFavoriteTeams] = useState(() => {
   const saved = localStorage.getItem('favoriteTeams');
   return saved ? JSON.parse(saved) : [];
 });
+const [openingOdds, setOpeningOdds] = useState(() => {
+  const cached = localStorage.getItem('openingOdds');
+  return cached ? JSON.parse(cached) : {};
+});
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -417,11 +421,24 @@ if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === 
             awaySpread: parseFloat(line.spread.away.point),
             total: line.total?.number ? parseFloat(line.total.number) : null
           };
+          
+          // Save as opening odds if this game is still pre-game
+          const gameIsPreGame = liveGames.find(g => 
+            g.awayTeam === awayAbbr && g.homeTeam === homeAbbr && g.isPreGame
+          );
+          
+          if (gameIsPreGame && !openingOdds[gameKey]) {
+            setOpeningOdds(prev => {
+              const newOpening = { ...prev, [gameKey]: oddsMap[gameKey] };
+              localStorage.setItem('openingOdds', JSON.stringify(newOpening));
+              return newOpening;
+            });
+          }
+          
           console.log('Created odds for', gameKey, ':', oddsMap[gameKey]);
-
-        }
-      }
-    });
+          }
+                }
+              });
     
     console.log('Odds Map:', oddsMap);
     setBettingOdds(oddsMap);
@@ -626,7 +643,10 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
       'KJZZ-TV': 'KJZZ',
       'Jazz+': 'JAZZ+',
       'BlazerVision': 'BV',
-      'Sportsnet': 'SN'
+      'Sportsnet': 'SN',
+      'GCSEN': 'GCS',
+      'Pelicans.com': 'Pel+'
+
     };
     
     // Check for exact match first
@@ -1592,8 +1612,36 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
   )}
   
   {selectedGame.isFinal && (
+  <div className="text-center">
     <div className="text-gray-400 font-semibold">FINAL</div>
-  )}
+    {(() => {
+      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+      const odds = openingOdds[gameKey]; // Changed from bettingOdds to openingOdds
+      
+      if (odds && odds.spread) {
+        const awayScore = parseInt(selectedGame.awayScore) || 0;
+        const homeScore = parseInt(selectedGame.homeScore) || 0;
+        const actualMargin = homeScore - awayScore;
+        
+        // Check if favorite covered
+        const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
+          ? actualMargin > odds.spread
+          : actualMargin < -odds.spread;
+        
+        const coveredTeam = favoriteCovered 
+          ? odds.favoriteTeam 
+          : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
+        
+        return (
+          <div className="text-xs text-orange-400 mt-1">
+            {odds.favoriteTeam} by {odds.spread} • <span className="text-orange-400">{coveredTeam} Covered</span>
+          </div>
+        );
+      }
+      return null;
+    })()}
+  </div>
+)}
 </div>
 
   {/* HOME TEAM - RIGHT SIDE */}
