@@ -132,7 +132,7 @@ useEffect(() => {
     document.removeEventListener('touchmove', handleTouchMove);
     document.removeEventListener('touchend', handleTouchEnd);
   };
-}, [selectedGame, navigationStack, selectedTeamInfo]);
+}, [selectedGame, navigationStack, selectedTeamInfo, selectedNBAPlayer]);
 
   
   const filters = [
