@@ -74,9 +74,9 @@ useEffect(() => {
   const cameFromHome = navigationStack.length > 0 && 
                        navigationStack[navigationStack.length - 1].type === 'home';
   
-  if (!selectedGame || !cameFromHome || selectedTeamInfo) {
-    return; // Don't add event listeners
-  }
+                       if (!selectedGame || !cameFromHome || selectedTeamInfo || selectedNBAPlayer) {
+                        return; // Don't add event listeners
+                      }
   
   let touchStartX = 0;
   let touchStartY = 0;
