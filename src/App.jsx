@@ -2348,13 +2348,26 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     return (
       <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
         <div className="flex items-center gap-3 flex-1">
-        <img 
-  src={player.headshot?.href || player.headshot}
-  alt={player.displayName}
-  className={`w-10 h-10 rounded-full object-cover ${!player.isInjuredOnly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-  loading="lazy"
+        {player.headshot?.href || player.headshot ? (
+  <img 
+    src={player.headshot?.href || player.headshot}
+    alt={player.displayName}
+    className={`w-10 h-10 rounded-full object-cover ${!player.isInjuredOnly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+    loading="lazy"
+    onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(player.displayName, player.id)}
+    onError={(e) => {
+      e.target.style.display = 'none';
+      e.target.nextSibling.style.display = 'flex';
+    }}
+  />
+) : null}
+<div 
+  className={`w-10 h-10 rounded-full bg-zinc-800 items-center justify-center text-gray-400 font-bold text-sm ${!player.isInjuredOnly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+  style={{ display: player.headshot?.href || player.headshot ? 'none' : 'flex' }}
   onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(player.displayName, player.id)}
-/>
+>
+  {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+</div>
 <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
 <div className="flex flex-col flex-1">
   <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
