@@ -732,7 +732,7 @@ console.log('Sample stats:', allStats);
       console.log('No player ID available');
       return;
     }
-    
+    setSlideDirection('right');
     setSelectedNBAPlayer({ name: playerName, id: playerId });
     fetchNBAPlayerStats(playerName, playerId);
   };
@@ -2348,11 +2348,19 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     return (
       <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
         <div className="flex items-center gap-3 flex-1">
-          <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
-          <div className="flex flex-col flex-1">
-            <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
-              {player.displayName}
-            </span>
+  <img 
+    src={player.headshot?.href || player.headshot}
+    alt={player.displayName}
+    className="w-10 h-10 rounded-full object-cover"
+  />
+  <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
+  <div className="flex flex-col flex-1">
+          <span 
+  className={`${player.isInjuredOnly ? 'text-gray-500' : 'cursor-pointer hover:text-blue-500 transition-colors'}`}
+  onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(player.displayName, player.id)}
+>
+  {player.displayName}
+</span>
             {playerInjury && (
               <span className="text-xs text-red-500">
                 {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
@@ -2805,16 +2813,22 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   
 {/* NBA Player Stats Modal */}
 {selectedNBAPlayer && (
-  <div className="fixed inset-0 bg-black bg-opacity-100 z-[110] overflow-y-auto">
+ <div className="fixed inset-0 bg-black bg-opacity-100 z-[110] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
+  transform: slideDirection === 'left' ? 'translateX(100%)' : 'translateX(0)',
+  transition: 'transform 0.3s ease-out'
+}}>
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
           <button 
             onClick={() => {
-              setSelectedNBAPlayer(null);
-              setNbaPlayerStats(null);
-              setSelectedStatSeason(null);
-              setAvailableSeasons([]);
+              setSlideDirection('left');
+              setTimeout(() => {
+                setSelectedNBAPlayer(null);
+                setNbaPlayerStats(null);
+                setSelectedStatSeason(null);
+                setAvailableSeasons([]);
+              }, 300);
             }}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
           >
