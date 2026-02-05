@@ -911,17 +911,21 @@ console.log('Sample stats:', allStats);
   const fetchStandings = async () => {
     setLoadingStandings(true);
     try {
-      const response = await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings');
+      // Use the CDN endpoint that has tiebreakers already calculated
+      const response = await fetch('https://cdn.espn.com/core/nba/standings?xhr=1');
       const data = await response.json();
       
       const eastern = [];
       const western = [];
       
-      data.children.forEach(conference => {
+      // The data structure is: data.content.standings.groups
+      const conferences = data.content.standings.groups;
+      
+      conferences.forEach(conference => {
         const isEastern = conference.name === 'Eastern Conference';
         const targetArray = isEastern ? eastern : western;
         
-        conference.standings.entries.forEach((entry, index) => {
+        conference.standings.entries.forEach(entry => {
           const team = entry.team;
           const stats = entry.stats;
           
@@ -931,7 +935,7 @@ console.log('Sample stats:', allStats);
           };
           
           targetArray.push({
-            rank: conference.standings.entries.length - index, // Reverse the rank
+            rank: parseInt(team.seed), // USE ESPN'S SEED - this has tiebreakers applied!
             team: team.abbreviation,
             logo: team.logos?.[0]?.href,
             gb: getStat('gamesBehind'),
@@ -948,7 +952,7 @@ console.log('Sample stats:', allStats);
         });
       });
       
-      // Sort by rank (ascending)
+      // Sort by ESPN's seed (which has tiebreakers already applied)
       eastern.sort((a, b) => a.rank - b.rank);
       western.sort((a, b) => a.rank - b.rank);
       
@@ -2012,7 +2016,7 @@ const statsToCompare = [
           { name: 'blocks', label: 'Blocks', format: 'number' },
           { name: 'defensiveRebounds', label: 'Defensive rebounds', format: 'number' },
           { name: 'offensiveRebounds', label: 'Offensive rebounds', format: 'number' },
-          { name: 'turnoverPoints', label: 'Points off turnovers', format: 'number' },
+          { name: 'turnoverPoints', label: 'Points off turnovers', format: 'number', swapTeams: true }, // ADD THIS FLAG
           { name: 'pointsInPaint', label: 'Points-in-paint', format: 'number' },
           { name: 'fastBreakPoints', label: 'Fastbreak points', format: 'number' },
           { name: 'steals', label: 'Steals', format: 'number' },
@@ -2025,6 +2029,17 @@ const statsToCompare = [
         ];
 
         return statsToCompare.map((statDef, idx) => {
+         // Handle swapping for stats like turnoverPoints
+  let awayStatsToUse = awayStats;
+  let homeStatsToUse = homeStats;
+  
+  if (statDef.swapTeams) {
+    // Swap the stats objects for this specific stat
+    awayStatsToUse = homeStats;
+    homeStatsToUse = awayStats;
+  }
+          
+          
           if (statDef.type === 'efficiency') {
             // Handle offensive efficiency
             console.log('gameDetails.boxscore:', gameDetails.boxscore);
@@ -2151,15 +2166,15 @@ const statsToCompare = [
                 );
               } else {
                 // Handle regular number stats
-                const awayValue = parseFloat(findStat(awayStats, statDef.name)) || 0;
-                const homeValue = parseFloat(findStat(homeStats, statDef.name)) || 0;
+                const awayValue = parseFloat(findStat(awayStatsToUse, statDef.name)) || 0;  // Changed from awayStats
+                const homeValue = parseFloat(findStat(homeStatsToUse, statDef.name)) || 0;  // Changed from homeStats
                 const total = awayValue + homeValue;
                 const awayPercent = total > 0 ? (awayValue / total) * 100 : 50;
                 const homePercent = total > 0 ? (homeValue / total) * 100 : 50;
-
+              
                 const awayBetter = statDef.inverse ? awayValue < homeValue : awayValue > homeValue;
                 const homeBetter = statDef.inverse ? homeValue < awayValue : homeValue > awayValue;
-
+              
                 return (
                   <div key={idx}>
                     <div className="flex justify-between items-center mb-2">
@@ -2170,7 +2185,7 @@ const statsToCompare = [
                       <span className={`text-lg font-bold ${homeBetter ? 'text-white' : 'text-gray-500'}`}>
                         {statDef.format === 'percentage' ? `${homeValue.toFixed(0)}%` : homeValue}
                       </span>
-                      </div>
+                    </div>
                     <div className="flex h-2 rounded-full overflow-hidden">
                       <div 
                         style={{ 
