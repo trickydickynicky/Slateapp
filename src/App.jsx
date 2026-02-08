@@ -1094,19 +1094,62 @@ console.log('Sample stats:', allStats);
     }
   })
   .filter(game => game !== null);
+  const upcomingGames = scheduleData.events
+  .filter(event => !event.competitions?.[0]?.status?.type?.completed)
+  .slice(0, 5)
+  .map(event => {
+    try {
+      const competition = event.competitions[0];
+      const teamCompetitor = competition.competitors.find(c => c.team?.id === teamId);
+      const opponentCompetitor = competition.competitors.find(c => c.team?.id !== teamId);
+      
+      if (!teamCompetitor || !opponentCompetitor) {
+        return null;
+      }
+      
+      const isHome = teamCompetitor.homeAway === 'home';
+      
+      return {
+        gameId: event.id,
+        opponent: opponentCompetitor.team.abbreviation,
+        opponentLogo: opponentCompetitor.team.logo || opponentCompetitor.team.logos?.[0]?.href,
+        isHome,
+        date: event.date,
+        time: new Date(event.date).toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit' 
+        }),
+        broadcast: competition.broadcasts?.[0]?.names?.[0] || null
+      };
+    } catch (err) {
+      console.error('Error processing upcoming game:', err, event);
+      return null;
+    }
+  })
+  .filter(game => game !== null);
+
+  // ADD THESE DEBUG LOGS:
+console.log('=== UPCOMING GAMES DEBUG ===');
+console.log('Total events:', scheduleData.events.length);
+console.log('Completed events:', scheduleData.events.filter(event => event.competitions?.[0]?.status?.type?.completed).length);
+console.log('Upcoming events:', scheduleData.events.filter(event => !event.competitions?.[0]?.status?.type?.completed).length);
+console.log('Upcoming games mapped:', upcomingGames);
+console.log('upcomingGames length:', upcomingGames.length);
   
-      setTeamStats({
-        record: teamRecord,
-        conference,
-        conferenceRank,
-        stats: statsData.results?.stats?.categories || [],
-        recentGames
-      });
+  setTeamStats({
+    record: teamRecord,
+    conference,
+    conferenceRank,
+    stats: statsData.results?.stats?.categories || [],
+    recentGames,
+    upcomingGames  // ADD THIS LINE (with the comma on the line above)
+  });
     } catch (error) {
       console.error('Error fetching team stats:', error);
     }
     setLoadingTeamStats(false);
   };
+  
   
   const closeTeamModal = () => {
     setSlideDirection('left');
@@ -2653,27 +2696,27 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         return (
           <>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgPoints')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgPoints')}</div>
               <div className="text-xs text-gray-400 mt-1">PPG</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('fieldGoalPct')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('fieldGoalPct')}</div>
               <div className="text-xs text-gray-400 mt-1">FG%</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('threePointFieldGoalPct')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('threePointFieldGoalPct')}</div>
               <div className="text-xs text-gray-400 mt-1">3FG%</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('freeThrowPct')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('freeThrowPct')}</div>
               <div className="text-xs text-gray-400 mt-1">FT%</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgAssists')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgAssists')}</div>
               <div className="text-xs text-gray-400 mt-1">AST</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgTurnovers')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgTurnovers')}</div>
               <div className="text-xs text-gray-400 mt-1">TO</div>
             </div>
           </>
@@ -2714,23 +2757,23 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         return (
           <>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{teamStats.record.oppg || '-'}</div>
+              <div className="text-lg font-bold text-white">{teamStats.record.oppg || '-'}</div>
               <div className="text-xs text-gray-400 mt-1">OPPG</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
               <div className="text-xs text-gray-400 mt-1">DREB</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{calcTotalRebounds()}</div>
+              <div className="text-lg font-bold text-white">{calcTotalRebounds()}</div>
               <div className="text-xs text-gray-400 mt-1">REB</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgBlocks', 'defensive')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgBlocks', 'defensive')}</div>
               <div className="text-xs text-gray-400 mt-1">BLK</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-blue-500">{getStatValue('avgSteals', 'defensive')}</div>
+              <div className="text-lg font-bold text-white">{getStatValue('avgSteals', 'defensive')}</div>
               <div className="text-xs text-gray-400 mt-1">STL</div>
             </div>
           </>
@@ -2829,6 +2872,59 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         </div>
       );
     })}
+  </div>
+</div>
+
+{/* Upcoming Schedule */}
+<div className="bg-zinc-900 rounded-2xl p-6 mt-6">
+  <h4 className="text-xl font-bold mb-4">Upcoming Schedule</h4>
+  <div className="space-y-2">
+    {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
+      teamStats.upcomingGames.map((game, idx) => (
+        <div 
+          key={idx} 
+          className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0"
+        >
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-400 w-24">
+              {new Date(game.date).toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+  <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
+  <img 
+    src={game.opponentLogo} 
+    alt={game.opponent} 
+    className="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity"
+    onClick={(e) => {
+      e.stopPropagation();
+      handleTeamClick(game.opponent, game.opponentLogo);
+    }}
+  />
+  <span 
+    className="font-semibold cursor-pointer hover:text-blue-500 transition-colors"
+    onClick={(e) => {
+      e.stopPropagation();
+      handleTeamClick(game.opponent, game.opponentLogo);
+    }}
+  >
+    {game.opponent}
+  </span>
+</div>
+          </div>
+          <div className="flex flex-col items-end">
+            <div className="text-sm">{game.time}</div>
+            {game.broadcast && (
+              <div className="text-xs text-gray-400">{game.broadcast}</div>
+            )}
+          </div>
+        </div>
+      ))
+    ) : (
+      <div className="text-gray-400 text-sm">No upcoming games</div>
+    )}
   </div>
 </div>
             </div>
