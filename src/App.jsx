@@ -829,6 +829,10 @@ console.log('Sample stats:', allStats);
       const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`);
       const data = await response.json();
       
+      console.log('🏀 GAME DATA LINEUPS:', data.gameInfo?.attendance);
+console.log('🏀 BOXSCORE LINEUPS:', data.boxscore);
+console.log('🏀 FULL DATA:', data);
+
       const homeTeamId = data.boxscore?.teams?.[1]?.team?.id;
       const awayTeamId = data.boxscore?.teams?.[0]?.team?.id;
       
@@ -846,6 +850,7 @@ console.log('Sample stats:', allStats);
         const awayData = await awayResponse.json();
         awayRoster = awayData.athletes;
       }
+      
       
       // ADD THESE DEBUG LOGS
       console.log('=== INJURY DEBUG ===');
@@ -2437,7 +2442,22 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
               </span>
             )}
           </div>
-          <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
+          <div className="flex items-center gap-1">
+  <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
+  {(() => {
+    // Check if player is a starter (for live/finished games)
+    const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes;
+    const playerInBoxscore = boxscorePlayers?.find(p => p.athlete.id === player.id);
+    
+   
+
+
+    if (playerInBoxscore?.starter) {
+      return <span className="text-blue-500 text-xs font-bold">S</span>;
+    }
+    return null;
+  })()}
+</div>
         </div>
         {!selectedGame.isPreGame && playerStats && (
           <div className="flex gap-4 text-sm">
@@ -2555,7 +2575,7 @@ onClick={(e) => {
 <div
   className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}
 >
-  {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>}
+{player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>} {player.starter && <span className="text-blue-500 font-bold ml-1">S</span>}
 </div>
 {playerInjury && (
 <div className="text-xs text-red-500 whitespace-nowrap">
