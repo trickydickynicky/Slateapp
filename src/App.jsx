@@ -2549,8 +2549,8 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
       })
       .map((player, idx) => {
     // Find injury for this player
-// Show injury if: (1) game is not final OR (2) player didn't play (isInjuredOnly)
-const playerInjury = (!selectedGame.isFinal || player.isInjuredOnly) ? teamInjuryData?.injuries?.find(
+// Show injury if player didn't actually play (0 minutes) or is injured-only
+const playerInjury = (player.isInjuredOnly || parseFloat(player.stats?.[0]) === 0) ? teamInjuryData?.injuries?.find(
   inj => inj.athlete.id === player.athlete.id
 ) : null;
         
