@@ -3196,15 +3196,13 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
   <div 
     key={idx} 
-    className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0"
+    className="flex items-center justify-between py-1 border-b border-zinc-800 last:border-0"
   >
     <div className="flex items-center gap-3">
-      <div className="text-sm text-gray-400 w-16">
-        {new Date(game.date).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        })}
-      </div>
+    <div className="text-xs text-gray-400 w-16">
+  <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
+  <div>{new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+</div>
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
         <img 
@@ -3247,8 +3245,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
     onClick={() => setShowAllUpcoming(!showAllUpcoming)}
     className="w-full py-0 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
   >
-    <span className="text-2xl font-light" style={{ transform: showAllUpcoming ? 'rotate(-90deg)' : 'rotate(-90deg)' }}>
-      ‹
+<span className="text-2xl font-light" style={{ transform: showAllUpcoming ? 'rotate(90deg)' : 'rotate(-90deg)' }}>      ‹
     </span>
   </button>
 )}
