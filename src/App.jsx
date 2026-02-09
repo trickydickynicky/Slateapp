@@ -1010,10 +1010,10 @@ console.log('🏀 FULL DATA:', data);
     setCompareTeamStats(null);
     setIsCompareMode(false);
     
-    setSlideDirection('right'); // Add this line
+    setSlideDirection('right');
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
+    setShowAllUpcoming(false); // ADD THIS LINE - reset the expand state
     fetchTeamStats(teamAbbr);
-    
   };
   
   const getTeamStatsData = async (teamAbbr) => {
