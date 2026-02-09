@@ -393,9 +393,6 @@ const tomorrowStr = tomorrow.toDateString();
     
    // Filter for NBA games only and process
    lines.forEach(line => {
-    // LOG EVERY SINGLE LINE
-    console.log('Processing line:', line.event?.away_team, '@', line.event?.home_team, 'League:', line.event?.league?.key);
-    
     if (line.event?.league?.key === 'basketball_nba') {
       if (!line.spread?.home) {
         console.log('⚠️ NBA game WITHOUT spread:', line.event.away_team, '@', line.event.home_team);
