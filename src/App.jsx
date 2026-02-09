@@ -3196,7 +3196,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
   <div 
     key={idx} 
-    className="flex items-center justify-between py-1 border-b border-zinc-800 last:border-0"
+    className="flex items-center justify-between py-1.5 border-b border-zinc-800 last:border-0"
   >
     <div className="flex items-center gap-3">
     <div className="text-xs text-gray-400 w-16">
