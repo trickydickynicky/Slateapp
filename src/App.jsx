@@ -3200,9 +3200,10 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   >
     <div className="flex items-center gap-3">
     <div className="text-xs text-gray-400 w-16">
-  <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })}</div>
+  <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })},</div>
   <div>{new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
 </div>
+
       <div className="flex items-center gap-2">
         <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
         <img 
