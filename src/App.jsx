@@ -58,7 +58,7 @@ const [availableSeasons, setAvailableSeasons] = useState([]);
 const [compareTeam, setCompareTeam] = useState(null);
 const [isCompareMode, setIsCompareMode] = useState(false);
 const [compareTeamStats, setCompareTeamStats] = useState(null);
-
+const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -1028,6 +1028,17 @@ console.log('🏀 FULL DATA:', data);
       let conference = null;
       let conferenceRank = null;
       
+      // Build a map of team abbreviations to records
+      const teamRecordsMap = {};
+      standingsData.children.forEach(conf => {
+        conf.standings.entries.forEach(entry => {
+          const abbr = entry.team.abbreviation;
+          const wins = entry.stats.find(s => s.name === 'wins')?.displayValue || '0';
+          const losses = entry.stats.find(s => s.name === 'losses')?.displayValue || '0';
+          teamRecordsMap[abbr] = `${wins}-${losses}`;
+        });
+      });
+      
       standingsData.children.forEach(conf => {
         const teamEntry = conf.standings.entries.find(entry => entry.team.abbreviation === teamAbbr);
         
@@ -1116,7 +1127,6 @@ console.log('🏀 FULL DATA:', data);
         
       const upcomingGames = scheduleData.events
         .filter(event => !event.competitions?.[0]?.status?.type?.completed)
-        .slice(0, 5)
         .map(event => {
           try {
             const competition = event.competitions[0];
@@ -1128,11 +1138,13 @@ console.log('🏀 FULL DATA:', data);
             }
             
             const isHome = teamCompetitor.homeAway === 'home';
+            const opponentAbbr = opponentCompetitor.team.abbreviation;
             
             return {
               gameId: event.id,
-              opponent: opponentCompetitor.team.abbreviation,
+              opponent: opponentAbbr,
               opponentLogo: opponentCompetitor.team.logo || opponentCompetitor.team.logos?.[0]?.href,
+              opponentRecord: teamRecordsMap[opponentAbbr] || null, // Look up from our map
               isHome,
               date: event.date,
               time: new Date(event.date).toLocaleTimeString('en-US', { 
@@ -3180,48 +3192,67 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
   <h4 className="text-xl font-bold mb-4">Upcoming Schedule</h4>
   <div className="space-y-2">
     {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
-      teamStats.upcomingGames.map((game, idx) => (
-        <div 
-          key={idx} 
-          className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0"
-        >
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-gray-400 w-24">
-              {new Date(game.date).toLocaleDateString('en-US', { 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </div>
-            <div className="flex items-center gap-2">
-  <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
-  <img 
-    src={game.opponentLogo} 
-    alt={game.opponent} 
-    className="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity"
-    onClick={(e) => {
-      e.stopPropagation();
-      handleTeamClick(game.opponent, game.opponentLogo);
-    }}
-  />
-  <span 
-    className="font-semibold cursor-pointer hover:text-blue-500 transition-colors"
-    onClick={(e) => {
-      e.stopPropagation();
-      handleTeamClick(game.opponent, game.opponentLogo);
-    }}
+      <>
+        {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
+  <div 
+    key={idx} 
+    className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0"
   >
-    {game.opponent}
-  </span>
-</div>
-          </div>
-          <div className="flex flex-col items-end">
-            <div className="text-sm">{game.time}</div>
-            {game.broadcast && (
-              <div className="text-xs text-gray-400">{game.broadcast}</div>
-            )}
-          </div>
-        </div>
-      ))
+    <div className="flex items-center gap-3">
+      <div className="text-sm text-gray-400 w-24">
+        {new Date(game.date).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        })}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
+        <img 
+          src={game.opponentLogo} 
+          alt={game.opponent} 
+          className="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTeamClick(game.opponent, game.opponentLogo);
+          }}
+        />
+        <span 
+          className="font-semibold cursor-pointer hover:text-blue-500 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleTeamClick(game.opponent, game.opponentLogo);
+          }}
+        >
+          {game.opponent}
+        </span>
+        {game.opponentRecord && (
+          <span className="text-sm text-gray-400">
+            ({game.opponentRecord})
+          </span>
+        )}
+      </div>
+    </div>
+    <div className="flex flex-col items-end">
+      <div className="text-sm">{game.time}</div>
+      {game.broadcast && (
+        <div className="text-xs text-gray-400">{game.broadcast}</div>
+      )}
+    </div>
+  </div>
+))}
+        
+{/* Show More/Less Arrow */}
+{teamStats.upcomingGames.length > 5 && (
+  <button
+    onClick={() => setShowAllUpcoming(!showAllUpcoming)}
+    className="w-full py-0 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+  >
+    <span className="text-2xl font-light" style={{ transform: showAllUpcoming ? 'rotate(-90deg)' : 'rotate(-90deg)' }}>
+      ‹
+    </span>
+  </button>
+)}
+      </>
     ) : (
       <div className="text-gray-400 text-sm">No upcoming games</div>
     )}
