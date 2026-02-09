@@ -3199,7 +3199,7 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
     className="flex items-center justify-between py-3 border-b border-zinc-800 last:border-0"
   >
     <div className="flex items-center gap-3">
-      <div className="text-sm text-gray-400 w-24">
+      <div className="text-sm text-gray-400 w-16">
         {new Date(game.date).toLocaleDateString('en-US', { 
           month: 'short', 
           day: 'numeric' 
