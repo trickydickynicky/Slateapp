@@ -3294,13 +3294,31 @@ return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
         {teamFullNames[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam]}
       </span>
       <span className="text-sm text-gray-400">
-        #{gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
-          athlete => athlete.athlete.id === selectedNBAPlayer.id
-        )?.athlete?.jersey || '-'} • 
-        {gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
-          athlete => athlete.athlete.id === selectedNBAPlayer.id
-        )?.athlete?.position?.abbreviation || 'N/A'}
-      </span>
+  #{(() => {
+    // Try boxscore first
+    const boxscorePlayer = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
+      athlete => athlete.athlete.id === selectedNBAPlayer.id
+    );
+    if (boxscorePlayer?.athlete?.jersey) return boxscorePlayer.athlete.jersey;
+    
+    // Fall back to roster
+    const roster = selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
+    const rosterPlayer = roster?.find(p => p.id === selectedNBAPlayer.id);
+    return rosterPlayer?.jersey || '-';
+  })()} • 
+  {(() => {
+    // Try boxscore first
+    const boxscorePlayer = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
+      athlete => athlete.athlete.id === selectedNBAPlayer.id
+    );
+    if (boxscorePlayer?.athlete?.position?.abbreviation) return boxscorePlayer.athlete.position.abbreviation;
+    
+    // Fall back to roster
+    const roster = selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
+    const rosterPlayer = roster?.find(p => p.id === selectedNBAPlayer.id);
+    return rosterPlayer?.position?.abbreviation || 'N/A';
+  })()}
+</span>
     </div>
   </div>
 </div>
