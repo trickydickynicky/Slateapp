@@ -364,25 +364,23 @@ const fetchBettingOdds = async () => {
     
     const lines = await linesResponse.json();
 
-// ADD THESE LINES HERE:
-console.log('=== DEBUGGING TOTALS ===');
-if (lines.length > 0) {
-  console.log('First line example:', lines[0]);
-  console.log('Does it have total?', lines[0].total);
-  console.log('Does it have totals?', lines[0].totals);
-  console.log('Full line object keys:', Object.keys(lines[0]));
-}
-
-console.log('Lines data:', lines);
-    
-    console.log('Lines data:', lines);
-    
-    // Check for rate limit error
-    if (lines.error === 'rate_limit_exceeded') {
-      console.log('Rate limited. Using cached odds.');
-      return;
+    // EXISTING LOGS:
+    console.log('=== DEBUGGING TOTALS ===');
+    if (lines.length > 0) {
+      console.log('First line example:', lines[0]);
+      console.log('Does it have total?', lines[0].total);
+      console.log('Does it have totals?', lines[0].totals);
+      console.log('Full line object keys:', Object.keys(lines[0]));
     }
+    console.log('Lines data:', lines);  // Keep just one
     
+    // ADD THIS NEW LOG:
+    console.log('=== ALL NBA GAMES IN BETTING API ===');
+    lines.forEach(line => {
+      if (line.event?.league?.key === 'basketball_nba') {
+        console.log(line.event.away_team, '@', line.event.home_team, '- Date:', new Date(line.event.commence_time).toLocaleDateString());
+      }
+    });
     const oddsMap = {};
 const today = new Date();
 const yesterday = new Date(today);
@@ -394,8 +392,15 @@ const todayStr = today.toDateString();
 const tomorrowStr = tomorrow.toDateString();
     
    // Filter for NBA games only and process
-lines.forEach(line => {
-  if (line.event?.league?.key === 'basketball_nba' && line.spread?.home) {
+   lines.forEach(line => {
+    // LOG EVERY SINGLE LINE
+    console.log('Processing line:', line.event?.away_team, '@', line.event?.home_team, 'League:', line.event?.league?.key);
+    
+    if (line.event?.league?.key === 'basketball_nba') {
+      if (!line.spread?.home) {
+        console.log('⚠️ NBA game WITHOUT spread:', line.event.away_team, '@', line.event.home_team);
+        return; // Skip this game
+      }
     console.log('NBA Game found:', line.event.away_team, '@', line.event.home_team, 'Total:', line.total?.number);
     const gameDate = new Date(line.event.commence_time);
     const gameDateStr = gameDate.toDateString();
@@ -417,9 +422,8 @@ if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === 
           const spread = Math.abs(homeSpread);
           const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
           
-          console.log('About to store odds for', gameKey);
-          console.log('line.total:', line.total);
-          console.log('line.total?.number:', line.total?.number);
+          console.log('Creating odds for:', gameKey, 'Away:', awayAbbr, 'Home:', homeAbbr); // ADD THIS
+          console.log('Spread:', spread, 'Favorite:', favoriteTeam, 'Total:', line.total?.number);
           oddsMap[gameKey] = {
             favoriteTeam,
             spread,
@@ -510,22 +514,41 @@ const getTeamAbbreviation = (fullName) => {
 
 // Convert betting odds to win probability with live game adjustments
 const calculateWinProbability = (spread, favoriteTeam, team, game) => {
-  if (!spread) return null;
+  if (spread === null || spread === undefined) return null;
+  
+  // If spread is 0, it's a pick'em - 50/50 odds
+  if (spread === 0) {
+    // Still apply live game adjustments for pick'em games
+    let baseProbability = 50;
+    
+    if (game && !game.isPreGame) {
+      const awayScore = parseInt(game.awayScore) || 0;
+      const homeScore = parseInt(game.homeScore) || 0;
+      const scoreDiff = team === game.awayTeam ? (awayScore - homeScore) : (homeScore - awayScore);
+      
+      let timeMultiplier = 1.0;
+      if (game.period === 1) timeMultiplier = 0.4;
+      else if (game.period === 2) timeMultiplier = 0.6;
+      else if (game.period === 3) timeMultiplier = 1.2;
+      else if (game.period === 4) timeMultiplier = 2.0;
+      
+      const scoreAdjustment = scoreDiff * 2.8 * timeMultiplier;
+      baseProbability += scoreAdjustment;
+      baseProbability = Math.max(1, Math.min(99, baseProbability));
+    }
+    
+    return Math.round(baseProbability);
+  }
   
   // Determine if this team is the favorite
   const isFavorite = favoriteTeam === team;
   
   // More accurate spread-to-probability conversion
-  // This formula is closer to what sportsbooks use
   let baseProbability;
-  
   if (isFavorite) {
-    // Formula: 50 + (spread^0.85 * 3.3)
-    // This creates a more realistic curve where larger spreads don't linearly increase probability
     baseProbability = 50 + Math.pow(spread, 0.85) * 3.3;
     baseProbability = Math.min(baseProbability, 98);
   } else {
-    // Underdog is inverse
     baseProbability = 50 - Math.pow(spread, 0.85) * 3.3;
     baseProbability = Math.max(baseProbability, 2);
   }
@@ -536,7 +559,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     const homeScore = parseInt(game.homeScore) || 0;
     const scoreDiff = team === game.awayTeam ? (awayScore - homeScore) : (homeScore - awayScore);
     
-    // More aggressive adjustments for live games
     let timeMultiplier = 1.0;
     if (game.period === 1) timeMultiplier = 0.4;
     else if (game.period === 2) timeMultiplier = 0.6;
@@ -545,8 +567,6 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     
     const scoreAdjustment = scoreDiff * 2.8 * timeMultiplier;
     baseProbability += scoreAdjustment;
-    
-    // Clamp between 1% and 99%
     baseProbability = Math.max(1, Math.min(99, baseProbability));
   }
   
@@ -1474,20 +1494,18 @@ console.log('upcomingGames length:', upcomingGames.length);
             </div>
       
             {/* BOTTOM: Betting Odds - Below teams */}
+
 {(() => {
   const gameKey = `${game.awayTeam}-${game.homeTeam}`;
   const odds = bettingOdds[gameKey];
-  
-  if (odds && odds.spread) {
+  if (odds && odds.spread !== undefined && odds.spread !== null) {
     console.log('Game:', game.awayTeam, '@', game.homeTeam, 'Odds object:', odds);
-    
     const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam, game);
     const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam, game);
-    
     return (
       <div className="flex items-start justify-between text-xs pt-2 border-t border-zinc-800">
         <div className="flex flex-col text-orange-400">
-          <span>{odds.favoriteTeam} by {odds.spread}</span>
+          <span>{odds.spread === 0 ? 'Pick\'em' : `${odds.favoriteTeam} by ${odds.spread}`}</span>
           {odds.total && <span>o{odds.total}</span>}
         </div>
         <div className="flex flex-col items-end">
@@ -1772,39 +1790,39 @@ console.log('upcomingGames length:', upcomingGames.length);
       </div>
     )}
 
-      {(() => {
-        const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-        const odds = bettingOdds[gameKey];
+    {(() => {
+      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+      const odds = bettingOdds[gameKey];
+      
+      if (odds && odds.spread !== undefined && odds.spread !== null) {  // ✅ FIXED
+        const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
+        const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
         
-        if (odds && odds.spread) {
-          const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
-          const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
-          
-          return (
-            <div className="mt-1">
+        return (
+          <div className="mt-1">
+            <div className="text-xs text-orange-400">
+              {odds.spread === 0 ? 'Pick\'em' : `${odds.favoriteTeam} by ${odds.spread}`} 
+            </div>
+            {odds.total && (
               <div className="text-xs text-orange-400">
-                {odds.favoriteTeam} by {odds.spread}
+                o{odds.total}
               </div>
-              {odds.total && (
-                <div className="text-xs text-orange-400">
-                  o{odds.total}
-                </div>
-              )}
-              <div className="text-xs mt-1">
-                <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-                  {selectedGame.awayTeam} {awayProb}%
-                </div>
-                <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-                  {selectedGame.homeTeam} {homeProb}%
-                </div>
+            )}
+            <div className="text-xs mt-1">
+              <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+                {selectedGame.awayTeam} {awayProb}%
+              </div>
+              <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+                {selectedGame.homeTeam} {homeProb}%
               </div>
             </div>
-          );
-        }
-        return null;
-      })()}
-    </div>
-  )}
+          </div>
+        );
+      }
+      return null;
+    })()}
+  </div>
+)}
   
   {selectedGame.isFinal && (
   <div className="text-center">
@@ -1813,16 +1831,24 @@ console.log('upcomingGames length:', upcomingGames.length);
       const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
       const odds = openingOdds[gameKey];
       
-      if (odds && odds.spread) {
+      if (odds && odds.spread !== undefined && odds.spread !== null) {  
         const awayScore = parseInt(selectedGame.awayScore) || 0;
         const homeScore = parseInt(selectedGame.homeScore) || 0;
-        const actualMargin = homeScore - awayScore; // Positive = home won, negative = away won
+        const actualMargin = homeScore - awayScore;
         
-        // If favorite is home: they cover if they win by MORE than spread
-        // If favorite is away: they cover if away wins by MORE than spread (actualMargin more negative)
+        // For pick'em (spread = 0), whoever wins covers
+        if (odds.spread === 0) {
+          const winner = actualMargin > 0 ? selectedGame.homeTeam : selectedGame.awayTeam;
+          return (
+            <div className="text-xs text-orange-400 mt-1">
+              Pick'em • <span className="text-orange-400">{winner} Covered</span>
+            </div>
+          );
+        }
+        
         const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
-          ? actualMargin > odds.spread  // Home favorite covers if margin > spread
-          : -actualMargin > odds.spread; // Away favorite covers if they win by more than spread
+          ? actualMargin > odds.spread
+          : -actualMargin > odds.spread;
         
         const coveredTeam = favoriteCovered ? odds.favoriteTeam : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
         
