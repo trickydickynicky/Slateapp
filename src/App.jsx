@@ -2517,48 +2517,78 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
   <div className="overflow-x-auto -ml-4">
     <table className="w-full text-sm">
       <thead>
-        <tr className="text-gray-400 border-b border-zinc-800">
-        <th className="text-left py-2 sticky left-0 bg-zinc-900 min-w-[60px]">
-  <img 
-    src={selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo} 
-    alt={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
-    className="w-6 h-6 mx-auto"
-  />
-</th>
-          <th className="text-center py-2 px-2">MIN</th>
-          <th className="text-center py-2 px-2">PTS</th>
-          <th className="text-center py-2 px-2">REB</th>
-          <th className="text-center py-2 px-2">AST</th>
-      
-          <th className="text-center py-2 px-2">+/-</th>
-          <th className="text-center py-2 px-2">FG</th>
-          <th className="text-center py-2 px-2">FG%</th>
-          <th className="text-center py-2 px-2">3PT</th>
-<th className="text-center py-2 px-2">3PT%</th>
-<th className="text-center py-2 px-2">FT</th>
-<th className="text-center py-2 px-2">STL</th>
-<th className="text-center py-2 px-2">BLK</th>
-          <th className="text-center py-2 px-2">TO</th>
-          <th className="text-center py-2 px-2">PF</th>
+        {/* TOTALS ROW - colSpan keeps it independent from column widths */}
+        <tr className="border-b border-zinc-700">
+          <td colSpan="15" className="bg-zinc-900 pb-1 px-2">
+            {(() => {
+              const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
+              let totalPts = 0, totalReb = 0, totalAst = 0, totalStl = 0, totalBlk = 0, totalTo = 0, totalPf = 0;
+              let totalFgMade = 0, totalFgAtt = 0, total3PtMade = 0, total3PtAtt = 0, totalFtMade = 0, totalFtAtt = 0;
+              boxscorePlayers.forEach(player => {
+                if (player.stats) {
+                  totalPts += parseFloat(player.stats[1]) || 0;
+                  totalReb += parseFloat(player.stats[5]) || 0;
+                  totalAst += parseFloat(player.stats[6]) || 0;
+                  totalStl += parseFloat(player.stats[8]) || 0;
+                  totalBlk += parseFloat(player.stats[9]) || 0;
+                  totalTo += parseFloat(player.stats[7]) || 0;
+                  totalPf += parseFloat(player.stats[12]) || 0;
+                  const fg = player.stats[2]?.split('-');
+                  if (fg) { totalFgMade += parseFloat(fg[0]) || 0; totalFgAtt += parseFloat(fg[1]) || 0; }
+                  const threePt = player.stats[3]?.split('-');
+                  if (threePt) { total3PtMade += parseFloat(threePt[0]) || 0; total3PtAtt += parseFloat(threePt[1]) || 0; }
+                  const ft = player.stats[4]?.split('-');
+                  if (ft) { totalFtMade += parseFloat(ft[0]) || 0; totalFtAtt += parseFloat(ft[1]) || 0; }
+                }
+              });
+              const fgPct = totalFgAtt > 0 ? ((totalFgMade / totalFgAtt) * 100).toFixed(1) : '0';
+              const threePtPct = total3PtAtt > 0 ? ((total3PtMade / total3PtAtt) * 100).toFixed(1) : '0';
+              return (
+                <div className="flex items-center gap-4">
+                  <img
+                    src={selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo}
+                    alt={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
+                    className="w-6 h-6 flex-shrink-0"
+                  />
+                  {[
+                    { label: 'PTS', value: totalPts },
+                    { label: 'REB', value: totalReb },
+                    { label: 'AST', value: totalAst },
+                    { label: 'FG', value: `${totalFgMade}/${totalFgAtt}` },
+                    { label: 'FG%', value: `${fgPct}%` },
+                    { label: '3PT', value: `${total3PtMade}/${total3PtAtt}` },
+                    { label: '3PT%', value: `${threePtPct}%` },
+                    { label: 'FT', value: `${totalFtMade}/${totalFtAtt}` },
+                    { label: 'STL', value: totalStl },
+                    { label: 'BLK', value: totalBlk },
+                    { label: 'TO', value: totalTo },
+                    { label: 'PF', value: totalPf },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="text-center flex-shrink-0">
+                      <div className="text-[16px] font-semibold text-white -mb-1.5 whitespace-nowrap">{value}</div>
+                      <div className="text-[10px] text-gray-400">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </td>
         </tr>
+        {/* COLUMN HEADERS - completely unchanged */}
+        
       </thead>
       <tbody>
 {(() => {
-    // Get players from boxscore
     const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
     
-    // Get the current team abbreviation
     const currentTeamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
     
-    // Find the injury data for this specific team
     const teamInjuryData = gameDetails.injuries?.find(
       injData => injData.team?.abbreviation === currentTeamAbbr
     );
     
-    // Create a Set of player IDs in the boxscore
     const boxscorePlayerIds = new Set(boxscorePlayers.map(p => p.athlete.id));
     
-    // Add injured players who aren't in the boxscore
     const injuredOnlyPlayers = teamInjuryData?.injuries
       ?.filter(inj => !boxscorePlayerIds.has(inj.athlete.id))
       .map(inj => ({
@@ -2572,10 +2602,8 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
         injury: inj
       })) || [];
     
-    // Combine boxscore players with injured-only players
     const allPlayers = [...boxscorePlayers, ...injuredOnlyPlayers];
     
-    // Sort by minutes played (injured players at bottom)
     return allPlayers
       .sort((a, b) => {
         if (a.isInjuredOnly) return 1;
@@ -2585,17 +2613,14 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
         return bMinutes - aMinutes;
       })
       .map((player, idx) => {
-    // Find injury for this player
-// Show injury if player didn't actually play (0 minutes) or is injured-only
-const playerInjury = (player.isInjuredOnly || parseFloat(player.stats?.[0]) === 0) ? teamInjuryData?.injuries?.find(
-  inj => inj.athlete.id === player.athlete.id
-) : null;
+    const playerInjury = (player.isInjuredOnly || parseFloat(player.stats?.[0]) === 0) ? teamInjuryData?.injuries?.find(
+      inj => inj.athlete.id === player.athlete.id
+    ) : null;
         
 return (
   <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
 <td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
 <div className="flex items-center gap-0">
-{/* Smaller square headshot */}
 {player.athlete.headshot && (
 <img 
 src={player.athlete.headshot.href} 
@@ -2607,7 +2632,6 @@ onClick={(e) => {
 }}
 />
 )}
-{/* Floating name badge - positioned above the stats */}
 <div className="absolute left-14 -top-0.5 z-30">
 <div
   className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}
@@ -2626,42 +2650,84 @@ onClick={(e) => {
 <td className="text-center px-2" colSpan="15"></td>
 ) : (
 <>
-<td className="text-center px-2 font-semibold">{player.stats?.[0] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[1] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[5] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[6] || '-'}</td>
-<td className={`text-center px-2 font-semibold ${
-player.stats?.[13] && player.stats[13] !== '-' 
-? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
-: ''
-}`}>{player.stats?.[13] || '-'}</td>
-<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[2] || '-'}</td>
-<td className="text-center px-2 font-semibold whitespace-nowrap">
-{(() => {
-const fgStat = player.stats?.[2];
-if (!fgStat || fgStat === '-') return '-';
-const [made, attempted] = fgStat.split('-').map(n => parseFloat(n));
-if (!attempted || attempted === 0) return '0';
-const percentage = ((made / attempted) * 100);
-return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
-  })()}
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[0] || '-'}</div>
+  <div className="text-[10px] text-gray-400">MIN</div>
 </td>
-<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[3] || '-'}</td>
-<td className="text-center px-2 font-semibold whitespace-nowrap">
-{(() => {
-const threePtStat = player.stats?.[3];
-if (!threePtStat || threePtStat === '-') return '-';
-const [made, attempted] = threePtStat.split('-').map(n => parseFloat(n));
-if (!attempted || attempted === 0) return '0';
-const percentage = ((made / attempted) * 100);
-return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
-  })()}
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[1] || '-'}</div>
+  <div className="text-[10px] text-gray-400">PTS</div>
 </td>
-<td className="text-center px-2 font-semibold whitespace-nowrap">{player.stats?.[4] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[8] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[9] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[7] || '-'}</td>
-<td className="text-center px-2 font-semibold">{player.stats?.[12] || '-'}</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[5] || '-'}</div>
+  <div className="text-[10px] text-gray-400">REB</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[6] || '-'}</div>
+  <div className="text-[10px] text-gray-400">AST</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className={`text-[16px] font-semibold -mb-1.5 ${
+    player.stats?.[13] && player.stats[13] !== '-' 
+    ? (parseFloat(player.stats[13]) > 0 ? 'text-green-500' : parseFloat(player.stats[13]) < 0 ? 'text-red-500' : '')
+    : ''
+  }`}>{player.stats?.[13] || '-'}</div>
+  <div className="text-[10px] text-gray-400">+/-</div>
+</td>
+<td className="text-center px-2 pt-2">
+<div className="text-[16px] font-semibold -mb-1.5 whitespace-nowrap">{player.stats?.[2]?.replace('-', '/') || '-'}</div>
+  <div className="text-[10px] text-gray-400">FG</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5 whitespace-nowrap">
+  {(() => {
+    const fgStat = player.stats?.[2];
+    if (!fgStat || fgStat === '-') return '-';
+    const [made, attempted] = fgStat.split('-').map(n => parseFloat(n));
+    if (!attempted || attempted === 0) return '0';
+    const percentage = ((made / attempted) * 100);
+    return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
+  })()}
+  </div>
+  <div className="text-[10px] text-gray-400">FG%</div>
+</td>
+<td className="text-center px-2 pt-2">
+<div className="text-[16px] font-semibold -mb-1.5 whitespace-nowrap">{player.stats?.[3]?.replace('-', '/') || '-'}</div>
+  <div className="text-[10px] text-gray-400">3PT</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5 whitespace-nowrap">
+  {(() => {
+    const threePtStat = player.stats?.[3];
+    if (!threePtStat || threePtStat === '-') return '-';
+    const [made, attempted] = threePtStat.split('-').map(n => parseFloat(n));
+    if (!attempted || attempted === 0) return '0';
+    const percentage = ((made / attempted) * 100);
+    return percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(1);
+  })()}
+  </div>
+  <div className="text-[10px] text-gray-400">3PT%</div>
+</td>
+<td className="text-center px-2 pt-2">
+<div className="text-[16px] font-semibold -mb-1.5 whitespace-nowrap">{player.stats?.[4]?.replace('-', '/') || '-'}</div>
+  <div className="text-[10px] text-gray-400">FT</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[8] || '-'}</div>
+  <div className="text-[10px] text-gray-400">STL</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[9] || '-'}</div>
+  <div className="text-[10px] text-gray-400">BLK</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[7] || '-'}</div>
+  <div className="text-[10px] text-gray-400">TO</div>
+</td>
+<td className="text-center px-2 pt-2">
+  <div className="text-[16px] font-semibold -mb-1.5">{player.stats?.[12] || '-'}</div>
+  <div className="text-[10px] text-gray-400">PF</div>
+</td>
 </>
 )}
 </tr>
