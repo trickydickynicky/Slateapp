@@ -2632,7 +2632,7 @@ onClick={(e) => {
 }}
 />
 )}
-<div className="absolute left-14 -top-0.5 z-30">
+<div className="absolute left-14 top-0 z-30" style={{top: '-1px'}}>
 <div
   className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}
 >
