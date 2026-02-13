@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+
 import logo from './assets/slate-logo.png';
+import { Search, Star } from 'lucide-react';
 
 export default function SportsApp() {
   // Store API key safely (in production, use environment variables)
@@ -59,6 +60,7 @@ const [compareTeam, setCompareTeam] = useState(null);
 const [isCompareMode, setIsCompareMode] = useState(false);
 const [compareTeamStats, setCompareTeamStats] = useState(null);
 const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+const [showFavorites, setShowFavorites] = useState(false);
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -1298,6 +1300,12 @@ console.log('🏀 FULL DATA:', data);
       <Search className="w-5 h-5" />
     </button>
     <button
+      onClick={() => setShowFavorites(true)}
+      className="text-gray-400 hover:text-white"
+    >
+      <Star className="w-5 h-5" />
+    </button>
+    <button
       onClick={openStandings}
       className="text-blue-500 font-semibold text-sm hover:text-blue-400"
     >
@@ -2473,11 +2481,15 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
   <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
     {player.displayName}
   </span>
-            {playerInjury && (
-              <span className="text-xs text-red-500">
-                {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
-              </span>
-            )}
+  {playerInjury ? (
+  <span className="text-xs text-red-500">
+    {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+  </span>
+) : (
+  <span className="text-xs text-green-500">
+    Active
+  </span>
+)}
           </div>
           <div className="flex items-center gap-1">
   <span className="text-gray-400 text-sm">{player.position?.abbreviation}</span>
@@ -2792,11 +2804,11 @@ onClick={(e) => {
     <div className="flex items-center gap-3">
       <h3 className="text-2xl font-bold mb-1">{teamFullNames[selectedTeamInfo.abbr]}</h3>
       <button
-        onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
-        className="text-2xl hover:scale-110 transition-transform"
-      >
-        {favoriteTeams.includes(selectedTeamInfo.abbr) ? '❤️' : '🤍'}
-      </button>
+  onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
+  className="hover:scale-110 transition-transform"
+>
+  <Star className={`w-6 h-6 ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-400'}`} />
+</button>
     </div>
     <div className="text-gray-400 text-lg">
       {teamStats.record.wins}-{teamStats.record.losses} • {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}
@@ -3532,6 +3544,74 @@ onClick={(e) => {
     No stats available
   </div>
 )}
+      </div>
+    </div>
+  </div>
+)}
+
+{showFavorites && (
+  <div className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
+    <div className="min-h-screen px-4 pt-12 pb-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+          <button 
+            onClick={() => setShowFavorites(false)}
+            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+          >
+            ‹
+          </button>
+          <h2 className="text-2xl font-bold">Teams</h2>
+        </div>
+
+        {favoriteTeams.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Your Favorites</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(teamFullNames)
+                .filter(([abbr]) => favoriteTeams.includes(abbr))
+                .map(([abbr, fullName]) => (
+                  <button
+                    key={abbr}
+                    onClick={() => toggleFavorite(abbr)}
+                    className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+                  >
+                    <img 
+                      src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
+                      alt={abbr}
+                      className="w-12 h-12"
+                    />
+                    <div className="text-left flex-1">
+                      <div className="font-semibold">{abbr}</div>
+                      <div className="text-xs text-gray-400">{fullName}</div>
+                    </div>
+                    <Star className="w-5 h-5 fill-white text-white" />
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">All Teams</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(teamFullNames).map(([abbr, fullName]) => (
+            <button
+              key={abbr}
+              onClick={() => toggleFavorite(abbr)}
+              className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+            >
+              <img 
+                src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
+                alt={abbr}
+                className="w-12 h-12"
+              />
+              <div className="text-left flex-1">
+                <div className="font-semibold">{abbr}</div>
+                <div className="text-xs text-gray-400">{fullName}</div>
+              </div>
+              <Star className={`w-5 h-5 ${favoriteTeams.includes(abbr) ? 'fill-white text-white' : 'text-gray-400'}`} />
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   </div>
