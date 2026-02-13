@@ -2619,7 +2619,7 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
         
 return (
   <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
-<td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14">
+<td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14 min-w-[56px]">
 <div className="flex items-center gap-0">
 {player.athlete.headshot && (
 <img 
