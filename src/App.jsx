@@ -2935,42 +2935,92 @@ onClick={(e) => {
             <div className="text-center py-12 text-gray-400">Loading team stats...</div>
           ) : teamStats ? (
             <div>
-       {/* Team Header */}
-<div className="bg-zinc-900 rounded-2xl p-6 mb-6 flex items-center gap-6">
-  <div className="flex flex-col items-center gap-2">
-    <img 
-      src={selectedTeamInfo.logo} 
-      alt={selectedTeamInfo.abbr}
-      className="w-24 h-24"
-    />
-    {/* Compare Button - small and under logo */}
-    <button
-      onClick={() => setIsCompareMode(true)}
-      className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-lg font-semibold text-xs transition-colors"
-    >
-      Compare
-    </button>
-  </div>
-  
-  <div className="flex-1">
-    <div className="flex items-center gap-3">
-      <h3 className="text-2xl font-bold mb-1">{teamFullNames[selectedTeamInfo.abbr]}</h3>
-      <button
-  onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
-  className="hover:scale-110 transition-transform"
+     {/* Team Header */}
+<div
+  className="rounded-2xl p-5 mb-4 relative overflow-hidden"
+  style={{
+    background: `linear-gradient(135deg, ${teamColors[selectedTeamInfo.abbr]}33 0%, #18181b 55%)`,
+    border: `1px solid ${teamColors[selectedTeamInfo.abbr]}55`,
+  }}
 >
-  <Star className={`w-6 h-6 ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-400'}`} />
-</button>
-    </div>
-    <div className="text-gray-400 text-lg">
-      {teamStats.record.wins}-{teamStats.record.losses} • {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}
-    </div>
-    <div className="text-sm text-gray-400 mt-2">
-      {teamStats.record.pct} PCT • {teamStats.record.streak}
+  {/* Glow blob */}
+  <div
+    className="absolute -top-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
+    style={{ background: teamColors[selectedTeamInfo.abbr] }}
+  />
+
+  {/* Top row: logo + info + star */}
+  <div className="flex items-start gap-4 relative z-10 mb-4">
+    <div className="flex flex-col items-center gap-2">
+  <img
+    src={selectedTeamInfo.logo}
+    alt={selectedTeamInfo.abbr}
+    className="w-20 h-20 drop-shadow-lg"
+  />
+  <button
+    onClick={() => setIsCompareMode(true)}
+    className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
+  >
+    Compare
+  </button>
+</div>
+    <div className="flex-1 pt-1">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="text-xl font-bold leading-tight">{teamFullNames[selectedTeamInfo.abbr]}</h3>
+          <div className="text-gray-400 text-sm mt-0.5">{getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}</div>
+        </div>
+        <button
+          onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
+          className="mt-0.5"
+        >
+          <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 mt-2">
+        <span className="text-2xl font-bold">{teamStats.record.wins}-{teamStats.record.losses}</span>
+        <span className="text-gray-400 text-sm">{teamStats.record.pct}</span>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+          teamStats.record.streak.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+        }`}>
+          {teamStats.record.streak}
+        </span>
+      </div>
     </div>
   </div>
 
+  {/* Win/Loss bar */}
+  <div className="relative z-10 mb-3">
+    <div className="flex h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: `${(teamStats.record.wins / (parseInt(teamStats.record.wins) + parseInt(teamStats.record.losses))) * 100}%`,
+          backgroundColor: teamColors[selectedTeamInfo.abbr],
+        }}
+      />
+    </div>
+    <div className="flex justify-between mt-1">
+      <span className="text-[10px] text-gray-500">{teamStats.record.wins}W</span>
+      <span className="text-[10px] text-gray-500">{teamStats.record.losses}L</span>
+    </div>
+  </div>
+
+  {/* Home/Away split */}
+  <div className="relative z-10 flex gap-3">
+  <div className="flex-1 rounded-xl px-3 py-2 flex items-center justify-between bg-zinc-800 border border-zinc-700">
+  <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Home</span>
+  <span className="text-sm font-bold">{teamStats.record.home}</span>
 </div>
+<div className="flex-1 rounded-xl px-3 py-2 flex items-center justify-between bg-zinc-800 border border-zinc-700">
+  <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Away</span>
+  <span className="text-sm font-bold">{teamStats.record.away}</span>
+</div>
+  </div>
+</div>
+
+
 
   {/* Team Comparison Selector */}
 {isCompareMode && !compareTeam && (
