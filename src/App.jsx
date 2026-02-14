@@ -214,9 +214,51 @@ useEffect(() => {
     'UTAH': '#002B5C',
     'WSH': '#002B5C'
   };
+  const espnTeamIds = {
+    'ATL': '1',
+    'BOS': '2',
+    'BKN': '17',
+    'CHA': '30',
+    'CHI': '4',
+    'CLE': '5',
+    'DAL': '6',
+    'DEN': '7',
+    'DET': '8',
+    'GS': '9',
+    'HOU': '10',
+    'IND': '11',
+    'LAC': '12',
+    'LAL': '13',
+    'MEM': '29',
+    'MIA': '14',
+    'MIL': '15',
+    'MIN': '16',
+    'NO': '3',
+    'NY': '18',
+    'OKC': '25',
+    'ORL': '19',
+    'PHI': '20',
+    'PHX': '21',
+    'POR': '22',
+    'SAC': '23',
+    'SA': '24',
+    'TOR': '28',
+    'UTAH': '26',
+    'WSH': '27'
+  };
   
   // Add this line RIGHT BEFORE your useEffects
   const hasFetchedOdds = React.useRef(false);
+
+  const [leagueRankings, setLeagueRankings] = useState(() => {
+    const cached = localStorage.getItem('leagueRankings');
+    const cacheTime = localStorage.getItem('leagueRankings_time');
+    const now = Date.now();
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+      return JSON.parse(cached);
+    }
+    return null;
+  });
 
   // Handle app visibility changes - refresh data when user returns
   useEffect(() => {
@@ -252,6 +294,8 @@ useEffect(() => {
 
   useEffect(() => {
     fetchLiveScores();
+    fetchLeagueRankings(); // ADD THIS LINE
+
     const interval = setInterval(fetchLiveScores, 30000);
     return () => clearInterval(interval);
   }, [selectedDate]);
@@ -344,7 +388,104 @@ setLoading(false);
   setLoading(false);
 }
 };
+
+const fetchLeagueRankings = async () => {
+  // Check cache first
+  const cacheTime = localStorage.getItem('leagueRankings_time');
+  const now = Date.now();
+  if (cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+    console.log('Using cached league rankings');
+    return;
+  }
+
+  console.log('Fetching league rankings...');
   
+  const allTeamStats = {};
+  const teamAbbrs = Object.keys(espnTeamIds);
+  
+  // Fetch in batches of 5
+  for (let i = 0; i < teamAbbrs.length; i += 5) {
+    const batch = teamAbbrs.slice(i, i + 5);
+    await Promise.all(batch.map(async (abbr) => {
+      try {
+        const id = espnTeamIds[abbr];
+        const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/statistics`);
+const data = await res.json();
+const offense = data.results?.stats?.categories?.find(c => c.name === 'offensive');
+const defense = data.results?.stats?.categories?.find(c => c.name === 'defensive');
+
+const standRes = await fetch(`https://site.api.espn.com/apis/v2/sports/basketball/nba/standings`);
+const standData = await standRes.json();
+const teamEntry = standData.children?.flatMap(conf => conf.standings.entries).find(e => e.team.abbreviation === abbr);
+const oppg = parseFloat(teamEntry?.stats?.find(s => s.name === 'avgPointsAgainst')?.displayValue) || null;
+        if (abbr === 'BOS') {
+          console.log('=== DEFENSE STATS AVAILABLE ===');
+          defense?.stats?.forEach(s => console.log(s.name, ':', s.displayValue));
+        }
+        if (abbr === 'BOS') {
+          console.log('=== OFFENSE STATS AVAILABLE ===');
+          offense?.stats?.forEach(s => console.log(s.name, ':', s.displayValue));
+        }
+
+        const getStat = (cat, name) => {
+          const stat = cat?.stats?.find(s => s.name === name);
+          return stat ? parseFloat(stat.displayValue) : null;
+        };
+
+        allTeamStats[abbr] = {
+          ppg: getStat(offense, 'avgPoints'),
+          fgPct: getStat(offense, 'fieldGoalPct'),
+          threePct: getStat(offense, 'threePointFieldGoalPct'),
+          ftPct: getStat(offense, 'freeThrowPct'),
+          ast: getStat(offense, 'avgAssists'),
+          oreb: getStat(offense, 'avgOffensiveRebounds'),
+          to: getStat(offense, 'avgTurnovers'),
+          blk: getStat(defense, 'avgBlocks'),
+          stl: getStat(defense, 'avgSteals'),
+          dreb: getStat(defense, 'avgDefensiveRebounds'),
+          oppg,
+        };
+      } catch (err) {
+        console.error(`Error fetching stats for ${abbr}:`, err);
+      }
+    }));
+  }
+
+  // Now calculate rankings
+  const rankings = {};
+  const statKeys = {
+    ppg: false,
+    fgPct: false,
+    threePct: false,
+    ftPct: false,
+    ast: false,
+    oreb: false,
+    to: true,
+    blk: false,
+    stl: false,
+    dreb: false,
+    oppg: true,
+  };
+
+  Object.keys(statKeys).forEach(stat => {
+    const inverse = statKeys[stat];
+    const sorted = Object.entries(allTeamStats)
+      .filter(([, stats]) => stats[stat] !== null)
+      .sort((a, b) => inverse ? a[1][stat] - b[1][stat] : b[1][stat] - a[1][stat]);
+    
+    sorted.forEach(([abbr], idx) => {
+      if (!rankings[abbr]) rankings[abbr] = {};
+      rankings[abbr][stat] = idx + 1;
+    });
+  });
+
+  // Cache it
+  localStorage.setItem('leagueRankings', JSON.stringify(rankings));
+  localStorage.setItem('leagueRankings_time', now.toString());
+  setLeagueRankings(rankings);
+  console.log('League rankings cached!', rankings);
+};
+
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
   try {
@@ -1084,7 +1225,7 @@ console.log('🏀 FULL DATA:', data);
   
       const scheduleResponse = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/schedule`);
       const scheduleData = await scheduleResponse.json();
-  
+      console.log('First upcoming game full data:', scheduleData.events?.find(e => !e.competitions?.[0]?.status?.type?.completed));
       const recentGames = scheduleData.events
         .filter(event => event.competitions?.[0]?.status?.type?.completed)
         .slice(-10)
@@ -1153,7 +1294,18 @@ console.log('🏀 FULL DATA:', data);
                 hour: 'numeric', 
                 minute: '2-digit' 
               }),
-              broadcast: competition.broadcasts?.[0]?.names?.[0] || null
+              broadcast: (() => {
+                const broadcasts = competition.broadcasts || [];
+                for (const broadcast of broadcasts) {
+                  const names = broadcast.names || [];
+                  for (const channelName of names) {
+                    if (channelName && channelName !== 'NBA League Pass') {
+                      return channelName;
+                    }
+                  }
+                }
+                return null;
+              })(),
             };
           } catch (err) {
             console.error('Error processing upcoming game:', err, event);
@@ -3066,89 +3218,112 @@ onClick={(e) => {
     /* ORIGINAL SINGLE TEAM VIEW */
 /* ORIGINAL SINGLE TEAM VIEW */
 <div>
-<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Offense</h4>
-  <div className="grid grid-cols-4 gap-2 mb-2">
-    {(() => {
-      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-      
-      const getStat = (name) => {
-        const stat = offenseCategory?.stats?.find(s => s.name === name);
-        return stat ? stat.displayValue : '-';
-      };
-
-      const cards = [
-        { label: 'PPG', value: getStat('avgPoints') },
-        { label: 'FG%', value: getStat('fieldGoalPct') },
-        { label: '3P%', value: getStat('threePointFieldGoalPct') },
-        { label: 'FT%', value: getStat('freeThrowPct') },
-      ];
-
-      return cards.map(({ label, value }) => (
-        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-        </div>
-      ));
-    })()}
+  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Offense</h4>
+    <div className="grid grid-cols-4 gap-2 mb-2">
+      {(() => {
+        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+        const getStat = (name) => {
+          const stat = offenseCategory?.stats?.find(s => s.name === name);
+          return stat ? stat.displayValue : '-';
+        };
+        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+        const cards = [
+          { label: 'PPG', value: getStat('avgPoints'), rank: teamRanks.ppg },
+          { label: 'FG%', value: getStat('fieldGoalPct'), rank: teamRanks.fgPct },
+          { label: '3P%', value: getStat('threePointFieldGoalPct'), rank: teamRanks.threePct },
+          { label: 'FT%', value: getStat('freeThrowPct'), rank: teamRanks.ftPct },
+        ];
+        return cards.map(({ label, value, rank }) => (
+          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+            rank <= 5 ? 'border-green-500/30 bg-green-500/5' :
+rank <= 15 ? 'border-zinc-700 bg-zinc-800/50' :
+'border-red-500/20 bg-red-500/5'
+          }`}>
+            <div className="text-lg font-bold text-white">{value}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+            {rank && (
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+                #{rank}
+              </div>
+            )}
+          </div>
+        ));
+      })()}
+    </div>
+    <div className="grid grid-cols-3 gap-2">
+      {(() => {
+        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+        const getStat = (name) => {
+          const stat = offenseCategory?.stats?.find(s => s.name === name);
+          return stat ? stat.displayValue : '-';
+        };
+        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+        const cards = [
+          { label: 'AST', value: getStat('avgAssists'), rank: teamRanks.ast },
+          { label: 'OREB', value: getStat('avgOffensiveRebounds'), rank: teamRanks.oreb },
+          { label: 'TO', value: getStat('avgTurnovers'), rank: teamRanks.to },
+        ];
+        return cards.map(({ label, value, rank }) => (
+          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+'border-red-500/20 bg-red-500/5'
+          }`}>
+            <div className="text-lg font-bold text-white">{value}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+            {rank && (
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+                #{rank}
+              </div>
+            )}
+          </div>
+        ));
+      })()}
+    </div>
   </div>
 
-  <div className="grid grid-cols-3 gap-2">
-    {(() => {
-      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-      
-      const getStat = (name) => {
-        const stat = offenseCategory?.stats?.find(s => s.name === name);
-        return stat ? stat.displayValue : '-';
-      };
-
-      const cards = [
-        { label: 'AST', value: getStat('avgAssists') },
-        { label: 'OREB', value: getStat('avgOffensiveRebounds') },
-        { label: 'TO', value: getStat('avgTurnovers') },
-      ];
-
-      return cards.map(({ label, value }) => (
-        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-        </div>
-      ));
-    })()}
+  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Defense</h4>
+    <div className="grid grid-cols-4 gap-2">
+      {(() => {
+        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+        const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
+        const getStat = (name, cat = 'defensive') => {
+          const primary = cat === 'defensive' ? defenseCategory : offenseCategory;
+          const secondary = cat === 'defensive' ? offenseCategory : defenseCategory;
+          let stat = primary?.stats?.find(s => s.name === name);
+          if (!stat) stat = secondary?.stats?.find(s => s.name === name);
+          return stat ? stat.displayValue : '-';
+        };
+        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+        const cards = [
+          { label: 'OPPG', value: teamStats.record.oppg || '-', rank: teamRanks.oppg },
+          { label: 'BLK', value: getStat('avgBlocks'), rank: teamRanks.blk },
+          { label: 'STL', value: getStat('avgSteals'), rank: teamRanks.stl },
+          { label: 'DREB', value: getStat('avgDefensiveRebounds'), rank: teamRanks.dreb },
+        ];
+        return cards.map(({ label, value, rank }) => (
+          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+'border-red-500/20 bg-red-500/5'
+          }`}>
+            <div className="text-lg font-bold text-white">{value}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+            {rank && (
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+                #{rank}
+              </div>
+            )}
+          </div>
+        ));
+      })()}
+    </div>
   </div>
-</div>
-
-<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Defense</h4>
-  <div className="grid grid-cols-4 gap-2">
-    {(() => {
-      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-      const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
-
-      const getStat = (name, cat = 'defensive') => {
-        const primary = cat === 'defensive' ? defenseCategory : offenseCategory;
-        const secondary = cat === 'defensive' ? offenseCategory : defenseCategory;
-        let stat = primary?.stats?.find(s => s.name === name);
-        if (!stat) stat = secondary?.stats?.find(s => s.name === name);
-        return stat ? stat.displayValue : '-';
-      };
-
-      const cards = [
-        { label: 'OPPG', value: teamStats.record.oppg || '-' },
-        { label: 'BLK', value: getStat('avgBlocks') },
-        { label: 'STL', value: getStat('avgSteals') },
-        { label: 'DREB', value: getStat('avgDefensiveRebounds') },
-      ];
-
-      return cards.map(({ label, value }) => (
-        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-        </div>
-      ));
-    })()}
-  </div>
-</div>
 </div>
 )}
 
@@ -3290,9 +3465,7 @@ onClick={(e) => {
     </div>
     <div className="flex flex-col items-end">
       <div className="text-sm">{game.time}</div>
-      {game.broadcast && (
-        <div className="text-xs text-gray-400">{game.broadcast}</div>
-      )}
+      
     </div>
   </div>
 ))}
