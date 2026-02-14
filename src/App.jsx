@@ -3237,14 +3237,14 @@ onClick={(e) => {
         return cards.map(({ label, value, rank }) => (
           <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
             !rank ? 'border-zinc-700 bg-zinc-800/50' :
-            rank <= 5 ? 'border-green-500/30 bg-green-500/5' :
-rank <= 15 ? 'border-zinc-700 bg-zinc-800/50' :
-'border-red-500/20 bg-red-500/5'
+            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+            'border-red-500/20 bg-red-500/5'
           }`}>
             <div className="text-lg font-bold text-white">{value}</div>
             <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
             {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
                 #{rank}
               </div>
             )}
@@ -3269,13 +3269,13 @@ rank <= 15 ? 'border-zinc-700 bg-zinc-800/50' :
           <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
             !rank ? 'border-zinc-700 bg-zinc-800/50' :
             rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-'border-red-500/20 bg-red-500/5'
+            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+            'border-red-500/20 bg-red-500/5'
           }`}>
             <div className="text-lg font-bold text-white">{value}</div>
             <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
             {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
                 #{rank}
               </div>
             )}
@@ -3309,13 +3309,13 @@ rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
           <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
             !rank ? 'border-zinc-700 bg-zinc-800/50' :
             rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-'border-red-500/20 bg-red-500/5'
+            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+            'border-red-500/20 bg-red-500/5'
           }`}>
             <div className="text-lg font-bold text-white">{value}</div>
             <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
             {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 5 ? 'text-green-400' : rank <= 15 ? 'text-gray-400' : 'text-red-400'}`}>
+              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
                 #{rank}
               </div>
             )}
