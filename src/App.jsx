@@ -1781,6 +1781,7 @@ console.log('🏀 FULL DATA:', data);
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       if (previous.type === 'teamStats') {
+        setSlideDirection('left');
         setSelectedTeamInfo(previous.teamInfo);
         setTeamStats(previous.stats);
       }
