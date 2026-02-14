@@ -2865,22 +2865,21 @@ onClick={(e) => {
 )}            
   
      {/* Team Stats - Comparison or Single */}
-<div className="bg-zinc-900 rounded-2xl p-6 mb-6">
-  <div className="flex items-center justify-between mb-4">
-    <h4 className="text-xl font-bold">Team Stats</h4>
-    {compareTeam && (
-      <button
-        onClick={() => {
-          setCompareTeam(null);
-          setCompareTeamStats(null);
-          setIsCompareMode(false);
-        }}
-        className="text-red-500 hover:text-red-400 text-sm font-semibold"
-      >
-        Clear Comparison
-      </button>
-    )}
+
+{compareTeam && (
+  <div className="flex items-center justify-end mb-4">
+    <button
+      onClick={() => {
+        setCompareTeam(null);
+        setCompareTeamStats(null);
+        setIsCompareMode(false);
+      }}
+      className="text-red-500 hover:text-red-400 text-sm font-semibold"
+    >
+      Clear Comparison
+    </button>
   </div>
+)}
   
   {compareTeam && compareTeamStats ? (
     /* COMPARISON VIEW */
@@ -3065,117 +3064,97 @@ onClick={(e) => {
     </div>
   ) : (
     /* ORIGINAL SINGLE TEAM VIEW */
-    <div>
-      {/* Offense Row */}
-      <div className="mb-6">
-        <h5 className="text-sm font-semibold text-gray-400 mb-3 text-center">Offense</h5>
-        <div className="grid grid-cols-6 gap-3">
-          {(() => {
-            const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-            if (!offenseCategory || !offenseCategory.stats) {
-              return <div className="text-gray-400 col-span-6">No data available</div>;
-            }
-            
-            const getStatValue = (name) => {
-              const stat = offenseCategory.stats.find(s => s.name === name);
-              return stat ? stat.displayValue : '-';
-            };
-            
-            return (
-              <>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgPoints')}</div>
-                  <div className="text-xs text-gray-400 mt-1">PPG</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('fieldGoalPct')}</div>
-                  <div className="text-xs text-gray-400 mt-1">FG%</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('threePointFieldGoalPct')}</div>
-                  <div className="text-xs text-gray-400 mt-1">3FG%</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('freeThrowPct')}</div>
-                  <div className="text-xs text-gray-400 mt-1">FT%</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgAssists')}</div>
-                  <div className="text-xs text-gray-400 mt-1">AST</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgTurnovers')}</div>
-                  <div className="text-xs text-gray-400 mt-1">TO</div>
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </div>
+/* ORIGINAL SINGLE TEAM VIEW */
+<div>
+<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Offense</h4>
+  <div className="grid grid-cols-4 gap-2 mb-2">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
       
-      {/* Defense Row */}
-      <div>
-        <h5 className="text-sm font-semibold text-gray-400 mb-3 text-center">Defense</h5>
-        <div className="grid grid-cols-5 gap-3">
-          {(() => {
-            const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-            const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
-            
-            if (!offenseCategory && !defenseCategory) {
-              return <div className="text-gray-400 col-span-5">No data available</div>;
-            }
-            
-            const getStatValue = (name, preferredCategory = 'defensive') => {
-              const primaryCat = preferredCategory === 'defensive' ? defenseCategory : offenseCategory;
-              const secondaryCat = preferredCategory === 'defensive' ? offenseCategory : defenseCategory;
-              
-              let stat = primaryCat?.stats?.find(s => s.name === name);
-              if (!stat && secondaryCat) {
-                stat = secondaryCat.stats?.find(s => s.name === name);
-              }
-              return stat ? stat.displayValue : '-';
-            };
-            
-            const calcTotalRebounds = () => {
-              const dreb = parseFloat(getStatValue('avgDefensiveRebounds', 'defensive')) || 0;
-              const oreb = parseFloat(getStatValue('avgOffensiveRebounds', 'offensive')) || 0;
-              return (dreb + oreb).toFixed(1);
-            };
-            
-            return (
-              <>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{teamStats.record.oppg || '-'}</div>
-                  <div className="text-xs text-gray-400 mt-1">OPPG</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgDefensiveRebounds', 'defensive')}</div>
-                  <div className="text-xs text-gray-400 mt-1">DREB</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{calcTotalRebounds()}</div>
-                  <div className="text-xs text-gray-400 mt-1">REB</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgBlocks', 'defensive')}</div>
-                  <div className="text-xs text-gray-400 mt-1">BLK</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-white">{getStatValue('avgSteals', 'defensive')}</div>
-                  <div className="text-xs text-gray-400 mt-1">STL</div>
-                </div>
-              </>
-            );
-          })()}
+      const getStat = (name) => {
+        const stat = offenseCategory?.stats?.find(s => s.name === name);
+        return stat ? stat.displayValue : '-';
+      };
+
+      const cards = [
+        { label: 'PPG', value: getStat('avgPoints') },
+        { label: 'FG%', value: getStat('fieldGoalPct') },
+        { label: '3P%', value: getStat('threePointFieldGoalPct') },
+        { label: 'FT%', value: getStat('freeThrowPct') },
+      ];
+
+      return cards.map(({ label, value }) => (
+        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
         </div>
-      </div>
-    </div>
-  )}
+      ));
+    })()}
+  </div>
+
+  <div className="grid grid-cols-3 gap-2">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      
+      const getStat = (name) => {
+        const stat = offenseCategory?.stats?.find(s => s.name === name);
+        return stat ? stat.displayValue : '-';
+      };
+
+      const cards = [
+        { label: 'AST', value: getStat('avgAssists') },
+        { label: 'OREB', value: getStat('avgOffensiveRebounds') },
+        { label: 'TO', value: getStat('avgTurnovers') },
+      ];
+
+      return cards.map(({ label, value }) => (
+        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+        </div>
+      ));
+    })()}
+  </div>
 </div>
-  
-      {/* Recent Differentials */}
+
+<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Defense</h4>
+  <div className="grid grid-cols-4 gap-2">
+    {(() => {
+      const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
+      const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
+
+      const getStat = (name, cat = 'defensive') => {
+        const primary = cat === 'defensive' ? defenseCategory : offenseCategory;
+        const secondary = cat === 'defensive' ? offenseCategory : defenseCategory;
+        let stat = primary?.stats?.find(s => s.name === name);
+        if (!stat) stat = secondary?.stats?.find(s => s.name === name);
+        return stat ? stat.displayValue : '-';
+      };
+
+      const cards = [
+        { label: 'OPPG', value: teamStats.record.oppg || '-' },
+        { label: 'BLK', value: getStat('avgBlocks') },
+        { label: 'STL', value: getStat('avgSteals') },
+        { label: 'DREB', value: getStat('avgDefensiveRebounds') },
+      ];
+
+      return cards.map(({ label, value }) => (
+        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center justify-center">
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+        </div>
+      ));
+    })()}
+  </div>
+</div>
+</div>
+)}
+
+{/* Recent Differentials */}
 <div className="bg-zinc-900 rounded-2xl p-6">
-  <h4 className="text-xl font-bold mb-4">Recent Differentials</h4>
+<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Recent Differentials</h4>
   <div className="flex gap-2 justify-between">
     {teamStats.recentGames.map((game, idx) => {
       // Calculate bar height percentage
@@ -3267,7 +3246,7 @@ onClick={(e) => {
 
 {/* Upcoming Schedule */}
 <div className="bg-zinc-900 rounded-2xl p-6 mt-6">
-  <h4 className="text-xl font-bold mb-4">Upcoming Schedule</h4>
+<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Upcoming Schedule</h4>
   <div className="space-y-2">
     {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
       <>
