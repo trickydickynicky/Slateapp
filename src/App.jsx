@@ -1764,19 +1764,32 @@ console.log('🏀 FULL DATA:', data);
         </div>
       )}
      {showStandings && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
-    style={{ transform: `translateX(${swipeOffset}px)` }}
-  >
+      <div 
+    className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto transition-transform duration-300 ease-out"
+    style={{ 
+      transform: `translateX(${swipeOffset}px)`,
+      animation: 'slideInRight 0.3s ease-out'
+    }}
+>
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-6xl mx-auto">
       <div className="flex items-center mb-6">
-  <button 
-    onClick={closeStandings}
-    className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-  >
-    ‹
-  </button>
+      <button 
+  onClick={() => {
+    setShowStandings(false);
+    if (navigationStack.length > 0) {
+      const previous = navigationStack[navigationStack.length - 1];
+      setNavigationStack(prev => prev.slice(0, -1));
+      if (previous.type === 'teamStats') {
+        setSelectedTeamInfo(previous.teamInfo);
+        setTeamStats(previous.stats);
+      }
+    }
+  }}
+  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+>
+  ‹
+</button>
   <h2 className="text-2xl font-bold">NBA Standings</h2>
 </div>
 
@@ -2968,7 +2981,21 @@ onClick={(e) => {
       <div className="flex items-start justify-between">
         <div>
           <h3 className="text-xl font-bold leading-tight">{teamFullNames[selectedTeamInfo.abbr]}</h3>
-          <div className="text-gray-400 text-sm mt-0.5">{getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference}</div>
+          <div 
+  className="text-gray-400 text-sm mt-0.5 cursor-pointer hover:text-white transition-colors"
+  onClick={() => {
+    setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo, stats: teamStats }]);
+    setSelectedConference(teamStats.conference === 'Eastern' ? 'Eastern' : 'Western');
+    setSelectedTeamInfo(null);
+    setTeamStats(null);
+    setShowStandings(true);
+    if (standings.eastern.length === 0) {
+      fetchStandings();
+    }
+  }}
+>
+  {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference} ›
+</div>
         </div>
         <button
           onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
