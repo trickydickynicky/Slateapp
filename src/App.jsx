@@ -3041,7 +3041,7 @@ onClick={(e) => {
     <div className="flex-1 pt-1">
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-xl font-bold leading-tight">{teamFullNames[selectedTeamInfo.abbr]}</h3>
+        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamFullNames[selectedTeamInfo.abbr]}</h3>
           <div 
   className="text-gray-400 text-sm mt-0.5 cursor-pointer hover:text-white transition-colors"
   onClick={() => {
@@ -3466,7 +3466,7 @@ onClick={(e) => {
 )}
 
 {/* Recent Differentials */}
-<div className="bg-zinc-900 rounded-2xl p-6">
+<div className="bg-zinc-900 rounded-2xl p-4">
 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
   <div className="flex gap-2 justify-between">
     {teamStats.recentGames.map((game, idx) => {
@@ -3558,7 +3558,7 @@ onClick={(e) => {
 </div>
 
 {/* Upcoming Schedule */}
-<div className="bg-zinc-900 rounded-2xl p-6 mt-6">
+<div className="bg-zinc-900 rounded-2xl p-4 mt-4">
 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
   <div className="space-y-2">
     {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
@@ -3697,7 +3697,7 @@ onClick={(e) => {
                   style={{ border: `2px solid ${color}66` }}
                 />
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold leading-tight">{selectedNBAPlayer.name}</h3>
+                <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedNBAPlayer.name}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <img src={teamLogo} alt={teamAbbr} className="w-4 h-4" />
                     <span className="text-gray-400 text-xs">{teamFullNames[teamAbbr]}</span>
