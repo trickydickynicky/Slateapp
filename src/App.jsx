@@ -3788,26 +3788,26 @@ onClick={(e) => {
                 ))}
               </div>
               {[
-                { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct), max: 70 },
-                { label: '3P%', value: parseFloat(nbaPlayerStats.currentSeason.three_p_pct), max: 60 },
-                { label: 'FT%', value: parseFloat(nbaPlayerStats.currentSeason.ft_pct), max: 100 },
-              ].map(({ label, value, max }) => (
-                <div key={label} className="mb-2 last:mb-0">
-                  <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-                    <span>{label}</span>
-                    <span>{value}%</span>
-                  </div>
-                  <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${Math.min((value / max) * 100, 100)}%`,
-                        backgroundColor: teamColors[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam] || '#3B82F6'
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
+  { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct) },
+  { label: '3P%', value: parseFloat(nbaPlayerStats.currentSeason.three_p_pct) },
+  { label: 'FT%', value: parseFloat(nbaPlayerStats.currentSeason.ft_pct) },
+].map(({ label, value }) => (
+  <div key={label} className="mb-2 last:mb-0">
+    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+      <span>{label}</span>
+      <span>{value}%</span>
+    </div>
+    <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+      <div
+        className="h-full rounded-full"
+        style={{
+          width: `${value}%`,
+          backgroundColor: teamColors[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam] || '#3B82F6'
+        }}
+      />
+    </div>
+  </div>
+))}
             </div>
 
             {/* Per Game */}
