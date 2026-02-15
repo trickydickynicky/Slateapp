@@ -891,19 +891,21 @@ averagesCategory.statistics?.forEach(stat => {
     // Stats that should be AVERAGED (per game rates)
     const avgStats = ['pts', 'reb', 'ast', 'stl', 'blk', 'to', 'pf', 'min', 'or', 'dr', 'fg_pct', 'three_p_pct', 'ft_pct', 'fg', 'three_pt', 'ft'];
     // Stats that should be SUMMED (totals)
-    const sumStats = ['gp', 'gs'];
+    const sumStats = [];
 
+    const gp1 = parseFloat(existing.gp) || 1;
+    const gp2 = parseFloat(seasonAllStats.gp) || 1;
+    const totalGP = gp1 + gp2;
+    
     avgStats.forEach(key => {
       if (existing[key] !== undefined && seasonAllStats[key] !== undefined) {
-        combined[key] = ((parseFloat(existing[key]) + parseFloat(seasonAllStats[key])) / 2).toFixed(1);
+        const weighted = ((parseFloat(existing[key]) * gp1) + (parseFloat(seasonAllStats[key]) * gp2)) / totalGP;
+        combined[key] = weighted.toFixed(1);
       }
     });
-
-    sumStats.forEach(key => {
-      if (existing[key] !== undefined && seasonAllStats[key] !== undefined) {
-        combined[key] = (parseInt(existing[key]) + parseInt(seasonAllStats[key])).toString();
-      }
-    });
+    
+    combined.gp = Math.max(parseInt(existing.gp) || 0, parseInt(seasonAllStats.gp) || 0).toString();
+    combined.gs = Math.max(parseInt(existing.gs) || 0, parseInt(seasonAllStats.gs) || 0).toString();
 
     allSeasonsData[year] = combined;
   } else {
