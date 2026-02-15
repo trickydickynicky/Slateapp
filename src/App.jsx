@@ -1778,7 +1778,7 @@ console.log('🏀 FULL DATA:', data);
   >
     ‹
   </button>
-  <h2 className="text-2xl font-bold">Player Stats</h2>
+  <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
 </div>
 
               {loadingPlayer ? (
@@ -1851,7 +1851,7 @@ console.log('🏀 FULL DATA:', data);
 >
   ‹
 </button>
-  <h2 className="text-2xl font-bold">NBA Standings</h2>
+<h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>NBA Standings</h2>
 </div>
 
         <div className="flex gap-2 mb-6">
@@ -1955,7 +1955,7 @@ console.log('🏀 FULL DATA:', data);
           >
             ‹
           </button>
-          <h2 className="text-2xl font-bold">Game Details</h2>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
         </div>
         <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
           <div className="flex items-start justify-between min-h-[120px]">
@@ -3002,7 +3002,7 @@ onClick={(e) => {
   >
     ‹
   </button>
-  <h2 className="text-2xl font-bold">Team Stats</h2>
+  <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
 </div>
   
           {loadingTeamStats ? (
@@ -3357,7 +3357,7 @@ onClick={(e) => {
 /* ORIGINAL SINGLE TEAM VIEW */
 <div>
   <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Offense</h4>
+    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
     <div className="grid grid-cols-4 gap-2 mb-2">
       {(() => {
         const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
@@ -3424,7 +3424,7 @@ onClick={(e) => {
   </div>
 
   <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Defense</h4>
+    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
     <div className="grid grid-cols-4 gap-2">
       {(() => {
         const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
@@ -3467,7 +3467,7 @@ onClick={(e) => {
 
 {/* Recent Differentials */}
 <div className="bg-zinc-900 rounded-2xl p-6">
-<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Recent Differentials</h4>
+<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
   <div className="flex gap-2 justify-between">
     {teamStats.recentGames.map((game, idx) => {
       // Calculate bar height percentage
@@ -3559,7 +3559,7 @@ onClick={(e) => {
 
 {/* Upcoming Schedule */}
 <div className="bg-zinc-900 rounded-2xl p-6 mt-6">
-<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Upcoming Schedule</h4>
+<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
   <div className="space-y-2">
     {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
       <>
@@ -3655,7 +3655,7 @@ onClick={(e) => {
           >
             ‹
           </button>
-          <h2 className="text-2xl font-bold">Player Stats</h2>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
         </div>
 
         {/* HERO HEADER */}
@@ -3774,7 +3774,7 @@ onClick={(e) => {
 
             {/* Shooting */}
             <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Shooting</h5>
+              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Shooting</h5>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 {[
                   { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct },
@@ -3812,7 +3812,7 @@ onClick={(e) => {
 
             {/* Per Game */}
             <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Per Game</h5>
+              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Per Game</h5>
               <div className="grid grid-cols-4 gap-2 mb-2">
                 {[
                   { label: 'STL', value: nbaPlayerStats.currentSeason.stl },
@@ -3842,7 +3842,7 @@ onClick={(e) => {
 
             {/* Availability */}
             <div className="bg-zinc-900 rounded-2xl p-4">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Availability</h5>
+              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { label: 'GP', value: nbaPlayerStats.currentSeason.gp },
