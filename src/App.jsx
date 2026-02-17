@@ -889,7 +889,7 @@ averagesCategory.statistics?.forEach(stat => {
     const combined = { ...existing };
 
     // Stats that should be AVERAGED (per game rates)
-    const avgStats = ['pts', 'reb', 'ast', 'stl', 'blk', 'to', 'pf', 'min', 'or', 'dr', 'fg_pct', 'three_p_pct', 'ft_pct', 'fg', 'three_pt', 'ft'];
+    const avgStats = ['pts', 'reb', 'ast', 'stl', 'blk', 'to', 'pf', 'min', 'or', 'dr', 'fg_pct', 'three_p_pct', 'ft_pct'];
     // Stats that should be SUMMED (totals)
     const sumStats = [];
 
@@ -906,6 +906,20 @@ averagesCategory.statistics?.forEach(stat => {
     
     combined.gp = Math.max(parseInt(existing.gp) || 0, parseInt(seasonAllStats.gp) || 0).toString();
     combined.gs = Math.max(parseInt(existing.gs) || 0, parseInt(seasonAllStats.gs) || 0).toString();
+    // For FG/3PT/FT - sum the made and attempted, then recalculate as per-game
+['fg', 'three_pt', 'ft'].forEach(key => {
+  const parts1 = (existing[key] || '0-0').split('-');
+  const parts2 = (seasonAllStats[key] || '0-0').split('-');
+  const made1 = parseFloat(parts1[0]) || 0;
+  const att1 = parseFloat(parts1[1]) || 0;
+  const made2 = parseFloat(parts2[0]) || 0;
+  const att2 = parseFloat(parts2[1]) || 0;
+  
+  const totalMade = ((made1 * gp1) + (made2 * gp2)) / totalGP;
+  const totalAtt = ((att1 * gp1) + (att2 * gp2)) / totalGP;
+  
+  combined[key] = `${totalMade.toFixed(1)}-${totalAtt.toFixed(1)}`;
+});
 
     allSeasonsData[year] = combined;
   } else {
@@ -3778,16 +3792,26 @@ onClick={(e) => {
             <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
               <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Shooting</h5>
               <div className="grid grid-cols-3 gap-2 mb-3">
-                {[
-                  { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct },
-                  { label: '3P%', value: nbaPlayerStats.currentSeason.three_p_pct },
-                  { label: 'FT%', value: nbaPlayerStats.currentSeason.ft_pct },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                    <span className="text-lg font-bold">{value}%</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                  </div>
-                ))}
+              {[
+  { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct, made: nbaPlayerStats.currentSeason.fg },
+  { label: '3P%', value: nbaPlayerStats.currentSeason.three_p_pct, made: nbaPlayerStats.currentSeason.three_pt },
+  { label: 'FT%', value: nbaPlayerStats.currentSeason.ft_pct, made: nbaPlayerStats.currentSeason.ft },
+].map(({ label, value, made }) => {
+  const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
+  const parts = (made || '0-0').split('-');
+const madePerGame = parseFloat(parts[0]) || 0;
+const attemptedPerGame = parseFloat(parts[1]) || 0;
+  const totalMade = Math.round(madePerGame * gp);
+  const totalAttempted = Math.round(attemptedPerGame * gp);
+  
+  return (
+    <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+      <span className="text-lg font-bold">{value}%</span>
+      <span className="text-[10px] text-gray-500 mt-0">{totalMade}/{totalAttempted}</span>
+      <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+    </div>
+  );
+})}
               </div>
               {[
   { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct) },
