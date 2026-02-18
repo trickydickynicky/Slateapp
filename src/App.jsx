@@ -968,13 +968,13 @@ console.log('Sample stats:', allStats);
     setLoadingNBAStats(false);
   };
 
-  const handlePlayerStatsClick = (playerName, playerId, headshotUrl = null, teamAbbr = null, teamLogo = null) => {
+  const handlePlayerStatsClick = (playerName, playerId, headshotUrl = null, teamAbbr = null, teamLogo = null, jersey = null, position = null) => {
     if (!playerId) {
       console.log('No player ID available');
       return;
     }
     setSlideDirection('right');
-    setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl, teamAbbr, teamLogo });
+    setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl, teamAbbr, teamLogo, jersey, position });
     fetchNBAPlayerStats(playerName, playerId);
   };
 
@@ -3710,15 +3710,15 @@ onClick={(e) => {
          const teamLogo = selectedNBAPlayer?.teamLogo || (selectedTeam === 'away' ? selectedGame?.awayLogo : selectedGame?.homeLogo);
           const color = teamColors[teamAbbr] || '#3B82F6';
 
-          const boxscorePlayer = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
+          const boxscorePlayer = gameDetails?.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
             a => a.athlete.id === selectedNBAPlayer.id
           );
-          const roster = selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
+          const roster = selectedTeam === 'away' ? gameDetails?.awayRoster : gameDetails?.homeRoster;
           const rosterPlayer = roster?.find(p => p.id === selectedNBAPlayer.id);
-
+          
           const headshot = boxscorePlayer?.athlete?.headshot?.href || rosterPlayer?.headshot?.href || rosterPlayer?.headshot || selectedNBAPlayer?.headshot;
-          const jersey = boxscorePlayer?.athlete?.jersey || rosterPlayer?.jersey || '-';
-          const position = boxscorePlayer?.athlete?.position?.abbreviation || rosterPlayer?.position?.abbreviation || 'N/A';
+          const jersey = boxscorePlayer?.athlete?.jersey || rosterPlayer?.jersey || selectedNBAPlayer?.jersey || '-';
+          const position = boxscorePlayer?.athlete?.position?.abbreviation || rosterPlayer?.position?.abbreviation || selectedNBAPlayer?.position || 'N/A';
 
           return (
             <div
@@ -4018,7 +4018,7 @@ const attemptedPerGame = parseFloat(parts[1]) || 0;
               <div
                 key={player.id}
                 className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
-                onClick={() => handlePlayerStatsClick(player.displayName, player.id, player.headshot?.href, selectedTeamInfo.abbr, selectedTeamInfo.logo)}
+                onClick={() => handlePlayerStatsClick(player.displayName, player.id, player.headshot?.href, selectedTeamInfo.abbr, selectedTeamInfo.logo, player.jersey, player.position?.abbreviation)}
               >
                 {player.headshot?.href ? (
                   <img
