@@ -968,13 +968,13 @@ console.log('Sample stats:', allStats);
     setLoadingNBAStats(false);
   };
 
-  const handlePlayerStatsClick = (playerName, playerId, headshotUrl = null) => {
+  const handlePlayerStatsClick = (playerName, playerId, headshotUrl = null, teamAbbr = null, teamLogo = null) => {
     if (!playerId) {
       console.log('No player ID available');
       return;
     }
     setSlideDirection('right');
-    setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl });
+    setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl, teamAbbr, teamLogo });
     fetchNBAPlayerStats(playerName, playerId);
   };
 
@@ -3706,8 +3706,8 @@ onClick={(e) => {
 
         {/* HERO HEADER */}
         {(() => {
-          const teamAbbr = selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
-          const teamLogo = selectedTeam === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo;
+         const teamAbbr = selectedNBAPlayer?.teamAbbr || (selectedTeam === 'away' ? selectedGame?.awayTeam : selectedGame?.homeTeam);
+         const teamLogo = selectedNBAPlayer?.teamLogo || (selectedTeam === 'away' ? selectedGame?.awayLogo : selectedGame?.homeLogo);
           const color = teamColors[teamAbbr] || '#3B82F6';
 
           const boxscorePlayer = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
@@ -4018,7 +4018,7 @@ const attemptedPerGame = parseFloat(parts[1]) || 0;
               <div
                 key={player.id}
                 className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
-                onClick={() => handlePlayerStatsClick(player.displayName, player.id, player.headshot?.href)}
+                onClick={() => handlePlayerStatsClick(player.displayName, player.id, player.headshot?.href, selectedTeamInfo.abbr, selectedTeamInfo.logo)}
               >
                 {player.headshot?.href ? (
                   <img
