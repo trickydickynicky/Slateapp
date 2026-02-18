@@ -61,6 +61,8 @@ const [isCompareMode, setIsCompareMode] = useState(false);
 const [compareTeamStats, setCompareTeamStats] = useState(null);
 const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 const [showFavorites, setShowFavorites] = useState(false);
+const [showRoster, setShowRoster] = useState(false);
+const [rosterData, setRosterData] = useState(null);
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -3071,7 +3073,8 @@ onClick={(e) => {
     }
   }}
 >
-  {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference} ›
+{getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference === 'Eastern' ? 'EC' : 'WC'} ›
+
 </div>
         </div>
         <button
