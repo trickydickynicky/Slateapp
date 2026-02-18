@@ -968,13 +968,13 @@ console.log('Sample stats:', allStats);
     setLoadingNBAStats(false);
   };
 
-  const handlePlayerStatsClick = (playerName, playerId) => {
+  const handlePlayerStatsClick = (playerName, playerId, headshotUrl = null) => {
     if (!playerId) {
       console.log('No player ID available');
       return;
     }
     setSlideDirection('right');
-    setSelectedNBAPlayer({ name: playerName, id: playerId });
+    setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl });
     fetchNBAPlayerStats(playerName, playerId);
   };
 
@@ -1427,25 +1427,31 @@ console.log('🏀 FULL DATA:', data);
       setNavigationStack(prev => prev.slice(0, -1));
       
       if (previous.type === 'game') {
-        // First set the game BEFORE closing the team modal
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
         
-        // Then close team modal after a brief delay
         setTimeout(() => {
           setSelectedTeamInfo(null);
           setTeamStats(null);
+          setShowRoster(false);
+          setRosterData(null);
         }, 50);
       } else if (previous.type === 'home') {
         setSelectedTeamInfo(null);
         setTeamStats(null);
+        setShowRoster(false);
+        setRosterData(null);
       } else {
         setSelectedTeamInfo(null);
         setTeamStats(null);
+        setShowRoster(false);
+        setRosterData(null);
       }
     } else {
       setSelectedTeamInfo(null);
       setTeamStats(null);
+      setShowRoster(false);
+      setRosterData(null);
     }
   };
   
@@ -3005,7 +3011,7 @@ onClick={(e) => {
   
   {selectedTeamInfo && (
   <div 
-    className={`fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${teamSwipeOffset}px)`,
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
@@ -3060,21 +3066,42 @@ onClick={(e) => {
       <div className="flex items-start justify-between">
         <div>
         <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamFullNames[selectedTeamInfo.abbr]}</h3>
-          <div 
-  className="text-gray-400 text-sm mt-0.5 cursor-pointer hover:text-white transition-colors"
-  onClick={() => {
-    setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo, stats: teamStats }]);
-    setSelectedConference(teamStats.conference === 'Eastern' ? 'Eastern' : 'Western');
-    setSelectedTeamInfo(null);
-    setTeamStats(null);
-    setShowStandings(true);
-    if (standings.eastern.length === 0) {
-      fetchStandings();
-    }
-  }}
->
-{getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference === 'Eastern' ? 'EC' : 'WC'} ›
-
+        <div className="flex items-center gap-2 mt-0.5">
+  <div 
+    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+    onClick={() => {
+      setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo, stats: teamStats }]);
+      setSelectedConference(teamStats.conference === 'Eastern' ? 'Eastern' : 'Western');
+      setSelectedTeamInfo(null);
+      setTeamStats(null);
+      setShowStandings(true);
+      if (standings.eastern.length === 0) {
+        fetchStandings();
+      }
+    }}
+  >
+    {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference === 'Eastern' ? 'EC' : 'WC'} ›
+  </div>
+  <span className="text-gray-600">|</span>
+  <div
+    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+    onClick={async () => {
+      setShowRoster(true);
+      if (!rosterData) {
+        const abbr = selectedTeamInfo.abbr;
+        const id = espnTeamIds[abbr];
+        try {
+          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/roster`);
+          const data = await res.json();
+          setRosterData(data.athletes || []);
+        } catch (e) {
+          setRosterData([]);
+        }
+      }
+    }}
+  >
+    Roster ›
+  </div>
 </div>
         </div>
         <button
@@ -3651,7 +3678,7 @@ onClick={(e) => {
   )}
   
   {selectedNBAPlayer && (
-  <div className="fixed inset-0 bg-black bg-opacity-100 z-[110] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
+  <div className="fixed inset-0 bg-black bg-opacity-100 z-[140] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
     transform: slideDirection === 'left' ? 'translateX(100%)' : 'translateX(0)',
     transition: 'transform 0.3s ease-out'
   }}>
@@ -3689,7 +3716,7 @@ onClick={(e) => {
           const roster = selectedTeam === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
           const rosterPlayer = roster?.find(p => p.id === selectedNBAPlayer.id);
 
-          const headshot = boxscorePlayer?.athlete?.headshot?.href || rosterPlayer?.headshot?.href || rosterPlayer?.headshot;
+          const headshot = boxscorePlayer?.athlete?.headshot?.href || rosterPlayer?.headshot?.href || rosterPlayer?.headshot || selectedNBAPlayer?.headshot;
           const jersey = boxscorePlayer?.athlete?.jersey || rosterPlayer?.jersey || '-';
           const position = boxscorePlayer?.athlete?.position?.abbreviation || rosterPlayer?.position?.abbreviation || 'N/A';
 
@@ -3965,7 +3992,71 @@ const attemptedPerGame = parseFloat(parts[1]) || 0;
     </div>
   </div>
 )}
+{showRoster && (
+  <div className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+    <div className="min-h-screen px-4 pt-12 pb-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+          <button
+            onClick={() => { setShowRoster(false); setRosterData(null); }}
+            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+          >
+            ‹
+          </button>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+            {teamFullNames[selectedTeamInfo?.abbr]} Roster
+          </h2>
+        </div>
 
+        {!rosterData ? (
+          <div className="text-center py-12 text-gray-400">Loading roster...</div>
+        ) : rosterData.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">No roster data available</div>
+        ) : (
+          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+            {rosterData.map((player, idx) => (
+              <div
+                key={player.id}
+                className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
+                onClick={() => handlePlayerStatsClick(player.displayName, player.id, player.headshot?.href)}
+              >
+                {player.headshot?.href ? (
+                  <img
+                    src={player.headshot.href}
+                    alt={player.displayName}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div
+                  className="w-10 h-10 rounded-full bg-zinc-700 items-center justify-center text-gray-400 font-bold text-xs flex-shrink-0"
+                  style={{ display: player.headshot?.href ? 'none' : 'flex' }}
+                >
+                  {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+
+                <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
+
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">{player.displayName}</div>
+                  <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
+                </div>
+
+                <div className="text-right text-xs text-gray-500 flex-shrink-0">
+  <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
+  <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
+</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
       </div>
     );
   }
