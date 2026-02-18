@@ -3011,7 +3011,7 @@ onClick={(e) => {
   
   {selectedTeamInfo && (
   <div 
-    className={`fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${teamSwipeOffset}px)`,
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
