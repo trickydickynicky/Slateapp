@@ -67,7 +67,13 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
   const cached = localStorage.getItem('winProbabilities');
   return cached ? JSON.parse(cached) : {};
 });
-
+useEffect(() => {
+  const splash = document.getElementById('splash');
+  if (splash) {
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 400);
+  }
+}, []);
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
     const newFavorites = prev.includes(teamAbbr)
@@ -642,63 +648,66 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 };
 
 
-  const searchPlayers = async (query) => {
-    if (!query || query.trim().length < 2) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    setIsSearching(true);
-    setShowSearchResults(true);
-    try {
-      const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(query)}`);
-      const data = await response.json();
-      
-      const nbaPlayers = data.player?.filter(player => {
-        return player.strSport === 'Basketball' && (player.strLeague === 'NBA' || player.strTeam);
-      }) || [];
-      
-      setSearchResults(nbaPlayers);
-    } catch (error) {
-      console.error('Error searching players:', error);
-      setSearchResults([]);
-    }
-    setIsSearching(false);
-  };
-
-  const handleSearchChange = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    
-    if (window.searchTimeout) clearTimeout(window.searchTimeout);
-    window.searchTimeout = setTimeout(() => {
-      searchPlayers(query);
-    }, 300);
-  };
-
-  const fetchPlayerStats = async (player) => {
-    setLoadingPlayer(true);
-    
-    try {
-      const statsResponse = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${player.idPlayer}`);
-      const statsData = await statsResponse.json();
-      
-      setPlayerStats(statsData.players?.[0] || player);
-    } catch (error) {
-      console.error('Error fetching player stats:', error);
-      setPlayerStats(player);
-    }
-    
-    setLoadingPlayer(false);
-  };
-
-  const handlePlayerClick = (player) => {
+const searchPlayers = async (query) => {
+  if (!query || query.trim().length < 2) {
+    setSearchResults([]);
     setShowSearchResults(false);
-    setSearchQuery('');
-    setSelectedPlayer(player);
-    fetchPlayerStats(player);
-  };
+    return;
+  }
+
+  setIsSearching(true);
+  setShowSearchResults(true);
+  try {
+    const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(query)}`);
+    const data = await response.json();
+    
+    const nbaPlayers = data.player?.filter(player => {
+      return player.strSport === 'Basketball' && (player.strLeague === 'NBA' || player.strTeam);
+    }) || [];
+    
+    setSearchResults(nbaPlayers);
+  } catch (error) {
+    console.error('Error searching players:', error);
+    setSearchResults([]);
+  }
+  setIsSearching(false);
+};
+
+
+
+const handleSearchChange = (e) => {
+  const query = e.target.value;
+  setSearchQuery(query);
+  
+  if (window.searchTimeout) clearTimeout(window.searchTimeout);
+  window.searchTimeout = setTimeout(() => {
+    searchPlayers(query);
+  }, 300);
+};
+
+const fetchPlayerStats = async (player) => {
+  setLoadingPlayer(true);
+  
+  try {
+    const statsResponse = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${player.idPlayer}`);
+    const statsData = await statsResponse.json();
+    
+    setPlayerStats(statsData.players?.[0] || player);
+  } catch (error) {
+    console.error('Error fetching player stats:', error);
+    setPlayerStats(player);
+  }
+  
+  setLoadingPlayer(false);
+};
+
+const handlePlayerClick = (player) => {
+  setShowSearchResults(false);
+  setSearchQuery('');
+  setSelectedPlayer(player);
+  fetchPlayerStats(player);
+};
+
   const fetchNBAPlayerStats = async (playerName, playerId, specificSeason = null) => {
     setLoadingNBAStats(true);
     
