@@ -67,14 +67,7 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
   const cached = localStorage.getItem('winProbabilities');
   return cached ? JSON.parse(cached) : {};
 });
-useEffect(() => {
-  const splash = document.getElementById('splash');
-  if (splash) {
-    splash.style.transition = 'opacity 0.8s ease';
-    splash.style.opacity = '0';
-    setTimeout(() => splash.remove(), 800);
-  }
-}, []);
+
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
     const newFavorites = prev.includes(teamAbbr)
