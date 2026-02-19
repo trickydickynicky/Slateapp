@@ -70,11 +70,9 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
 useEffect(() => {
   const splash = document.getElementById('splash');
   if (splash) {
-    const minDisplay = new Promise(resolve => setTimeout(resolve, 1000));
-    minDisplay.then(() => {
-      splash.style.opacity = '0';
-      setTimeout(() => splash.remove(), 400);
-    });
+    splash.style.transition = 'opacity 0.8s ease';
+    splash.style.opacity = '0';
+    setTimeout(() => splash.remove(), 800);
   }
 }, []);
 const toggleFavorite = (teamAbbr) => {
@@ -503,6 +501,12 @@ const fetchBettingOdds = async () => {
   try {
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
+
+    const cached = localStorage.getItem('bettingOdds');
+    const cachedProbs = localStorage.getItem('winProbabilities');
+    if (cached) setBettingOdds(JSON.parse(cached));
+    if (cachedProbs) setWinProbabilities(JSON.parse(cachedProbs));
+
     if (lastFetch && (now - parseInt(lastFetch)) < 60000) {
       console.log('Using cached odds (fetched less than 60 seconds ago)');
       return;
