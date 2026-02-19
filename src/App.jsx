@@ -70,8 +70,11 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
 useEffect(() => {
   const splash = document.getElementById('splash');
   if (splash) {
-    splash.style.opacity = '0';
-    setTimeout(() => splash.remove(), 400);
+    const minDisplay = new Promise(resolve => setTimeout(resolve, 1000));
+    minDisplay.then(() => {
+      splash.style.opacity = '0';
+      setTimeout(() => splash.remove(), 400);
+    });
   }
 }, []);
 const toggleFavorite = (teamAbbr) => {
