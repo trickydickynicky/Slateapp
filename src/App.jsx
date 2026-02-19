@@ -3750,55 +3750,70 @@ onClick={(e) => {
         ) : nbaPlayerStats?.currentSeason ? (
           <div>
 
-            {/* Shooting */}
-            <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Shooting</h5>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-              {[
-  { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct, made: nbaPlayerStats.currentSeason.fg },
-  { label: '3P%', value: nbaPlayerStats.currentSeason.three_p_pct, made: nbaPlayerStats.currentSeason.three_pt },
-  { label: 'FT%', value: nbaPlayerStats.currentSeason.ft_pct, made: nbaPlayerStats.currentSeason.ft },
-].map(({ label, value, made }) => {
-  const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
-  const parts = (made || '0-0').split('-');
-const madePerGame = parseFloat(parts[0]) || 0;
-const attemptedPerGame = parseFloat(parts[1]) || 0;
-  const totalMade = Math.round(madePerGame * gp);
-  const totalAttempted = Math.round(attemptedPerGame * gp);
-  
-  return (
-    <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-      <span className="text-lg font-bold">{value}%</span>
-      <span className="text-[10px] text-gray-500 mt-0">{totalMade}/{totalAttempted}</span>
-      <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-    </div>
-  );
-})}
-              </div>
-              {[
-  { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct) },
-  { label: '3P%', value: parseFloat(nbaPlayerStats.currentSeason.three_p_pct) },
-  { label: 'FT%', value: parseFloat(nbaPlayerStats.currentSeason.ft_pct) },
-].map(({ label, value }) => (
-  <div key={label} className="mb-2 last:mb-0">
-    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-      <span>{label}</span>
-      <span>{value}%</span>
-    </div>
-    <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-      <div
-        className="h-full rounded-full"
-        style={{
-          width: `${value}%`,
-          backgroundColor: teamColors[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam] || '#3B82F6'
-        }}
-      />
-    </div>
+           {/* Shooting */}
+<div className="bg-zinc-900 rounded-2xl p-4 mb-3">
+  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Shooting</h5>
+  <div className="grid grid-cols-3 gap-2 mb-3">
+    {(() => {
+      const pts = parseFloat(nbaPlayerStats.currentSeason.pts) || 0;
+      const fgParts = (nbaPlayerStats.currentSeason.fg || '0-0').split('-');
+      const fgm = parseFloat(fgParts[0]) || 0;
+      const fga = parseFloat(fgParts[1]) || 0;
+      const ftParts = (nbaPlayerStats.currentSeason.ft || '0-0').split('-');
+      const fta = parseFloat(ftParts[1]) || 0;
+      const threeParts = (nbaPlayerStats.currentSeason.three_pt || '0-0').split('-');
+      const tpm = parseFloat(threeParts[0]) || 0;
+      const ts = fga + fta > 0 ? ((pts / (2 * (fga + 0.44 * fta))) * 100).toFixed(1) : '0';
+      const efg = fga > 0 ? (((fgm + 0.5 * tpm) / fga) * 100).toFixed(1) : '0';
+      const ftr = fga > 0 ? ((fta / fga) * 100).toFixed(1) : '0';
+      return [
+        { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct, made: nbaPlayerStats.currentSeason.fg },
+        { label: '3P%', value: nbaPlayerStats.currentSeason.three_p_pct, made: nbaPlayerStats.currentSeason.three_pt },
+        { label: 'FT%', value: nbaPlayerStats.currentSeason.ft_pct, made: nbaPlayerStats.currentSeason.ft },
+        { label: 'TS%', value: ts, made: null },
+        { label: 'eFG%', value: efg, made: null },
+        
+        { label: 'FTr', value: ftr, made: null },
+      ];
+    })().map(({ label, value, made }) => {
+      const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
+      const parts = (made || '0-0').split('-');
+      const madePerGame = parseFloat(parts[0]) || 0;
+      const attemptedPerGame = parseFloat(parts[1]) || 0;
+      const totalMade = Math.round(madePerGame * gp);
+      const totalAttempted = Math.round(attemptedPerGame * gp);
+      return (
+        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+          <span className="text-lg font-bold">{value}%</span>
+          {made && <span className="text-[10px] text-gray-500 -mt-1">{totalMade}/{totalAttempted}</span>}
+          <span className="text-[10px] text-gray-400 -mt-0">{label}</span>
+        </div>
+      );
+    })}
   </div>
-))}
-            </div>
-
-            {/* Per Game */}
+  {[
+    { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct) },
+    { label: '3P%', value: parseFloat(nbaPlayerStats.currentSeason.three_p_pct) },
+    { label: 'FT%', value: parseFloat(nbaPlayerStats.currentSeason.ft_pct) },
+  ].map(({ label, value }) => (
+    <div key={label} className="mb-2 last:mb-0">
+      <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+        <span>{label}</span>
+        <span>{value}%</span>
+      </div>
+      <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${value}%`,
+            backgroundColor: teamColors[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam] || '#3B82F6'
+          }}
+        />
+      </div>
+    </div>
+  ))}
+</div>
+{/* Per Game */}
             <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
               <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Per Game</h5>
               <div className="grid grid-cols-4 gap-2 mb-2">
