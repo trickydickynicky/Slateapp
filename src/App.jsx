@@ -5,7 +5,7 @@ import { Search, Star } from 'lucide-react';
 
 export default function SportsApp() {
   // Store API key safely (in production, use environment variables)
-  const BETSTACK_API_KEY = '7f0e1495b778d1694a4a81ecabf836057f6d82d2f941e2306ff167c366ee3164';
+ 
   
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
@@ -63,6 +63,10 @@ const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 const [showFavorites, setShowFavorites] = useState(false);
 const [showRoster, setShowRoster] = useState(false);
 const [rosterData, setRosterData] = useState(null);
+const [winProbabilities, setWinProbabilities] = useState(() => {
+  const cached = localStorage.getItem('winProbabilities');
+  return cached ? JSON.parse(cached) : {};
+});
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -250,7 +254,7 @@ useEffect(() => {
   };
   
   // Add this line RIGHT BEFORE your useEffects
-  const hasFetchedOdds = React.useRef(false);
+  
 
   const [leagueRankings, setLeagueRankings] = useState(() => {
     const cached = localStorage.getItem('leagueRankings');
@@ -303,12 +307,9 @@ useEffect(() => {
   }, [selectedDate]);
 // Updated betting odds useEffect with duplicate prevention
 useEffect(() => {
-  if (!hasFetchedOdds.current) {
-    hasFetchedOdds.current = true;
-    fetchBettingOdds();
-    const oddsInterval = setInterval(fetchBettingOdds, 60000);
-    return () => clearInterval(oddsInterval);
-  }
+  fetchBettingOdds();
+  const oddsInterval = setInterval(fetchBettingOdds, 60000);
+  return () => clearInterval(oddsInterval);
 }, []);
   const fetchLiveScores = async () => {
     try {
@@ -491,204 +492,143 @@ const oppg = parseFloat(teamEntry?.stats?.find(s => s.name === 'avgPointsAgainst
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
 const fetchBettingOdds = async () => {
   try {
-    // Check if we fetched recently (within last 60 seconds)
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
     if (lastFetch && (now - parseInt(lastFetch)) < 60000) {
       console.log('Using cached odds (fetched less than 60 seconds ago)');
-      return; // Use cached odds
-    }
-
-    const linesResponse = await fetch('https://api.betstack.dev/api/v1/lines', {
-      headers: {
-        'X-API-Key': BETSTACK_API_KEY
-      }
-    });
-    
-    if (!linesResponse.ok) {
-      console.log('Lines API Response Status:', linesResponse.status);
       return;
     }
-    
-    const lines = await linesResponse.json();
 
-    // EXISTING LOGS:
-    console.log('=== DEBUGGING TOTALS ===');
-    if (lines.length > 0) {
-      console.log('First line example:', lines[0]);
-      console.log('Does it have total?', lines[0].total);
-      console.log('Does it have totals?', lines[0].totals);
-      console.log('Full line object keys:', Object.keys(lines[0]));
-    }
-    console.log('Lines data:', lines);  // Keep just one
-    
-    // ADD THIS NEW LOG:
-    console.log('=== ALL NBA GAMES IN BETTING API ===');
-    lines.forEach(line => {
-      if (line.event?.league?.key === 'basketball_nba') {
-        console.log(line.event.away_team, '@', line.event.home_team, '- Date:', new Date(line.event.commence_time).toLocaleDateString());
-      }
-    });
-    const oddsMap = {};
-const today = new Date();
-const yesterday = new Date(today);
-yesterday.setDate(yesterday.getDate() - 1);
-const tomorrow = new Date(today);
-tomorrow.setDate(tomorrow.getDate() + 1);
-const yesterdayStr = yesterday.toDateString();
-const todayStr = today.toDateString();
-const tomorrowStr = tomorrow.toDateString();
-    
-   // Filter for NBA games only and process
-   lines.forEach(line => {
-    if (line.event?.league?.key === 'basketball_nba') {
-      if (!line.spread?.home) {
-        console.log('⚠️ NBA game WITHOUT spread:', line.event.away_team, '@', line.event.home_team);
-        return; // Skip this game
-      }
-    console.log('NBA Game found:', line.event.away_team, '@', line.event.home_team, 'Total:', line.total?.number);
-    const gameDate = new Date(line.event.commence_time);
-    const gameDateStr = gameDate.toDateString();
-        
-        console.log(`API Game: ${line.event.away_team} @ ${line.event.home_team} on ${gameDateStr}`);
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
 
-        // Only include today's and tomorrow's games
-        // Include yesterday's, today's, and tomorrow's games
-if (gameDateStr === yesterdayStr || gameDateStr === todayStr || gameDateStr === tomorrowStr) {
-  const homeAbbr = getTeamAbbreviation(line.event.home_team);
-  const awayAbbr = getTeamAbbreviation(line.event.away_team);
-  
-  console.log('Spread structure:', line.spread);
-  console.log('Spread home:', line.spread.home);
-  console.log('Spread away:', line.spread.away);
-  
-  const gameKey = `${awayAbbr}-${homeAbbr}`;
-  const homeSpread = parseFloat(line.spread.home.point);
-          const spread = Math.abs(homeSpread);
-          const favoriteTeam = homeSpread < 0 ? homeAbbr : awayAbbr;
-          
-          console.log('Creating odds for:', gameKey, 'Away:', awayAbbr, 'Home:', homeAbbr); // ADD THIS
-          console.log('Spread:', spread, 'Favorite:', favoriteTeam, 'Total:', line.total?.number);
-          oddsMap[gameKey] = {
-            favoriteTeam,
-            spread,
-            homeSpread,
-            awaySpread: parseFloat(line.spread.away.point),
-            total: line.total?.number ? parseFloat(line.total.number) : null
-          };
-          
-          // Save as opening odds if we don't have opening odds for this game yet
-          // This will capture odds when games are still pre-game
-          if (!openingOdds[gameKey]) {
-            setOpeningOdds(prev => {
-              const newOpening = { ...prev, [gameKey]: oddsMap[gameKey] };
-              localStorage.setItem('openingOdds', JSON.stringify(newOpening));
-              return newOpening;
-            });
-          }
-          
-          console.log('Created odds for', gameKey, ':', oddsMap[gameKey]);
-          
-          // Save as opening odds if this game is still pre-game
-          const gameIsPreGame = liveGames.find(g => 
-            g.awayTeam === awayAbbr && g.homeTeam === homeAbbr && g.isPreGame
-          );
-          
-          if (gameIsPreGame && !openingOdds[gameKey]) {
-            setOpeningOdds(prev => {
-              const newOpening = { ...prev, [gameKey]: oddsMap[gameKey] };
-              localStorage.setItem('openingOdds', JSON.stringify(newOpening));
-              return newOpening;
-            });
-          }
-          
-          console.log('Created odds for', gameKey, ':', oddsMap[gameKey]);
-          }
-                }
-              });
-    
-    console.log('Odds Map:', oddsMap);
-    setBettingOdds(oddsMap);
-    
-    // Cache odds in localStorage
-    localStorage.setItem('bettingOdds', JSON.stringify(oddsMap));
-    localStorage.setItem('lastOddsFetch', now.toString());
-  } catch (error) {
-    console.error('Error fetching betting odds:', error);
-  }
-};
+    const scoreboardRes = await fetch(
+      `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${dateStr}`
+    );
+    const scoreboardData = await scoreboardRes.json();
+    const events = scoreboardData.events || [];
 
-// Helper function to convert full team name to abbreviation
-const getTeamAbbreviation = (fullName) => {
-  const teamMap = {
-    'Atlanta Hawks': 'ATL',
-    'Boston Celtics': 'BOS',
-    'Brooklyn Nets': 'BKN',
-    'Charlotte Hornets': 'CHA',
-    'Chicago Bulls': 'CHI',
-    'Cleveland Cavaliers': 'CLE',
-    'Dallas Mavericks': 'DAL',
-    'Denver Nuggets': 'DEN',
-    'Detroit Pistons': 'DET',
-    'Golden State Warriors': 'GS',
-    'Houston Rockets': 'HOU',
-    'Indiana Pacers': 'IND',
-    'Los Angeles Clippers': 'LAC',
-    'LA Clippers': 'LAC',
-    'Los Angeles Lakers': 'LAL',
-    'Memphis Grizzlies': 'MEM',
-    'Miami Heat': 'MIA',
-    'Milwaukee Bucks': 'MIL',
-    'Minnesota Timberwolves': 'MIN',
-    'New Orleans Pelicans': 'NO',
-    'New York Knicks': 'NY',
-    'Oklahoma City Thunder': 'OKC',
-    'Orlando Magic': 'ORL',
-    'Philadelphia 76ers': 'PHI',
-    'Phoenix Suns': 'PHX',
-    'Portland Trail Blazers': 'POR',
-    'Sacramento Kings': 'SAC',
-    'San Antonio Spurs': 'SA',
-    'Toronto Raptors': 'TOR',
-    'Utah Jazz': 'UTAH',
-    'Washington Wizards': 'WSH'
+    if (events.length === 0) return;
+
+    const results = await Promise.all(
+      events.map(async (event) => {
+        const gameId = event.id;
+        const competition = event.competitions[0];
+        const homeTeam = competition.competitors.find(c => c.homeAway === 'home');
+        const awayTeam = competition.competitors.find(c => c.homeAway === 'away');
+        const homeAbbr = homeTeam.team.abbreviation;
+        const awayAbbr = awayTeam.team.abbreviation;
+        const gameKey = `${awayAbbr}-${homeAbbr}`;
+
+        try {
+          const [oddsRes, probRes] = await Promise.all([
+            fetch(`https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/${gameId}/competitions/${gameId}/odds`),
+            fetch(`https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/${gameId}/competitions/${gameId}/probabilities`)
+          ]);
+
+          const oddsData = await oddsRes.json();
+          const probData = await probRes.json();
+
+       // Use first provider (DraftKings)
+const provider = Array.isArray(oddsData) ? oddsData[0] : oddsData.items?.[0];
+let oddsEntry = null;
+
+if (provider) {
+  const homeSpread = parseFloat(provider.spread ?? 0);
+  const spread = Math.abs(homeSpread);
+  const favoriteTeam = homeSpread < 0 ? homeAbbr : homeSpread > 0 ? awayAbbr : null;
+  const total = provider.overUnder ? parseFloat(provider.overUnder) : null;
+
+  const openingHomeSpread = parseFloat(
+    provider.homeTeamOdds?.open?.pointSpread?.american ?? provider.spread ?? 0
+  );
+
+  oddsEntry = {
+    favoriteTeam,
+    spread,
+    homeSpread,
+    awaySpread: -homeSpread,
+    total,
+    openingSpread: Math.abs(openingHomeSpread),
+    openingFavoriteTeam: openingHomeSpread < 0 ? homeAbbr : openingHomeSpread > 0 ? awayAbbr : null
   };
-  
-  return teamMap[fullName] || fullName;
+
+  console.log('Odds for', gameKey, ':', oddsEntry);
+}
+
+// Probabilities - use last snapshot (most current)
+let probEntry = null;
+const probItems = probData.items || [];
+          if (probItems.length > 0) {
+            const latest = probItems[probItems.length - 1];
+            probEntry = {
+              awayWinPct: Math.round((latest.awayWinPercentage || 0) * 100),
+              homeWinPct: Math.round((latest.homeWinPercentage || 0) * 100)
+            };
+          }
+
+          return { gameKey, oddsEntry, probEntry };
+        } catch (err) {
+          console.error(`Error fetching odds for ${gameKey}:`, err);
+          return { gameKey, oddsEntry: null, probEntry: null };
+        }
+      })
+    );
+
+    const oddsMap = {};
+    const probMap = {};
+
+    results.forEach(({ gameKey, oddsEntry, probEntry }) => {
+      if (oddsEntry) {
+        oddsMap[gameKey] = oddsEntry;
+     // Save opening odds if we don't have them yet
+if (!openingOdds[gameKey]) {
+  setOpeningOdds(prev => {
+    const openingEntry = {
+      ...oddsEntry,
+      spread: oddsEntry.openingSpread,
+      favoriteTeam: oddsEntry.openingFavoriteTeam
+    };
+    const newOpening = { ...prev, [gameKey]: openingEntry };
+    localStorage.setItem('openingOdds', JSON.stringify(newOpening));
+    return newOpening;
+  });
+}
+      }
+if (probEntry) {
+  probMap[gameKey] = probEntry;
+}
+    });
+
+console.log('Odds Map:', oddsMap);
+console.log('Prob Map:', probMap);
+setBettingOdds(oddsMap);
+setWinProbabilities(probMap);
+localStorage.setItem('bettingOdds', JSON.stringify(oddsMap));
+localStorage.setItem('winProbabilities', JSON.stringify(probMap));
+localStorage.setItem('lastOddsFetch', now.toString());
+  } catch (error) {
+    console.error('Error fetching ESPN odds:', error);
+  }
 };
 
-// Convert betting odds to win probability with live game adjustments
+// Convert betting odds to win probability
 const calculateWinProbability = (spread, favoriteTeam, team, game) => {
-  if (spread === null || spread === undefined) return null;
-  
-  // If spread is 0, it's a pick'em - 50/50 odds
-  if (spread === 0) {
-    // Still apply live game adjustments for pick'em games
-    let baseProbability = 50;
-    
-    if (game && !game.isPreGame) {
-      const awayScore = parseInt(game.awayScore) || 0;
-      const homeScore = parseInt(game.homeScore) || 0;
-      const scoreDiff = team === game.awayTeam ? (awayScore - homeScore) : (homeScore - awayScore);
-      
-      let timeMultiplier = 1.0;
-      if (game.period === 1) timeMultiplier = 0.4;
-      else if (game.period === 2) timeMultiplier = 0.6;
-      else if (game.period === 3) timeMultiplier = 1.2;
-      else if (game.period === 4) timeMultiplier = 2.0;
-      
-      const scoreAdjustment = scoreDiff * 2.8 * timeMultiplier;
-      baseProbability += scoreAdjustment;
-      baseProbability = Math.max(1, Math.min(99, baseProbability));
-    }
-    
-    return Math.round(baseProbability);
+  // Use ESPN's live win probability if available (live & pregame)
+  const gameKey = game ? `${game.awayTeam}-${game.homeTeam}` : null;
+  const espnProb = gameKey ? winProbabilities[gameKey] : null;
+
+  if (espnProb) {
+    return team === game.awayTeam ? espnProb.awayWinPct : espnProb.homeWinPct;
   }
-  
-  // Determine if this team is the favorite
+
+  // Fallback: calculate from spread if ESPN probs haven't loaded yet
+  if (spread === null || spread === undefined) return null;
+  if (spread === 0) return 50;
+
   const isFavorite = favoriteTeam === team;
-  
-  // More accurate spread-to-probability conversion
   let baseProbability;
   if (isFavorite) {
     baseProbability = 50 + Math.pow(spread, 0.85) * 3.3;
@@ -697,24 +637,7 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
     baseProbability = 50 - Math.pow(spread, 0.85) * 3.3;
     baseProbability = Math.max(baseProbability, 2);
   }
-  
-  // If game is live or final, adjust based on current score differential
-  if (game && !game.isPreGame) {
-    const awayScore = parseInt(game.awayScore) || 0;
-    const homeScore = parseInt(game.homeScore) || 0;
-    const scoreDiff = team === game.awayTeam ? (awayScore - homeScore) : (homeScore - awayScore);
-    
-    let timeMultiplier = 1.0;
-    if (game.period === 1) timeMultiplier = 0.4;
-    else if (game.period === 2) timeMultiplier = 0.6;
-    else if (game.period === 3) timeMultiplier = 1.2;
-    else if (game.period === 4) timeMultiplier = 2.0;
-    
-    const scoreAdjustment = scoreDiff * 2.8 * timeMultiplier;
-    baseProbability += scoreAdjustment;
-    baseProbability = Math.max(1, Math.min(99, baseProbability));
-  }
-  
+
   return Math.round(baseProbability);
 };
 
