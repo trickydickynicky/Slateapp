@@ -1936,133 +1936,77 @@ console.log('🏀 FULL DATA:', data);
       </span>
     </div>
 
- {/* CENTER - TIME/LIVE/ODDS */}
-<div className="flex flex-col items-center px-6 pt-2">
-  {selectedGame.isLive && (
+{/* CENTER - TIME/LIVE/ODDS */}
+<div className="flex flex-col items-center px-4 pt-2 min-w-[90px]">
+{selectedGame.isLive && (
     <div className="text-center">
-      <span className="text-red-500 font-semibold text-sm">LIVE</span>
-      <div className="text-sm text-gray-400">
-  {selectedGame.clock === '0.0' || selectedGame.clock === '0:00'
-    ? (selectedGame.period === 2 ? 'Half' : `End Q${selectedGame.period}`)
-    : `${selectedGame.period}Q • ${selectedGame.clock}`}
-</div>
-      
-     {/* Betting Odds FOR LIVE GAMES */}
-{(() => {
-  const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-  const odds = bettingOdds[gameKey];
-  
-  if (odds && odds.spread) {
-    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame);
-    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame);
-    
-    return (
-      <div className="mt-2">
-        <div className="text-xs text-orange-400">
-          {odds.favoriteTeam} by {odds.spread}
-        </div>
-        {odds.total && (
-          <div className="text-xs text-orange-400">
-            o{odds.total}
-          </div>
-        )}
-        <div className="text-xs mt-1">
-          <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-            {selectedGame.awayTeam} {awayProb}%
-          </div>
-          <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-            {selectedGame.homeTeam} {homeProb}%
-          </div>
-        </div>
+      <div className="flex items-center gap-1 justify-center mb-1">
+        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-red-500 font-bold text-xs tracking-widest uppercase">Live</span>
       </div>
-    );
-  }
-  return null;
-})()}
+      <div className="text-xs text-gray-400">
+        {selectedGame.clock === '0.0' || selectedGame.clock === '0:00'
+          ? (selectedGame.period === 2 ? 'Half' : `End Q${selectedGame.period}`)
+          : `Q${selectedGame.period} • ${selectedGame.clock}`}
+      </div>
+      {selectedGame.allBroadcasts?.length > 0 && (
+        <div className="flex flex-col items-center mt-1">
+          {selectedGame.allBroadcasts.map((ch, idx) => (
+            <div key={idx} className="text-xs text-gray-500">{abbreviateChannel(ch)}</div>
+          ))}
+        </div>
+      )}
     </div>
   )}
-  
-  {selectedGame.isPreGame && (
-  <div className="text-center">
-    <div className="text-gray-400">{formatGameTime(selectedGame.gameTime)}</div>
-    {selectedGame.allBroadcasts && selectedGame.allBroadcasts.length > 0 && (
-      <div className="text-xs text-gray-500 mt-1">
-        {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
-      </div>
-    )}
 
-    {(() => {
-      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-      const odds = bettingOdds[gameKey];
-      
-      if (odds && odds.spread !== undefined && odds.spread !== null) {  // ✅ FIXED
-        const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam);
-        const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam);
-        
-        return (
-          <div className="mt-1">
-            <div className="text-xs text-orange-400">
-              {odds.spread === 0 ? 'Pick\'em' : `${odds.favoriteTeam} by ${odds.spread}`} 
-            </div>
-            {odds.total && (
-              <div className="text-xs text-orange-400">
-                o{odds.total}
-              </div>
-            )}
-            <div className="text-xs mt-1">
-              <div className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
-                {selectedGame.awayTeam} {awayProb}%
-              </div>
-              <div className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
-                {selectedGame.homeTeam} {homeProb}%
-              </div>
-            </div>
-          </div>
-        );
-      }
-      return null;
-    })()}
-  </div>
-)}
-  
+  {selectedGame.isPreGame && (
+    <div className="text-center">
+      <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
+      {selectedGame.allBroadcasts?.length > 0 && (
+        <div className="text-xs text-gray-500 mt-0.5">
+          {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
+        </div>
+      )}
+    </div>
+  )}
+
   {selectedGame.isFinal && (
-  <div className="text-center">
-    <div className="text-gray-400 font-semibold">FINAL</div>
-    {(() => {
-      const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-      const odds = openingOdds[gameKey];
-      
-      if (odds && odds.spread !== undefined && odds.spread !== null) {  
-        const awayScore = parseInt(selectedGame.awayScore) || 0;
-        const homeScore = parseInt(selectedGame.homeScore) || 0;
-        const actualMargin = homeScore - awayScore;
-        
-        // For pick'em (spread = 0), whoever wins covers
-        if (odds.spread === 0) {
-          const winner = actualMargin > 0 ? selectedGame.homeTeam : selectedGame.awayTeam;
-          return (
-            <div className="text-xs text-orange-400 mt-1">
-              Pick'em • <span className="text-orange-400">{winner} Covered</span>
-            </div>
-          );
-        }
-        
-        const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
-          ? actualMargin > odds.spread
-          : -actualMargin > odds.spread;
-        
-        const coveredTeam = favoriteCovered ? odds.favoriteTeam : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
-        
-        return (
-          <div className="text-xs text-orange-400 mt-1">
-            {odds.favoriteTeam} by {odds.spread} • <span className="text-orange-400">{coveredTeam} Covered</span>
-          </div>
-        );
-      }
-      return null;
-    })()}
-  </div>
-)}
+    <div className="text-center">
+      <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
+    </div>
+  )}
+
+{/* Spread / Covered - Final only */}
+{selectedGame.isFinal && (() => {
+    const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+    const odds = openingOdds[gameKey];
+    if (!odds || odds.spread === undefined || odds.spread === null) return null;
+
+    const awayScore = parseInt(selectedGame.awayScore) || 0;
+    const homeScore = parseInt(selectedGame.homeScore) || 0;
+    const actualMargin = homeScore - awayScore;
+    let coveredTeam;
+
+    if (odds.spread === 0) {
+      coveredTeam = actualMargin > 0 ? selectedGame.homeTeam : selectedGame.awayTeam;
+    } else {
+      const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
+        ? actualMargin > odds.spread
+        : -actualMargin > odds.spread;
+      coveredTeam = favoriteCovered
+        ? odds.favoriteTeam
+        : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
+    }
+
+    return (
+      <div className="mt-2 text-center">
+        <div className="text-xs text-orange-400">
+          {odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} -${odds.spread}`}
+        </div>
+        <div className="text-xs text-orange-400 font-semibold">{coveredTeam} Covered</div>
+      </div>
+    );
+  })()}
 </div>
 
   {/* HOME TEAM - RIGHT SIDE */}
@@ -2085,7 +2029,44 @@ console.log('🏀 FULL DATA:', data);
     {selectedGame.homeScore}
   </span>
 </div>
-  </div>
+ </div>
+
+  {/* Win Probability Bar */}
+  {(selectedGame.isLive || selectedGame.isPreGame) && (() => {
+    const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+    const odds = bettingOdds[gameKey];
+    if (!odds) return null;
+    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame);
+    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame);
+    if (!awayProb || !homeProb) return null;
+
+    return (
+      <div className="mt-4 pt-4 border-t border-zinc-800">
+       <div className="flex h-1.5 rounded-full overflow-hidden mb-2">
+          <div
+            className="h-full transition-all duration-500"
+            style={{ width: `${awayProb}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', filter: 'brightness(0.55)' }}
+          />
+          <div
+            className="h-full transition-all duration-500"
+            style={{ width: `${homeProb}%`, backgroundColor: teamColors[selectedGame.homeTeam] || '#EF4444' }}
+          />
+        </div>
+        <div className="flex justify-between">
+          <span className={`text-xs font-semibold ${awayProb > homeProb ? 'text-white' : 'text-gray-500'}`}>
+            {selectedGame.awayTeam} {awayProb}%
+          </span>
+          <span className={`text-xs text-orange-400`}>
+            {odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} -${odds.spread}`}{odds.total ? ` • o${odds.total}` : ''}
+          </span>
+          <span className={`text-xs font-semibold ${homeProb > awayProb ? 'text-white' : 'text-gray-500'}`}>
+            {homeProb}% {selectedGame.homeTeam}
+          </span>
+        </div>
+      </div>
+    );
+  })()}
+
 </div>
 
 {/* Quarter-by-Quarter Breakdown */}
@@ -2345,7 +2326,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
     }}
   />
   <div 
@@ -2384,7 +2365,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
     }}
   />
   <div 
@@ -2427,7 +2408,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
     }}
   />
   <div 
@@ -2465,7 +2446,7 @@ const statsToCompare = [
                       <div 
                         style={{ 
                           width: `${awayPercent}%`,
-                          backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04'
+                        backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
                         }}
                       />
                       <div 
