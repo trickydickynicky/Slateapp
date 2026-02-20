@@ -2084,53 +2084,51 @@ console.log('🏀 FULL DATA:', data);
         </tr>
       </thead>
       <tbody>
-        {/* Away Team Row */}
-        <tr className="border-t border-zinc-800">
-          <td className="text-left py-1">
-            <span className="font-semibold">{selectedGame.awayTeam}</span>
-          </td>
-          {(() => {
-            const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
-            const quarters = awayTeam?.linescores || [];
-            const currentPeriod = selectedGame.period;
-            
-            return (
-              <>
-                {[1, 2, 3, 4].map((quarterNum) => (
-                  <td key={`away-q${quarterNum}`} className="text-lg font-semibold py-3">
-                    {quarterNum <= currentPeriod && quarters[quarterNum - 1]?.displayValue 
-                      ? quarters[quarterNum - 1].displayValue 
-                      : '-'}
-                  </td>
-                ))}
-              </>
-            );
-          })()}
-        </tr>
+        {(() => {
+          const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
+          const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
+          const awayQuarters = awayTeam?.linescores || [];
+          const homeQuarters = homeTeam?.linescores || [];
+          const currentPeriod = selectedGame.period;
 
-        {/* Home Team Row */}
-        <tr className="border-t border-zinc-800">
-          <td className="text-left py-2">
-            <span className="font-semibold">{selectedGame.homeTeam}</span>
-          </td>
-          {(() => {
-            const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
-            const quarters = homeTeam?.linescores || [];
-            const currentPeriod = selectedGame.period;
-            
-            return (
-              <>
-                {[1, 2, 3, 4].map((quarterNum) => (
-                  <td key={`home-q${quarterNum}`} className="text-lg font-semibold py-2">
-                    {quarterNum <= currentPeriod && quarters[quarterNum - 1]?.displayValue 
-                      ? quarters[quarterNum - 1].displayValue 
-                      : '-'}
-                  </td>
-                ))}
-              </>
-            );
-          })()}
-        </tr>
+          return (
+            <>
+              <tr className="border-t border-zinc-800">
+                <td className="text-left py-1">
+                  <span className="font-semibold">{selectedGame.awayTeam}</span>
+                </td>
+                {[1, 2, 3, 4].map((quarterNum) => {
+                  const awayVal = awayQuarters[quarterNum - 1]?.displayValue;
+                  const homeVal = homeQuarters[quarterNum - 1]?.displayValue;
+                  const hasData = quarterNum <= currentPeriod && awayVal;
+                  const awayLosing = hasData && homeVal && parseInt(awayVal) < parseInt(homeVal);
+                  return (
+                    <td key={`away-q${quarterNum}`} className={`text-lg font-semibold py-3 ${hasData ? (awayLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                      {hasData ? awayVal : '-'}
+                    </td>
+                  );
+                })}
+              </tr>
+
+              <tr className="border-t border-zinc-800">
+                <td className="text-left py-2">
+                  <span className="font-semibold">{selectedGame.homeTeam}</span>
+                </td>
+                {[1, 2, 3, 4].map((quarterNum) => {
+                  const awayVal = awayQuarters[quarterNum - 1]?.displayValue;
+                  const homeVal = homeQuarters[quarterNum - 1]?.displayValue;
+                  const hasData = quarterNum <= currentPeriod && homeVal;
+                  const homeLosing = hasData && awayVal && parseInt(homeVal) < parseInt(awayVal);
+                  return (
+                    <td key={`home-q${quarterNum}`} className={`text-lg font-semibold py-2 ${hasData ? (homeLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                      {hasData ? homeVal : '-'}
+                    </td>
+                  );
+                })}
+              </tr>
+            </>
+          );
+        })()}
       </tbody>
     </table>
   </div>
