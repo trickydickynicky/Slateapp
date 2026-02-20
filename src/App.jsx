@@ -1644,7 +1644,7 @@ console.log('🏀 FULL DATA:', data);
  <div className="flex items-center gap-2">
  <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                 <span className={`font-semibold text-sm ${favoriteTeams.includes(game.awayTeam) ? 'text-blue-500' : ''}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                 <span className={`font-semibold text-sm ${favoriteTeams.includes(game.awayTeam) ? 'text-blue-500' : ''}`}>
   {game.awayTeam}
 </span>
                     {game.awayRecord && (
@@ -1674,7 +1674,7 @@ console.log('🏀 FULL DATA:', data);
 <div className="flex items-center gap-2">
 <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.homeTeam) ? 'text-blue-500' : ''}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                 <span className={`font-semibold text-sm ${favoriteTeams.includes(game.homeTeam) ? 'text-blue-500' : ''}`}>
   {game.homeTeam}
 </span>
                     {game.homeRecord && (
