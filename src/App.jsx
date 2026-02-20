@@ -1644,7 +1644,7 @@ console.log('🏀 FULL DATA:', data);
  <div className="flex items-center gap-2">
  <img src={game.awayLogo} alt={game.awayTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.awayTeam) ? 'text-blue-500' : ''}`}>
+                 <span className={`font-semibold text-sm ${favoriteTeams.includes(game.awayTeam) ? 'text-blue-500' : ''}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
   {game.awayTeam}
 </span>
                     {game.awayRecord && (
@@ -1674,7 +1674,7 @@ console.log('🏀 FULL DATA:', data);
 <div className="flex items-center gap-2">
 <img src={game.homeLogo} alt={game.homeTeam} className="w-8 h-8" />
                   <div className="flex flex-col">
-                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.homeTeam) ? 'text-blue-500' : ''}`}>
+                  <span className={`font-semibold text-sm ${favoriteTeams.includes(game.homeTeam) ? 'text-blue-500' : ''}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
   {game.homeTeam}
 </span>
                     {game.homeRecord && (
@@ -1937,7 +1937,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
               onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
             >
   <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold">{selectedGame.awayTeam}</span>
+  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedGame.awayTeam}</span>
   {selectedGame.awayRecord && (
     <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
   )}
@@ -2031,7 +2031,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}
 >
   <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold">{selectedGame.homeTeam}</span>
+  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedGame.homeTeam}</span>
   {selectedGame.homeRecord && (
     <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
   )}
@@ -2156,6 +2156,7 @@ onClick={() => setSelectedTeam('away')}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
+style={{ fontFamily: 'Rajdhani, sans-serif' }}
 >
 {selectedGame.awayTeam}
 </button>
@@ -2164,6 +2165,7 @@ onClick={() => setSelectedTeam('game')}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'game' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
+style={{ fontFamily: 'Rajdhani, sans-serif' }}
 >
     Game
 </button>
@@ -2172,6 +2174,7 @@ onClick={() => setSelectedTeam('home')}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
+style={{ fontFamily: 'Rajdhani, sans-serif' }}
 >
 {selectedGame.homeTeam}
 </button>
