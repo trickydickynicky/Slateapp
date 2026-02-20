@@ -2481,10 +2481,10 @@ const statsToCompare = [
     <div className="space-y-3">
       {/* Away Team Injuries */}
       <div className="bg-zinc-900 rounded-2xl p-3">
-        <h3 className="text-base font-bold mb-2 flex items-center gap-2">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-5 h-5" />
           {selectedGame.awayTeam} Injuries
-        </h3>
+        </h4>
         {(() => {
           const awayInjuries = gameDetails?.injuries?.find(
             injData => injData.team?.abbreviation === selectedGame.awayTeam
@@ -2526,10 +2526,10 @@ const statsToCompare = [
   
       {/* Home Team Injuries */}
       <div className="bg-zinc-900 rounded-2xl p-3">
-        <h3 className="text-base font-bold mb-2 flex items-center gap-2">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-5 h-5" />
           {selectedGame.homeTeam} Injuries
-        </h3>
+        </h4>
         {(() => {
           const homeInjuries = gameDetails?.injuries?.find(
             injData => injData.team?.abbreviation === selectedGame.homeTeam
@@ -2572,9 +2572,9 @@ const statsToCompare = [
     {/* Head-to-Head Matchup Bars */}
     {pregameMatchupStats ? (
       <div className="bg-zinc-900 rounded-2xl p-4 mt-3">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">
-          Head-to-Head
-        </h3>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+  Head-to-Head
+</h4>
         <div className="flex justify-between mb-4 pb-3 border-b border-zinc-800">
           <div className="flex items-center gap-2">
             <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
