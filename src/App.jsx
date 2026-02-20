@@ -63,6 +63,7 @@ const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 const [showFavorites, setShowFavorites] = useState(false);
 const [showRoster, setShowRoster] = useState(false);
 const [rosterData, setRosterData] = useState(null);
+const [pregameMatchupStats, setPregameMatchupStats] = useState(null);
 const [winProbabilities, setWinProbabilities] = useState(() => {
   const cached = localStorage.getItem('winProbabilities');
   return cached ? JSON.parse(cached) : {};
@@ -1028,6 +1029,22 @@ console.log('🏀 FULL DATA:', data);
       console.log('Away roster IDs:', awayRoster?.map(p => p.id));
       console.log('Home roster IDs:', homeRoster?.map(p => p.id));
       
+      // Kick off pregame matchup stats fetch in parallel (non-blocking)
+      if (data.header?.competitions?.[0]?.competitors) {
+        const competitors = data.header.competitions[0].competitors;
+        const awayAbbr = competitors.find(c => c.homeAway === 'away')?.team?.abbreviation;
+        const homeAbbr = competitors.find(c => c.homeAway === 'home')?.team?.abbreviation;
+        if (awayAbbr && homeAbbr) {
+          setPregameMatchupStats(null);
+          Promise.all([
+            getTeamStatsData(awayAbbr),
+            getTeamStatsData(homeAbbr)
+          ]).then(([awayStats, homeStats]) => {
+            setPregameMatchupStats({ away: awayStats, home: homeStats, awayAbbr, homeAbbr });
+          });
+        }
+      }
+
       setGameDetails({
         ...data,
         homeRoster,
@@ -2551,6 +2568,114 @@ const statsToCompare = [
           );
         })()}
       </div>
+
+    {/* Head-to-Head Matchup Bars */}
+    {pregameMatchupStats ? (
+      <div className="bg-zinc-900 rounded-2xl p-4 mt-3">
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">
+          Head-to-Head
+        </h3>
+        <div className="flex justify-between mb-4 pb-3 border-b border-zinc-800">
+          <div className="flex items-center gap-2">
+            <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-8 h-8" />
+            <div>
+              <div className="font-bold">{selectedGame.awayTeam}</div>
+              <div className="text-xs text-gray-400">{pregameMatchupStats.away?.record?.wins}-{pregameMatchupStats.away?.record?.losses}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="text-right">
+              <div className="font-bold">{selectedGame.homeTeam}</div>
+              <div className="text-xs text-gray-400">{pregameMatchupStats.home?.record?.wins}-{pregameMatchupStats.home?.record?.losses}</div>
+            </div>
+            <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-8 h-8" />
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <div className="text-xs text-gray-500 uppercase tracking-widest mb-3 text-center">Offense</div>
+          <div className="space-y-3">
+            {(() => {
+              const awayOff = pregameMatchupStats.away?.stats?.find(cat => cat.name === 'offensive');
+              const homeOff = pregameMatchupStats.home?.stats?.find(cat => cat.name === 'offensive');
+              const getStat = (cat, name) => parseFloat(cat?.stats?.find(s => s.name === name)?.displayValue) || 0;
+              return [
+                { name: 'avgPoints', label: 'PPG' },
+                { name: 'fieldGoalPct', label: 'FG%' },
+                { name: 'threePointFieldGoalPct', label: '3P%' },
+                { name: 'freeThrowPct', label: 'FT%' },
+                { name: 'avgAssists', label: 'AST' },
+                { name: 'avgTurnovers', label: 'TO', inverse: true },
+              ].map(({ name, label, inverse }) => {
+                const v1 = getStat(awayOff, name);
+                const v2 = getStat(homeOff, name);
+                const better1 = inverse ? v1 < v2 : v1 > v2;
+                const better2 = inverse ? v2 < v1 : v2 > v1;
+                const total = v1 + v2;
+                const p1 = total > 0 ? (v1 / total) * 100 : 50;
+                const p2 = total > 0 ? (v2 / total) * 100 : 50;
+                return (
+                  <div key={name}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`text-sm font-semibold ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
+                      <span className="text-xs text-gray-400 font-semibold">{label}</span>
+                      <span className={`text-sm font-semibold ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
+                    </div>
+                    <div className="flex h-1.5 rounded-full overflow-hidden">
+                      <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', opacity: 0.7 }} />
+                      <div style={{ width: `${p2}%`, backgroundColor: teamColors[selectedGame.homeTeam] || '#EF4444' }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-widest mb-3 text-center">Defense</div>
+          <div className="space-y-3">
+            {(() => {
+              const awayDef = pregameMatchupStats.away?.stats?.find(cat => cat.name === 'defensive');
+              const homeDef = pregameMatchupStats.home?.stats?.find(cat => cat.name === 'defensive');
+              const getStat = (cat, name) => parseFloat(cat?.stats?.find(s => s.name === name)?.displayValue) || 0;
+              return [
+                { label: 'OPPG', getValue: () => [parseFloat(pregameMatchupStats.away?.record?.oppg) || 0, parseFloat(pregameMatchupStats.home?.record?.oppg) || 0], inverse: true },
+                { name: 'avgDefensiveRebounds', label: 'DREB' },
+                { name: 'avgBlocks', label: 'BLK' },
+                { name: 'avgSteals', label: 'STL' },
+              ].map(({ name, label, getValue, inverse }) => {
+                const v1 = getValue ? getValue()[0] : getStat(awayDef, name);
+                const v2 = getValue ? getValue()[1] : getStat(homeDef, name);
+                const better1 = inverse ? v1 < v2 : v1 > v2;
+                const better2 = inverse ? v2 < v1 : v2 > v1;
+                const total = v1 + v2;
+                const p1 = total > 0 ? (v1 / total) * 100 : 50;
+                const p2 = total > 0 ? (v2 / total) * 100 : 50;
+                return (
+                  <div key={label}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`text-sm font-semibold ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
+                      <span className="text-xs text-gray-400 font-semibold">{label}</span>
+                      <span className={`text-sm font-semibold ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
+                    </div>
+                    <div className="flex h-1.5 rounded-full overflow-hidden">
+                      <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', opacity: 0.7 }} />
+                      <div style={{ width: `${p2}%`, backgroundColor: teamColors[selectedGame.homeTeam] || '#EF4444' }} />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="bg-zinc-900 rounded-2xl p-4 mt-3 flex items-center justify-center gap-2 text-gray-500 text-sm">
+        <div className="w-3 h-3 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
+        Loading matchup stats...
+      </div>
+    )}
     </div>
     ) : selectedGame.isPreGame ? (
       <div>
