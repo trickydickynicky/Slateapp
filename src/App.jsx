@@ -308,7 +308,7 @@ useEffect(() => {
 // Updated betting odds useEffect with duplicate prevention
 useEffect(() => {
   fetchBettingOdds();
-  const oddsInterval = setInterval(fetchBettingOdds, 60000);
+  const oddsInterval = setInterval(fetchBettingOdds, 300000);
   return () => clearInterval(oddsInterval);
 }, []);
   const fetchLiveScores = async () => {
@@ -494,14 +494,8 @@ const fetchBettingOdds = async () => {
   try {
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
-
-    const cached = localStorage.getItem('bettingOdds');
-    const cachedProbs = localStorage.getItem('winProbabilities');
-    if (cached) setBettingOdds(JSON.parse(cached));
-    if (cachedProbs) setWinProbabilities(JSON.parse(cachedProbs));
-
-    if (lastFetch && (now - parseInt(lastFetch)) < 60000) {
-      console.log('Using cached odds (fetched less than 60 seconds ago)');
+    
+    if (lastFetch && (now - parseInt(lastFetch)) < 30000) {
       return;
     }
 
@@ -567,13 +561,14 @@ if (provider) {
 // Probabilities - use last snapshot (most current)
 let probEntry = null;
 const probItems = probData.items || [];
-          if (probItems.length > 0) {
-            const latest = probItems[probItems.length - 1];
-            probEntry = {
-              awayWinPct: Math.round((latest.awayWinPercentage || 0) * 100),
-              homeWinPct: Math.round((latest.homeWinPercentage || 0) * 100)
-            };
-          }
+if (probItems.length > 0) {
+  const latest = probItems[probItems.length - 1];
+  probEntry = {
+    awayWinPct: Math.round((latest.awayWinPercentage || 0) * 100),
+    homeWinPct: Math.round((latest.homeWinPercentage || 0) * 100)
+  };
+  console.log('PROB DATA for', gameKey, ':', probEntry, 'total snapshots:', probItems.length);
+}
 
           return { gameKey, oddsEntry, probEntry };
         } catch (err) {
@@ -1640,15 +1635,17 @@ console.log('🏀 FULL DATA:', data);
                     )}
                   </div>
                 </div>
-                <span className={`text-3xl font-bold ${
-                  !game.isPreGame && parseInt(game.awayScore) > parseInt(game.homeScore) 
-                    ? 'text-white' 
-                    : !game.isPreGame && parseInt(game.awayScore) < parseInt(game.homeScore)
-                    ? 'text-gray-500'
-                    : 'text-white'
-                }`}>
-                  {game.awayScore}
-                </span>
+                {!game.isPreGame && (
+  <span className={`text-3xl font-bold ${
+    parseInt(game.awayScore) > parseInt(game.homeScore) 
+      ? 'text-white' 
+      : parseInt(game.awayScore) < parseInt(game.homeScore)
+      ? 'text-gray-500'
+      : 'text-white'
+  }`}>
+    {game.awayScore}
+  </span>
+)}
               </div>
       
             {/* Home Team Row */}
@@ -1668,15 +1665,17 @@ console.log('🏀 FULL DATA:', data);
                     )}
                   </div>
                 </div>
-                <span className={`text-3xl font-bold ${
-                  !game.isPreGame && parseInt(game.homeScore) > parseInt(game.awayScore) 
-                    ? 'text-white' 
-                    : !game.isPreGame && parseInt(game.homeScore) < parseInt(game.awayScore)
-                    ? 'text-gray-500'
-                    : 'text-white'
-                }`}>
-                  {game.homeScore}
-                </span>
+                {!game.isPreGame && (
+  <span className={`text-3xl font-bold ${
+    parseInt(game.homeScore) > parseInt(game.awayScore) 
+      ? 'text-white' 
+      : parseInt(game.homeScore) < parseInt(game.awayScore)
+      ? 'text-gray-500'
+      : 'text-white'
+  }`}>
+    {game.homeScore}
+  </span>
+)}
               </div>
             </div>
       
@@ -1684,8 +1683,8 @@ console.log('🏀 FULL DATA:', data);
 
 {(() => {
   const gameKey = `${game.awayTeam}-${game.homeTeam}`;
-  const odds = bettingOdds[gameKey];
-  if (odds && odds.spread !== undefined && odds.spread !== null) {
+  const odds = bettingOdds[gameKey] || openingOdds[gameKey];
+if (odds && odds.spread !== undefined && odds.spread !== null) {
     console.log('Game:', game.awayTeam, '@', game.homeTeam, 'Odds object:', odds);
     const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam, game);
     const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam, game);
@@ -2045,7 +2044,7 @@ console.log('🏀 FULL DATA:', data);
        <div className="flex h-1.5 rounded-full overflow-hidden mb-2">
           <div
             className="h-full transition-all duration-500"
-            style={{ width: `${awayProb}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', filter: 'brightness(0.55)' }}
+            style={{ width: `${awayProb}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', opacity: 0.6 }}
           />
           <div
             className="h-full transition-all duration-500"
@@ -2324,7 +2323,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', opacity: 0.6
     }}
   />
   <div 
@@ -2363,7 +2362,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', opacity: 0.6
     }}
   />
   <div 
@@ -2406,7 +2405,7 @@ const statsToCompare = [
   <div 
     style={{ 
       width: `${awayBarPercent}%`,
-      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
+      backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', opacity: 0.6
     }}
   />
   <div 
@@ -2444,7 +2443,7 @@ const statsToCompare = [
                       <div 
                         style={{ 
                           width: `${awayPercent}%`,
-                        backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', filter: 'brightness(0.55)'
+                        backgroundColor: teamColors[selectedGame.awayTeam] || '#CA8A04', opacity: 0.6
                         }}
                       />
                       <div 
