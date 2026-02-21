@@ -85,6 +85,20 @@ const toggleFavorite = (teamAbbr) => {
 
 const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
   try {
+    const cacheKey = 'gameTeamRecords_cache';
+    const cacheTimeKey = 'gameTeamRecords_cache_time';
+    const now = Date.now();
+    const cacheTime = localStorage.getItem(cacheTimeKey);
+
+    // Use cache if less than 24 hours old
+    if (cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        setGameTeamRecords(JSON.parse(cached));
+        return;
+      }
+    }
+
     const response = await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings');
     const data = await response.json();
     
@@ -92,15 +106,17 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
     data.children.forEach(conf => {
       conf.standings.entries.forEach(entry => {
         const abbr = entry.team.abbreviation;
-        if (abbr === awayAbbr || abbr === homeAbbr) {
-          const getStat = (name) => entry.stats.find(s => s.name === name)?.displayValue || '-';
-          records[abbr] = {
-            away: getStat('Road'),
-            home: getStat('Home')
-          };
-        }
+        const getStat = (name) => entry.stats.find(s => s.name === name)?.displayValue || '-';
+        records[abbr] = {
+          away: getStat('Road'),
+          home: getStat('Home')
+        };
       });
     });
+
+    // Cache all 30 teams at once
+    localStorage.setItem(cacheKey, JSON.stringify(records));
+    localStorage.setItem(cacheTimeKey, now.toString());
     
     setGameTeamRecords(records);
   } catch (error) {
