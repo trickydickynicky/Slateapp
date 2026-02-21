@@ -2022,7 +2022,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
               onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
             >
   <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}</span>
+  <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}</span>
 
   {selectedGame.awayRecord && (
   <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
@@ -2118,7 +2118,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}
 >
   <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}</span>
+  <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}</span>
 
   {selectedGame.homeRecord && (
   <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
