@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
@@ -69,7 +69,7 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
   const cached = localStorage.getItem('winProbabilities');
   return cached ? JSON.parse(cached) : {};
 });
-
+const gameDetailScrollRef = useRef(null);
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
     const newFavorites = prev.includes(teamAbbr)
@@ -314,13 +314,7 @@ useEffect(() => {
   return () => clearInterval(oddsInterval);
 }, []);
 
-useEffect(() => {
-  if (!selectedGame?.isLive) return;
-  const interval = setInterval(() => {
-    fetchGameDetails(selectedGame.id);
-  }, 30000);
-  return () => clearInterval(interval);
-}, [selectedGame?.id, selectedGame?.isLive]);
+
   const fetchLiveScores = async () => {
     try {
        // Use local timezone date, not UTC
@@ -395,8 +389,13 @@ const sortedGames = games.sort((a, b) => {
 });
 
 setLiveGames(sortedGames);
-setAppReady(true);
 setLoading(false);
+setAppReady(true);
+setSelectedGame(prev => {
+  if (!prev) return prev;
+  const updated = sortedGames.find(g => g.id === prev.id);
+  return updated ? { ...prev, ...updated } : prev;
+});
 } catch (error) {
   console.error('Error fetching scores:', error);
   setLoading(false);
@@ -1003,7 +1002,7 @@ console.log('Sample stats:', allStats);
   };
 
   const fetchGameDetails = async (gameId) => {
-    setLoadingDetails(true);
+    setLoadingDetails(prev => gameDetails ? false : true);
     try {
       const response = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${gameId}`);
       const data = await response.json();
@@ -1055,11 +1054,26 @@ console.log('🏀 FULL DATA:', data);
         }
       }
 
-      setGameDetails({
-        ...data,
-        homeRoster,
-        awayRoster
+      const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
+      setGameDetails(prev => {
+        if (!prev) return {
+          ...data,
+          homeRoster,
+          awayRoster
+        };
+        // Only update live data, never touch rosters or injuries after first load
+        return {
+          ...prev,
+          boxscore: data.boxscore,
+          header: data.header,
+          plays: data.plays,
+        };
       });
+      setTimeout(() => {
+        if (gameDetailScrollRef.current) {
+          gameDetailScrollRef.current.scrollTop = scrollPos;
+        }
+      }, 100);
     } catch (error) {
       console.error('Error fetching game details:', error);
     }
@@ -1946,6 +1960,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 
 {selectedGame && (
   <div 
+    ref={gameDetailScrollRef}
     className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)`,
