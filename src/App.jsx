@@ -70,6 +70,8 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
   return cached ? JSON.parse(cached) : {};
 });
 const gameDetailScrollRef = useRef(null);
+const [gameTeamRecords, setGameTeamRecords] = useState(null);
+
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
     const newFavorites = prev.includes(teamAbbr)
@@ -79,6 +81,31 @@ const toggleFavorite = (teamAbbr) => {
     localStorage.setItem('favoriteTeams', JSON.stringify(newFavorites));
     return newFavorites;
   });
+};
+
+const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
+  try {
+    const response = await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings');
+    const data = await response.json();
+    
+    const records = {};
+    data.children.forEach(conf => {
+      conf.standings.entries.forEach(entry => {
+        const abbr = entry.team.abbreviation;
+        if (abbr === awayAbbr || abbr === homeAbbr) {
+          const getStat = (name) => entry.stats.find(s => s.name === name)?.displayValue || '-';
+          records[abbr] = {
+            away: getStat('Road'),
+            home: getStat('Home')
+          };
+        }
+      });
+    });
+    
+    setGameTeamRecords(records);
+  } catch (error) {
+    console.error('Error fetching team records:', error);
+  }
 };
 
 // Swipe to go back functionality - ONLY when viewing a game from home
@@ -221,6 +248,16 @@ useEffect(() => {
     'TOR': '#CE1141',
     'UTAH': '#002B5C',
     'WSH': '#002B5C'
+  };
+  const teamCities = {
+    'ATL': 'Atlanta', 'BOS': 'Boston', 'BKN': 'Brooklyn', 'CHA': 'Charlotte',
+    'CHI': 'Chicago', 'CLE': 'Cleveland', 'DAL': 'Dallas', 'DEN': 'Denver',
+    'DET': 'Detroit', 'GS': 'Golden St.', 'HOU': 'Houston', 'IND': 'Indiana',
+    'LAC': 'LA Clippers', 'LAL': 'LA Lakers', 'MEM': 'Memphis', 'MIA': 'Miami',
+    'MIL': 'Milwaukee', 'MIN': 'Minnesota', 'NO': 'New Orleans', 'NY': 'New York',
+    'OKC': 'OKC', 'ORL': 'Orlando', 'PHI': 'Philadelphia', 'PHX': 'Phoenix',
+    'POR': 'Portland', 'SAC': 'Sacramento', 'SA': 'San Antonio', 'TOR': 'Toronto',
+    'UTAH': 'Utah', 'WSH': 'Washington'
   };
   const espnTeamIds = {
     'ATL': '1',
@@ -1080,13 +1117,12 @@ console.log('🏀 FULL DATA:', data);
     setLoadingDetails(false);
   };
   const handleGameClick = (game) => {
-    // Add current state to navigation stack
     setNavigationStack(prev => [...prev, { type: 'home' }]);
-    
-    setSlideDirection('right'); // Coming in from right
+    setSlideDirection('right');
     setSelectedGame(game);
     setSelectedTeam('away');
     fetchGameDetails(game.id);
+    fetchGameTeamRecords(game.awayTeam, game.homeTeam);
   };
 
   const closeModal = () => {
@@ -1986,19 +2022,21 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
               onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
             >
   <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedGame.awayTeam}</span>
+  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}</span>
+
   {selectedGame.awayRecord && (
-    <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
-  )}
-      <span className={`text-4xl font-bold mt-3 ${
-        !selectedGame.isPreGame && parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) 
-          ? 'text-white' 
-          : !selectedGame.isPreGame && parseInt(selectedGame.awayScore) < parseInt(selectedGame.homeScore)
-          ? 'text-gray-500'
-          : 'text-white'
-      }`}>
-        {selectedGame.awayScore}
-      </span>
+  <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
+)}
+{gameTeamRecords?.[selectedGame.awayTeam]?.away && (
+  <span className="text-xs text-gray-600">{gameTeamRecords[selectedGame.awayTeam].away} away</span>
+)}
+      {!selectedGame.isPreGame && (
+  <span className={`text-4xl font-bold mt-3 ${
+    parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) ? 'text-white' : 'text-gray-500'
+  }`}>
+    {selectedGame.awayScore}
+  </span>
+)}
     </div>
 
 {/* CENTER - TIME/LIVE/ODDS */}
@@ -2080,19 +2118,21 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}
 >
   <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
-  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedGame.homeTeam}</span>
+  <span className="text-base font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}</span>
+
   {selectedGame.homeRecord && (
-    <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
-  )}
+  <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
+)}
+{gameTeamRecords?.[selectedGame.homeTeam]?.home && (
+  <span className="text-xs text-gray-600">{gameTeamRecords[selectedGame.homeTeam].home} home</span>
+)}
+ {!selectedGame.isPreGame && (
   <span className={`text-4xl font-bold mt-3 ${
-    !selectedGame.isPreGame && parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) 
-      ? 'text-white' 
-      : !selectedGame.isPreGame && parseInt(selectedGame.homeScore) < parseInt(selectedGame.awayScore)
-      ? 'text-gray-500'
-      : 'text-white'
+    parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) ? 'text-white' : 'text-gray-500'
   }`}>
     {selectedGame.homeScore}
   </span>
+)}
 </div>
  </div>
 
