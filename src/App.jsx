@@ -10,6 +10,7 @@ export default function SportsApp() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
   const [loading, setLoading] = useState(true);
+const [appReady, setAppReady] = useState(false);
   const [bettingOdds, setBettingOdds] = useState(() => {
     // Load cached odds from localStorage on initial load
     const cached = localStorage.getItem('bettingOdds');
@@ -312,6 +313,14 @@ useEffect(() => {
   const oddsInterval = setInterval(fetchBettingOdds, 300000);
   return () => clearInterval(oddsInterval);
 }, []);
+
+useEffect(() => {
+  if (!selectedGame?.isLive) return;
+  const interval = setInterval(() => {
+    fetchGameDetails(selectedGame.id);
+  }, 30000);
+  return () => clearInterval(interval);
+}, [selectedGame?.id, selectedGame?.isLive]);
   const fetchLiveScores = async () => {
     try {
        // Use local timezone date, not UTC
@@ -386,6 +395,7 @@ const sortedGames = games.sort((a, b) => {
 });
 
 setLiveGames(sortedGames);
+setAppReady(true);
 setLoading(false);
 } catch (error) {
   console.error('Error fetching scores:', error);
@@ -1458,19 +1468,19 @@ console.log('🏀 FULL DATA:', data);
   return (
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       <div className="px-4 pt-12 pb-4">
-      <div className="flex justify-between items-start mb-1">
+      <div className="flex justify-between items-start mb-1"
+  style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
   <div>
   <img 
-      
       src="/slate-logo.png" 
       alt="Slate" 
       className="h-8"
-    
     />
   </div>
 </div>
 
-<div className="flex justify-between items-center mt-2 mb-4">
+<div className="flex justify-between items-center mt-2 mb-4"
+  style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both' }}>
   <p className="text-gray-400 text-sm">{formatDate()}</p>
   <div className="flex items-center gap-3">
     <button
@@ -1555,7 +1565,8 @@ console.log('🏀 FULL DATA:', data);
 
 
 
-<div className="mt-6 overflow-x-auto scrollbar-hide py-4">
+<div className="mt-6 overflow-x-auto scrollbar-hide py-4"
+  style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}>
   <div className="flex gap-2">
     {generateDateRange().map((date, idx) => {
       const { month, day, dayOfWeek } = formatDateHeader(date);
@@ -1594,21 +1605,44 @@ console.log('🏀 FULL DATA:', data);
 
   <div className="grid grid-cols-2 gap-3">
   {loading ? (
-  <div className="col-span-2 bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-    Loading games...
-  </div>
+  <>
+    {[0.32, 0.39, 0.46, 0.53].map((delay, i) => (
+      <div
+        key={i}
+        className="bg-zinc-900 rounded-2xl p-3"
+        style={{ animation: `fadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) ${delay}s both` }}
+      >
+        <div className="skeleton h-3 w-2/5 mb-3" />
+        <div className="flex items-center gap-2 mb-3">
+          <div className="skeleton w-8 h-8 rounded-full flex-shrink-0" />
+          <div className="skeleton h-3 w-1/2" />
+          <div className="skeleton h-8 w-10 rounded-lg ml-auto" />
+        </div>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="skeleton w-8 h-8 rounded-full flex-shrink-0" />
+          <div className="skeleton h-3 w-2/5" />
+          <div className="skeleton h-8 w-10 rounded-lg ml-auto" />
+        </div>
+        <div className="skeleton h-2 w-full mt-2" />
+      </div>
+    ))}
+  </>
 ) : liveGames.length === 0 ? (
   <div className="col-span-2 bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
     No live games right now
   </div>
     ) : (
-      liveGames.map(game => (
+      liveGames.map((game, index) => (
         <div 
   key={game.id} 
   className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors ${
     game.isLive ? 'border-2 border-blue-500' : ''
   }`}
   onClick={() => handleGameClick(game)}
+  style={{ 
+    animation: `fadeIn 0.5s ease-out ${0.1 + index * 0.07}s both`,
+    opacity: 0
+  }}
 >
           <div className="flex flex-col">
             {/* TOP: Status/Time - Left aligned above teams */}
