@@ -2078,16 +2078,17 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
     </div>
   )}
 
-  {selectedGame.isPreGame && (
-    <div className="text-center">
-      <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
-      {selectedGame.allBroadcasts?.length > 0 && (
-        <div className="text-xs text-gray-500 mt-0.5">
-          {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
-        </div>
-      )}
-    </div>
-  )}
+{selectedGame.isPreGame && (
+  <div className="text-center">
+    <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
+    {selectedGame.allBroadcasts?.length > 0 && (
+      <div className="text-xs text-gray-500 mt-0.5">
+        {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
+      </div>
+    )}
+    <div className="text-gray-600 text-sm font-light mt-3">@</div>
+  </div>
+)}
 
   {selectedGame.isFinal && (
     <div className="text-center">
