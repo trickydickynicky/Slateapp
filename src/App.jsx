@@ -2194,64 +2194,79 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
   <div className="bg-transparent rounded-2xl px-2 py-0..5 mb-4">
 
-    <table className="w-full text-center">
-      <thead>
+<table className="w-full text-center">
+  <thead>
+    {(() => {
+      const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
+      const periods = awayTeam?.linescores || [];
+      const totalPeriods = Math.max(periods.length, 4);
+      const getPeriodLabel = (idx) => {
+        if (idx === 0) return '1st';
+        if (idx === 1) return '2nd';
+        if (idx === 2) return '3rd';
+        if (idx === 3) return '4th';
+        if (idx === 4) return 'OT';
+        return `${idx - 3}OT`;
+      };
+      return (
         <tr className="text-gray-400 text-sm">
           <th className="text-left pb-1 w-20">Team</th>
-          <th className="pb-1 w-1/5">1st</th>
-          <th className="pb-1 w-1/5">2nd</th>
-          <th className="pb-1 w-1/5">3rd</th>
-          <th className="pb-1 w-1/5">4th</th>
+          {Array.from({ length: totalPeriods }, (_, i) => (
+            <th key={i} className="pb-1">{getPeriodLabel(i)}</th>
+          ))}
         </tr>
-      </thead>
-      <tbody>
-        {(() => {
-          const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
-          const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
-          const awayQuarters = awayTeam?.linescores || [];
-          const homeQuarters = homeTeam?.linescores || [];
-          const currentPeriod = selectedGame.period;
+      );
+    })()}
+  </thead>
+  <tbody>
+    {(() => {
+      const awayTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'away');
+      const homeTeam = gameDetails.header.competitions[0].competitors.find(c => c.homeAway === 'home');
+      const awayQuarters = awayTeam?.linescores || [];
+      const homeQuarters = homeTeam?.linescores || [];
+      const totalPeriods = Math.max(awayQuarters.length, 4);
+      const currentPeriod = selectedGame.period;
 
-          return (
-            <>
-              <tr className="border-t border-zinc-800">
-                <td className="text-left py-1">
-                  <span className="font-semibold">{selectedGame.awayTeam}</span>
+      return (
+        <>
+          <tr className="border-t border-zinc-800">
+            <td className="text-left py-1">
+              <span className="font-semibold">{selectedGame.awayTeam}</span>
+            </td>
+            {Array.from({ length: totalPeriods }, (_, i) => {
+              const awayVal = awayQuarters[i]?.displayValue;
+              const homeVal = homeQuarters[i]?.displayValue;
+              const hasData = (i + 1) <= currentPeriod && awayVal;
+              const awayLosing = hasData && homeVal && parseInt(awayVal) < parseInt(homeVal);
+              return (
+                <td key={`away-p${i}`} className={`text-lg font-semibold py-3 ${hasData ? (awayLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                  {hasData ? awayVal : '-'}
                 </td>
-                {[1, 2, 3, 4].map((quarterNum) => {
-                  const awayVal = awayQuarters[quarterNum - 1]?.displayValue;
-                  const homeVal = homeQuarters[quarterNum - 1]?.displayValue;
-                  const hasData = quarterNum <= currentPeriod && awayVal;
-                  const awayLosing = hasData && homeVal && parseInt(awayVal) < parseInt(homeVal);
-                  return (
-                    <td key={`away-q${quarterNum}`} className={`text-lg font-semibold py-3 ${hasData ? (awayLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
-                      {hasData ? awayVal : '-'}
-                    </td>
-                  );
-                })}
-              </tr>
+              );
+            })}
+          </tr>
 
-              <tr className="border-t border-zinc-800">
-                <td className="text-left py-2">
-                  <span className="font-semibold">{selectedGame.homeTeam}</span>
+          <tr className="border-t border-zinc-800">
+            <td className="text-left py-2">
+              <span className="font-semibold">{selectedGame.homeTeam}</span>
+            </td>
+            {Array.from({ length: totalPeriods }, (_, i) => {
+              const awayVal = awayQuarters[i]?.displayValue;
+              const homeVal = homeQuarters[i]?.displayValue;
+              const hasData = (i + 1) <= currentPeriod && homeVal;
+              const homeLosing = hasData && awayVal && parseInt(homeVal) < parseInt(awayVal);
+              return (
+                <td key={`home-p${i}`} className={`text-lg font-semibold py-2 ${hasData ? (homeLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                  {hasData ? homeVal : '-'}
                 </td>
-                {[1, 2, 3, 4].map((quarterNum) => {
-                  const awayVal = awayQuarters[quarterNum - 1]?.displayValue;
-                  const homeVal = homeQuarters[quarterNum - 1]?.displayValue;
-                  const hasData = quarterNum <= currentPeriod && homeVal;
-                  const homeLosing = hasData && awayVal && parseInt(homeVal) < parseInt(awayVal);
-                  return (
-                    <td key={`home-q${quarterNum}`} className={`text-lg font-semibold py-2 ${hasData ? (homeLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
-                      {hasData ? homeVal : '-'}
-                    </td>
-                  );
-                })}
-              </tr>
-            </>
-          );
-        })()}
-      </tbody>
-    </table>
+              );
+            })}
+          </tr>
+        </>
+      );
+    })()}
+  </tbody>
+</table>
   </div>
 )}
 {/* Team Selection Tabs */}
