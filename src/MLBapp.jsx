@@ -636,14 +636,13 @@ export default function MLBApp({ sport, setSport }) {
 
   // Baseball base runners visual
   const BasesDisplay = ({ onFirst, onSecond, onThird }) => (
-    <div className="relative w-8 h-8 flex-shrink-0">
-      {/* Diamond layout: second=top, third=left, first=right */}
-      <div className={`absolute w-2.5 h-2.5 rotate-45 ${onSecond ? 'bg-yellow-400' : 'bg-zinc-700'}`}
+    <div className="relative w-5 h-5 flex-shrink-0">
+      <div className={`absolute w-1.5 h-1.5 ${onSecond ? 'bg-yellow-400' : 'bg-zinc-700'}`}
         style={{ top: 0, left: '50%', transform: 'translateX(-50%) rotate(45deg)' }} />
-      <div className={`absolute w-2.5 h-2.5 rotate-45 ${onThird ? 'bg-yellow-400' : 'bg-zinc-700'}`}
-        style={{ bottom: '25%', left: 0 }} />
-      <div className={`absolute w-2.5 h-2.5 rotate-45 ${onFirst ? 'bg-yellow-400' : 'bg-zinc-700'}`}
-        style={{ bottom: '25%', right: 0 }} />
+      <div className={`absolute w-1.5 h-1.5 ${onThird ? 'bg-yellow-400' : 'bg-zinc-700'}`}
+        style={{ bottom: '25%', left: 0, transform: 'rotate(45deg)' }} />
+      <div className={`absolute w-1.5 h-1.5 ${onFirst ? 'bg-yellow-400' : 'bg-zinc-700'}`}
+        style={{ bottom: '25%', right: 0, transform: 'rotate(45deg)' }} />
     </div>
   );
 
