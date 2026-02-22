@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body, #root {
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+}
+
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
@@ -10,7 +16,6 @@
     transform: translateX(0);
   }
 }
-
 @keyframes dropIn {
   from {
     opacity: 0;
@@ -21,7 +26,6 @@
     transform: translateY(0);
   }
 }
-
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -32,17 +36,14 @@
     transform: translateY(0);
   }
 }
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes shimmer {
   0%   { background-position: -600px 0; }
   100% { background-position:  600px 0; }
 }
-
 .skeleton {
   background: linear-gradient(
     90deg,
