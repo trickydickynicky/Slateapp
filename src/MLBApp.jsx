@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Star } from 'lucide-react';
 
+
 export default function MLBApp({ sport, setSport }) {
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
@@ -283,6 +284,7 @@ export default function MLBApp({ sport, setSport }) {
         `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`
       );
       const data = await response.json();
+      console.log('MLB BOXSCORE STATS:', data.boxscore?.teams?.[0]?.statistics);
 
       const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
       setGameDetails(prev => {
@@ -499,6 +501,8 @@ export default function MLBApp({ sport, setSport }) {
   };
 
   const handleGameClick = (game) => {
+    console.log('GAME CLICKED:', game.id);
+
     setNavigationStack(prev => [...prev, { type: 'home' }]);
     setSlideDirection('right');
     setSelectedGame(game);
@@ -1131,23 +1135,36 @@ export default function MLBApp({ sport, setSport }) {
                         {(() => {
                           const awayStats = gameDetails.boxscore?.teams?.[0]?.statistics || [];
                           const homeStats = gameDetails.boxscore?.teams?.[1]?.statistics || [];
+                          
+                          const awaybatting = awayStats.find(c => c.name === 'batting')?.stats || [];
+                          const homebatting = homeStats.find(c => c.name === 'batting')?.stats || [];
+                          const awaypitching = awayStats.find(c => c.name === 'pitching')?.stats || [];
+                          const homepitching = homeStats.find(c => c.name === 'pitching')?.stats || [];
+                          
                           const findStat = (stats, name) => parseFloat(stats.find(s => s.name === name)?.displayValue || '0') || 0;
 
                           const statsToCompare = [
-                            { name: 'hits', label: 'Hits' },
-                            { name: 'avg', label: 'AVG', format: 'avg' },
-                            { name: 'onBasePct', label: 'OBP', format: 'avg' },
-                            { name: 'slugPct', label: 'SLG', format: 'avg' },
-                            { name: 'homeRuns', label: 'Home Runs' },
-                            { name: 'strikeOuts', label: 'Strikeouts', inverse: true },
-                            { name: 'walks', label: 'Walks' },
-                            { name: 'leftOnBase', label: 'Left On Base', inverse: true },
-                            { name: 'stolenBases', label: 'Stolen Bases' },
+                            { name: 'hits', label: 'Hits', cat: 'batting' },
+                            { name: 'runs', label: 'Runs', cat: 'batting' },
+                            { name: 'avg', label: 'AVG', format: 'avg', cat: 'batting' },
+                            { name: 'onBasePct', label: 'OBP', format: 'avg', cat: 'batting' },
+                            { name: 'slugAvg', label: 'SLG', format: 'avg', cat: 'batting' },
+                            { name: 'OPS', label: 'OPS', format: 'avg', cat: 'batting' },
+                            { name: 'homeRuns', label: 'Home Runs', cat: 'batting' },
+                            { name: 'strikeouts', label: 'Strikeouts', inverse: true, cat: 'batting' },
+                            { name: 'walks', label: 'Walks', cat: 'batting' },
+                            { name: 'runnersLeftOnBase', label: 'Left On Base', inverse: true, cat: 'batting' },
+                            { name: 'stolenBases', label: 'Stolen Bases', cat: 'batting' },
+                            { name: 'doubles', label: 'Doubles', cat: 'batting' },
+                            { name: 'triples', label: 'Triples', cat: 'batting' },
+                            { name: 'ERA', label: 'ERA', inverse: true, cat: 'pitching' },
+                            { name: 'WHIP', label: 'WHIP', inverse: true, cat: 'pitching' },
+                            { name: 'strikeouts', label: 'Pitcher K\'s', cat: 'pitching' },
                           ];
 
                           return statsToCompare.map((statDef, idx) => {
-                            const av = findStat(awayStats, statDef.name);
-                            const hv = findStat(homeStats, statDef.name);
+                            const av = findStat(statDef.cat === 'pitching' ? awaypitching : awaybatting, statDef.name);
+const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, statDef.name);
                             const total = av + hv;
                             const ap = total > 0 ? (av / total) * 100 : 50;
                             const hp = total > 0 ? (hv / total) * 100 : 50;
