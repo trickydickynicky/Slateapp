@@ -1436,54 +1436,77 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
                                 console.log('first player athlete:', players[0]?.athlete); // ADD THIS
+                                console.log('sub player full:', players[10]);
 
-                                return players
-                                .map((player, idx) => (
-                                    <tr key={idx} className="border-b border-zinc-800 last:border-0 h-12">
-                                      <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
-  <div className="flex items-center gap-0">
-    {player.athlete?.headshot?.href ? (
-      <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-        className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
-    ) : (
-      <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-        {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-      </div>
-    )}
-    <div className="absolute left-14 top-0 z-30">
-      <div className="text-xs text-gray-400 whitespace-nowrap">
-      {idx < 9 && (
-  <span className="text-gray-600 mr-1">{idx + 1}.</span>
-)}
-        {player.athlete?.shortName}
-        {player.athlete?.position?.abbreviation && (
-          <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
+                                // Build starter slots 1-9
+const starters = players.filter(p => p.starter);
+const subs = players.filter(p => !p.starter);
+
+// For each sub, find the starter with matching position
+const rows = [];
+starters.forEach((starter, idx) => {
+  rows.push({ player: starter, idx: idx + 1, isSub: false });
+  const matchingSubs = subs.filter(s => s.position?.abbreviation === starter.position?.abbreviation);
+  matchingSubs.forEach(sub => {
+    rows.push({ player: sub, idx: idx + 1, isSub: true });
+  });
+});
+
+// Any subs whose position didn't match a starter
+const unmatchedSubs = subs.filter(s => !starters.some(st => st.position?.abbreviation === s.position?.abbreviation));
+unmatchedSubs.forEach(sub => {
+  rows.push({ player: sub, idx: null, isSub: true });
+});
+
+return rows.map(({ player, idx, isSub }) => (
+  <tr key={player.athlete?.id} className="border-b border-zinc-800 last:border-0 h-12">
+    <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
+      <div className="flex items-center gap-0">
+        {player.athlete?.headshot?.href ? (
+          <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+            className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
+        ) : (
+          <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+            {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
         )}
+        <div className="absolute left-14 top-0 z-30">
+          <div className="text-xs text-gray-400 whitespace-nowrap">
+          {!isSub && (
+  <span className="text-blue-500 mr-1">{idx}.</span>
+)}
+{player.athlete?.shortName}
+{isSub ? (
+  <span className="text-gray-500"> • {idx ? `${idx} SUB` : 'SUB'} {player.position?.abbreviation}</span>
+) : (
+  player.athlete?.position?.abbreviation && (
+    <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
+  )
+)}
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
-</td>
-                                      {/* AB, R, H, RBI, BB, SO, AVG, HR */}
-                                      {[
-  { label: 'AB', val: player.stats?.[1] },
-  { label: 'R', val: player.stats?.[2] },
-  { label: 'H', val: player.stats?.[3] },
-  { label: 'RBI', val: player.stats?.[4] },
-  { label: 'HR', val: player.stats?.[5] },
-  { label: 'BB', val: player.stats?.[6] },
-  { label: 'K', val: player.stats?.[7] },
-  { label: '#P', val: player.stats?.[8] },
-  { label: 'AVG', val: player.stats?.[9] },
-  { label: 'OBP', val: player.stats?.[10] },
-  { label: 'SLG', val: player.stats?.[11] },
-].map(({ label, val }) => (
-                                        <td key={label} className="text-center px-2 pt-2">
-                                          <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
-                                          <div className="text-[10px] text-gray-400">{label}</div>
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ));
+    </td>
+    {[
+      { label: 'AB', val: player.stats?.[1] },
+      { label: 'R', val: player.stats?.[2] },
+      { label: 'H', val: player.stats?.[3] },
+      { label: 'RBI', val: player.stats?.[4] },
+      { label: 'HR', val: player.stats?.[5] },
+      { label: 'BB', val: player.stats?.[6] },
+      { label: 'K', val: player.stats?.[7] },
+      { label: '#P', val: player.stats?.[8] },
+      { label: 'AVG', val: player.stats?.[9] },
+      { label: 'OBP', val: player.stats?.[10] },
+      { label: 'SLG', val: player.stats?.[11] },
+    ].map(({ label, val }) => (
+      <td key={label} className="text-center px-2 pt-2">
+        <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
+        <div className="text-[10px] text-gray-400">{label}</div>
+      </td>
+    ))}
+  </tr>
+));
                               })()}
                             </tbody>
                           </table>
