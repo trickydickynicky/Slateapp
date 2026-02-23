@@ -35,6 +35,15 @@ export default function MLBApp({ sport, setSport }) {
   });
   const [selectedNBAPlayer, setSelectedNBAPlayer] = useState(null);
   const gameDetailScrollRef = useRef(null);
+  const [leagueRankings, setLeagueRankings] = useState(() => {
+    const cached = localStorage.getItem('mlbLeagueRankings');
+    const cacheTime = localStorage.getItem('mlbLeagueRankings_time');
+    const now = Date.now();
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+      return JSON.parse(cached);
+    }
+    return null;
+  });
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -174,6 +183,7 @@ export default function MLBApp({ sport, setSport }) {
 
   useEffect(() => {
     fetchLiveScores();
+    fetchLeagueRankings();
     const interval = setInterval(fetchLiveScores, 30000);
     return () => clearInterval(interval);
   }, [selectedDate]);
@@ -205,6 +215,7 @@ export default function MLBApp({ sport, setSport }) {
         `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=${dateStr}`
       );
       const data = await response.json();
+     
 
       const games = data.events.map(event => {
         const competition = event.competitions[0];
@@ -284,7 +295,7 @@ export default function MLBApp({ sport, setSport }) {
         `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`
       );
       const data = await response.json();
-      console.log('MLB BOXSCORE STATS:', data.boxscore?.teams?.[0]?.statistics);
+      console.log('=== MLB BOXSCORE PLAYERS ===', JSON.stringify(data.boxscore?.players, null, 2));
 
       const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
       setGameDetails(prev => {
@@ -365,33 +376,43 @@ export default function MLBApp({ sport, setSport }) {
   const fetchTeamStats = async (teamAbbr) => {
     setLoadingTeamStats(true);
     try {
-      const standingsRes = await fetch(
-        'https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'
-      );
-      const standingsData = await standingsRes.json();
+        const [standingsRes, teamsRes] = await Promise.all([
+            fetch('https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'),
+            fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams')
+          ]);
+          const standingsData = await standingsRes.json();
+          console.log('=== STANDINGS KEYS ===', JSON.stringify(Object.keys(standingsData), null, 2));
+console.log('=== STANDINGS CHILDREN ===', JSON.stringify(standingsData.children?.[0], null, 2));
+const teamsData = await teamsRes.json();
 
-      let teamId = null;
-      let teamRecord = null;
+const teamEntry = teamsData.sports?.[0]?.leagues?.[0]?.teams?.find(
+    t => t.team.abbreviation === teamAbbr
+  );
+  let teamId = teamEntry?.team?.id || null;
+  console.log('teamsData structure:', JSON.stringify(Object.keys(teamsData), null, 2));
+  console.log('teamEntry:', JSON.stringify(teamEntry, null, 2));
+  console.log('teamId:', teamId);
+  let teamRecord = null;
 
-      const teamRecordsMap = {};
-      standingsData.children?.forEach(league => {
-        league.children?.forEach(division => {
-          division.standings?.entries?.forEach(entry => {
-            const abbr = entry.team.abbreviation;
-            const w = entry.stats?.find(s => s.name === 'wins')?.displayValue || '0';
-            const l = entry.stats?.find(s => s.name === 'losses')?.displayValue || '0';
-            teamRecordsMap[abbr] = `${w}-${l}`;
+const teamRecordsMap = {};
+          standingsData.children?.forEach(league => {
+            league.children?.forEach(division => {
+              division.standings?.entries?.forEach(entry => {
+                const abbr = entry.team.abbreviation;
+                const w = entry.stats?.find(s => s.name === 'wins')?.displayValue || '0';
+                const l = entry.stats?.find(s => s.name === 'losses')?.displayValue || '0';
+                teamRecordsMap[abbr] = `${w}-${l}`;
+              });
+            });
           });
-        });
-      });
-
-      standingsData.children?.forEach(league => {
-        league.children?.forEach(division => {
-          const entry = division.standings?.entries?.find(
-            e => e.team.abbreviation === teamAbbr
-          );
-          if (entry) {
-            teamId = entry.team.id;
+          
+          standingsData.children?.forEach(league => {
+            league.children?.forEach(division => {
+              const entry = division.standings?.entries?.find(
+                e => e.team.abbreviation === teamAbbr
+              );
+              if (entry) {
+                if (!teamId) teamId = entry.team.id;
             const getStat = (name) =>
               entry.stats?.find(s => s.name === name)?.displayValue || '-';
             teamRecord = {
@@ -411,7 +432,10 @@ export default function MLBApp({ sport, setSport }) {
         });
       });
 
-      if (!teamId) throw new Error('Team not found');
+      console.log('teamRecordsMap:', teamRecordsMap);
+console.log('looking for:', teamAbbr);
+console.log('teamId found:', teamId);
+if (!teamId) throw new Error('Team not found');
 
       const [statsRes, scheduleRes] = await Promise.all([
         fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${teamId}/statistics`),
@@ -419,7 +443,12 @@ export default function MLBApp({ sport, setSport }) {
       ]);
 
       const statsData = await statsRes.json();
-      const scheduleData = await scheduleRes.json();
+console.log('=== MLB BATTING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'batting')?.stats?.map(s => s.name), null, 2));
+console.log('=== MLB PITCHING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'pitching')?.stats?.map(s => s.name), null, 2));
+console.log('=== MLB FIELDING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'fielding')?.stats?.map(s => s.name), null, 2));
+console.log('=== STANDINGS ENTRY ===', JSON.stringify(standingsData.children?.[0]?.children?.[0]?.standings?.entries?.[0]?.stats?.map(s => s.name), null, 2));
+const scheduleData = await scheduleRes.json();
+console.log('=== SCHEDULE FIRST COMPLETED ===', JSON.stringify(scheduleData.events?.filter(e => e.competitions?.[0]?.status?.type?.completed)?.[0]?.competitions?.[0]?.competitors, null, 2));
 
       const recentGames = scheduleData.events
         ?.filter(e => e.competitions?.[0]?.status?.type?.completed)
@@ -431,8 +460,8 @@ export default function MLBApp({ sport, setSport }) {
             const oppComp = comp.competitors.find(c => c.team?.id !== teamId);
             if (!teamComp || !oppComp) return null;
             const isHome = teamComp.homeAway === 'home';
-            const teamScoreVal = parseInt(teamComp.score) || 0;
-            const oppScoreVal = parseInt(oppComp.score) || 0;
+            const teamScoreVal = parseInt(teamComp.score?.value ?? teamComp.score) || 0;
+const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
             return {
               gameId: event.id,
               opponent: oppComp.team.abbreviation,
@@ -486,10 +515,82 @@ export default function MLBApp({ sport, setSport }) {
         upcomingGames,
       });
     } catch (error) {
-      console.error('Error fetching MLB team stats:', error);
-      setTeamStats(null);
-    }
+        console.error('Error fetching MLB team stats:', error);
+        console.log('teamId was:', teamId);
+        console.log('teamAbbr was:', teamAbbr);
+        setTeamStats(null);
+      }
     setLoadingTeamStats(false);
+  };
+
+  const fetchLeagueRankings = async () => {
+    const cacheTime = localStorage.getItem('mlbLeagueRankings_time');
+    const now = Date.now();
+    if (cacheTime && (now - parseInt(cacheTime)) < 86400000) return;
+
+    const allTeamStats = {};
+    const teamAbbrs = Object.keys(espnTeamIds);
+
+    for (let i = 0; i < teamAbbrs.length; i += 5) {
+      const batch = teamAbbrs.slice(i, i + 5);
+      await Promise.all(batch.map(async (abbr) => {
+        try {
+          const id = espnTeamIds[abbr];
+          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${id}/statistics`);
+          const data = await res.json();
+          const bat = data.results?.stats?.categories?.find(c => c.name === 'batting');
+          const pit = data.results?.stats?.categories?.find(c => c.name === 'pitching');
+          const fld = data.results?.stats?.categories?.find(c => c.name === 'fielding');
+          const getStat = (cat, name) => {
+            const stat = cat?.stats?.find(s => s.name === name);
+            return stat ? parseFloat(stat.displayValue) : null;
+          };
+          allTeamStats[abbr] = {
+            avg: getStat(bat, 'avg'),
+            obp: getStat(bat, 'onBasePct'),
+            slg: getStat(bat, 'slugAvg'),
+            ops: getStat(bat, 'OPS'),
+            hr: getStat(bat, 'homeRuns'),
+            rbi: getStat(bat, 'RBIs'),
+            sb: getStat(bat, 'stolenBases'),
+            so_bat: getStat(bat, 'strikeouts'),
+            era: getStat(pit, 'ERA'),
+            whip: getStat(pit, 'WHIP'),
+            k9: getStat(pit, 'strikeoutsPerNineInnings'),
+            bb9: getStat(pit, 'walksPerNineInnings'),
+            saves: getStat(pit, 'saves'),
+            qs: getStat(pit, 'qualityStarts'),
+            fpct: getStat(fld, 'fieldingPct'),
+            errors: getStat(fld, 'errors'),
+          };
+        } catch (err) {
+          console.error(`Error fetching MLB stats for ${abbr}:`, err);
+        }
+      }));
+    }
+
+    const rankings = {};
+    const statKeys = {
+      avg: false, obp: false, slg: false, ops: false,
+      hr: false, rbi: false, sb: false, so_bat: true,
+      era: true, whip: true, k9: false, bb9: true,
+      saves: false, qs: false, fpct: false, errors: true,
+    };
+
+    Object.keys(statKeys).forEach(stat => {
+      const inverse = statKeys[stat];
+      const sorted = Object.entries(allTeamStats)
+        .filter(([, s]) => s[stat] !== null)
+        .sort((a, b) => inverse ? a[1][stat] - b[1][stat] : b[1][stat] - a[1][stat]);
+      sorted.forEach(([abbr], idx) => {
+        if (!rankings[abbr]) rankings[abbr] = {};
+        rankings[abbr][stat] = idx + 1;
+      });
+    });
+
+    localStorage.setItem('mlbLeagueRankings', JSON.stringify(rankings));
+    localStorage.setItem('mlbLeagueRankings_time', now.toString());
+    setLeagueRankings(rankings);
   };
 
   const toggleFavorite = (teamAbbr) => {
@@ -1055,57 +1156,61 @@ export default function MLBApp({ sport, setSport }) {
                   </div>
                 </div>
 
-                {/* Inning-by-Inning linescore */}
-                {!selectedGame.isPreGame && gameDetails?.linescore && (
-                  <div className="mt-4 pt-4 border-t border-zinc-800 overflow-x-auto">
-                    <table className="w-full text-center text-sm min-w-[340px]">
-                      <thead>
-                        <tr className="text-gray-500 text-xs">
-                          <th className="text-left pb-1 w-14">Team</th>
-                          {Array.from({ length: Math.max(gameDetails.linescore.lines?.length || 9, 9) }, (_, i) => (
-                            <th key={i} className="pb-1 px-1">{i + 1}</th>
-                          ))}
-                          <th className="pb-1 px-2 border-l border-zinc-700">R</th>
-                          <th className="pb-1 px-2">H</th>
-                          <th className="pb-1 px-2">E</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {['away', 'home'].map(side => {
-                          const teamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
-                          const teamData = gameDetails.linescore?.teams?.find(
-                            t => (side === 'away' ? t.homeAway === 'away' : t.homeAway === 'home')
-                          );
-                          const lines = gameDetails.linescore?.lines || [];
-                          const totalInnings = Math.max(lines.length, 9);
+ {/* Inning-by-Inning linescore */}
+{!selectedGame.isPreGame && gameDetails && (
+  <div className="mt-4 pt-4 border-t border-zinc-800 overflow-x-auto">
+    {(() => {
+      const awayComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'away');
+      const homeComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'home');
+      const awayInnings = awayComp?.linescores || [];
+      const homeInnings = homeComp?.linescores || [];
+      const totalInnings = Math.max(awayInnings.length, homeInnings.length, 9);
 
-                          return (
-                            <tr key={side} className="border-t border-zinc-800">
-                              <td className="text-left py-2 font-semibold">{teamAbbr}</td>
-                              {Array.from({ length: totalInnings }, (_, i) => {
-                                const val = side === 'away'
-                                  ? lines[i]?.away?.runs
-                                  : lines[i]?.home?.runs;
-                                return (
-                                  <td key={i} className={`py-2 px-1 text-xs ${val !== undefined ? 'text-white' : 'text-gray-700'}`}>
-                                    {val !== undefined ? val : (i < (selectedGame.inning || 0) ? '0' : '-')}
-                                  </td>
-                                );
-                              })}
-                              <td className="py-2 px-2 font-bold border-l border-zinc-700">
-                                {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
-                              </td>
-                              <td className="py-2 px-2 text-gray-300">{teamData?.hits ?? '-'}</td>
-                              <td className="py-2 px-2 text-gray-300">{teamData?.errors ?? '-'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
+      return (
+        <table className="w-full text-center text-sm min-w-[340px]">
+          <thead>
+            <tr className="text-gray-500 text-xs">
+              <th className="text-left pb-1 w-14">Team</th>
+              {Array.from({ length: totalInnings }, (_, i) => (
+                <th key={i} className="pb-1 px-1">{i + 1}</th>
+              ))}
+              <th className="pb-1 px-2 border-l border-zinc-700">R</th>
+              <th className="pb-1 px-2">H</th>
+              <th className="pb-1 px-2">E</th>
+            </tr>
+          </thead>
+          <tbody>
+            {['away', 'home'].map(side => {
+              const teamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+              const innings = side === 'away' ? awayInnings : homeInnings;
+              const totalHits = innings.reduce((sum, inn) => sum + (inn.hits || 0), 0);
+              const totalErrors = innings.reduce((sum, inn) => sum + (inn.errors || 0), 0);
+              return (
+                <tr key={side} className="border-t border-zinc-800">
+                  <td className="text-left py-2 font-semibold">{teamAbbr}</td>
+                  {Array.from({ length: totalInnings }, (_, i) => {
+                    const val = innings[i]?.displayValue;
+                    return (
+                      <td key={i} className={`py-2 px-1 text-xs ${val !== undefined ? 'text-white' : 'text-gray-700'}`}>
+                        {val !== undefined ? val : '-'}
+                      </td>
+                    );
+                  })}
+                  <td className="py-2 px-2 font-bold border-l border-zinc-700">
+                    {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
+                  </td>
+                  <td className="py-2 px-2 text-gray-300">{totalHits || '-'}</td>
+                  <td className="py-2 px-2 text-gray-300">{totalErrors !== undefined ? totalErrors : '-'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      );
+    })()}
+  </div>
+)}
+</div>
               {/* Team Tabs */}
               <div className="flex gap-2 mb-3">
                 {[
@@ -1280,19 +1385,25 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                   {(() => {
                                     const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                     const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
-                                    let ab=0, r=0, h=0, rbi=0, bb=0, so=0, hr=0;
-                                    players.forEach(p => {
-                                      if (p.stats) {
-                                        ab += parseInt(p.stats[1]) || 0;
-                                        r += parseInt(p.stats[2]) || 0;
-                                        h += parseInt(p.stats[3]) || 0;
-                                        rbi += parseInt(p.stats[4]) || 0;
-                                        bb += parseInt(p.stats[5]) || 0;
-                                        so += parseInt(p.stats[6]) || 0;
-                                        hr += parseInt(p.stats[8]) || 0;
+                                    let ab=0, r=0, h=0, rbi=0, hr=0, bb=0, k=0, p=0;
+                                    players.forEach(pl => {
+                                      if (pl.stats) {
+                                        ab += parseInt(pl.stats[1]) || 0;
+                                        r  += parseInt(pl.stats[2]) || 0;
+                                        h  += parseInt(pl.stats[3]) || 0;
+                                        rbi+= parseInt(pl.stats[4]) || 0;
+                                        hr += parseInt(pl.stats[5]) || 0;
+                                        bb += parseInt(pl.stats[6]) || 0;
+                                        k  += parseInt(pl.stats[7]) || 0;
+                                        p  += parseInt(pl.stats[8]) || 0;
                                       }
                                     });
                                     const avg = ab > 0 ? (h / ab).toFixed(3).replace(/^0/, '') : '.000';
+                                    const obp_num = players.reduce((s, pl) => s + (parseFloat(pl.stats?.[10]) || 0), 0);
+                                    const slg_num = players.reduce((s, pl) => s + (parseFloat(pl.stats?.[11]) || 0), 0);
+                                    const activeCount = players.filter(pl => parseInt(pl.stats?.[1]) > 0).length || 1;
+                                    const obp = (obp_num / activeCount).toFixed(3).replace(/^0/, '');
+                                    const slg = (slg_num / activeCount).toFixed(3).replace(/^0/, '');
                                     return (
                                       <div className="flex items-center gap-4">
                                         <img src={selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo}
@@ -1302,10 +1413,13 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                           { label: 'R', value: r },
                                           { label: 'H', value: h },
                                           { label: 'RBI', value: rbi },
-                                          { label: 'BB', value: bb },
-                                          { label: 'SO', value: so },
                                           { label: 'HR', value: hr },
+                                          { label: 'BB', value: bb },
+                                          { label: 'K', value: k },
+                                          { label: '#P', value: p },
                                           { label: 'AVG', value: avg },
+                                          { label: 'OBP', value: obp },
+                                          { label: 'SLG', value: slg },
                                         ].map(({ label, value }) => (
                                           <div key={label} className="text-center flex-shrink-0">
                                             <div className="text-[16px] font-semibold text-white -mb-1.5">{value}</div>
@@ -1348,14 +1462,18 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                       </td>
                                       {/* AB, R, H, RBI, BB, SO, AVG, HR */}
                                       {[
-                                        { label: 'AB', val: player.stats?.[1] },
-                                        { label: 'R', val: player.stats?.[2] },
-                                        { label: 'H', val: player.stats?.[3] },
-                                        { label: 'RBI', val: player.stats?.[4] },
-                                        { label: 'BB', val: player.stats?.[5] },
-                                        { label: 'SO', val: player.stats?.[6] },
-                                        { label: 'HR', val: player.stats?.[8] },
-                                      ].map(({ label, val }) => (
+  { label: 'AB', val: player.stats?.[1] },
+  { label: 'R', val: player.stats?.[2] },
+  { label: 'H', val: player.stats?.[3] },
+  { label: 'RBI', val: player.stats?.[4] },
+  { label: 'HR', val: player.stats?.[5] },
+  { label: 'BB', val: player.stats?.[6] },
+  { label: 'K', val: player.stats?.[7] },
+  { label: '#P', val: player.stats?.[8] },
+  { label: 'AVG', val: player.stats?.[9] },
+  { label: 'OBP', val: player.stats?.[10] },
+  { label: 'SLG', val: player.stats?.[11] },
+].map(({ label, val }) => (
                                         <td key={label} className="text-center px-2 pt-2">
                                           <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
                                           <div className="text-[10px] text-gray-400">{label}</div>
@@ -1531,104 +1649,159 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                     </div>
                   </div>
 
-                  {/* Batting Stats */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      {(() => {
-                        const bat = teamStats.stats.find(c => c.name === 'batting');
-                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        return [
-                          { label: 'AVG', value: getStat('avg') },
-                          { label: 'OBP', value: getStat('obp') },
-                          { label: 'SLG', value: getStat('slg') },
-                          { label: 'OPS', value: getStat('ops') },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {(() => {
-                        const bat = teamStats.stats.find(c => c.name === 'batting');
-                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        return [
-                          { label: 'HR', value: getStat('homeRuns') },
-                          { label: 'RBI', value: getStat('RBIs') },
-                          { label: 'SB', value: getStat('stolenBases') },
-                          { label: 'SO', value: getStat('strikeouts') },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
+                  {/* Batting */}
+<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
+  <div className="grid grid-cols-4 gap-2 mb-2">
+    {(() => {
+      const bat = teamStats.stats.find(c => c.name === 'batting');
+      const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+      return [
+        { label: 'AVG', value: getStat('avg'), rank: teamRanks.avg },
+        { label: 'OBP', value: getStat('onBasePct'), rank: teamRanks.obp },
+{ label: 'SLG', value: getStat('slugAvg'), rank: teamRanks.slg },
+{ label: 'OPS', value: getStat('OPS'), rank: teamRanks.ops },
+      ].map(({ label, value, rank }) => (
+        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+          !rank ? 'border-zinc-700 bg-zinc-800/50' :
+          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+          'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+          {rank && (
+            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+              #{rank}
+            </div>
+          )}
+        </div>
+      ));
+    })()}
+  </div>
+  <div className="grid grid-cols-4 gap-2">
+    {(() => {
+      const bat = teamStats.stats.find(c => c.name === 'batting');
+      const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+      return [
+        { label: 'HR', value: getStat('homeRuns'), rank: teamRanks.hr },
+        { label: 'RBI', value: getStat('RBIs'), rank: teamRanks.rbi },
+        { label: 'SB', value: getStat('stolenBases'), rank: teamRanks.sb },
+        { label: 'SO', value: getStat('strikeouts'), rank: teamRanks.so_bat },
+      ].map(({ label, value, rank }) => (
+        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+          !rank ? 'border-zinc-700 bg-zinc-800/50' :
+          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+          'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+          {rank && (
+            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+              #{rank}
+            </div>
+          )}
+        </div>
+      ));
+    })()}
+  </div>
+</div>
 
-                  {/* Pitching Stats */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      {(() => {
-                        const pit = teamStats.stats.find(c => c.name === 'pitching');
-                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        return [
-                          { label: 'ERA', value: getStat('ERA') },
-                          { label: 'WHIP', value: getStat('WHIP') },
-                          { label: 'K/9', value: getStat('strikeoutsPerNineInnings') },
-                          { label: 'BB/9', value: getStat('walksPerNineInnings') },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {(() => {
-                        const pit = teamStats.stats.find(c => c.name === 'pitching');
-                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        return [
-                          { label: 'SV', value: getStat('saves') },
-                          { label: 'QS', value: getStat('qualityStarts') },
-                          { label: 'HR', value: getStat('homeRunsAllowed') },
-                          { label: 'SO', value: getStat('strikeouts') },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
+{/* Pitching */}
+<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
+  <div className="grid grid-cols-4 gap-2 mb-2">
+    {(() => {
+      const pit = teamStats.stats.find(c => c.name === 'pitching');
+      const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+      return [
+        { label: 'ERA', value: getStat('ERA'), rank: teamRanks.era },
+        { label: 'WHIP', value: getStat('WHIP'), rank: teamRanks.whip },
+        { label: 'K/9', value: getStat('strikeoutsPerNineInnings'), rank: teamRanks.k9 },
+        { label: 'BB/9', value: getStat('walksPerNineInnings'), rank: teamRanks.bb9 },
+      ].map(({ label, value, rank }) => (
+        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+          !rank ? 'border-zinc-700 bg-zinc-800/50' :
+          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+          'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+          {rank && (
+            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+              #{rank}
+            </div>
+          )}
+        </div>
+      ));
+    })()}
+  </div>
+  <div className="grid grid-cols-4 gap-2">
+    {(() => {
+      const pit = teamStats.stats.find(c => c.name === 'pitching');
+      const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+      return [
+        { label: 'SV', value: getStat('saves'), rank: teamRanks.saves },
+        { label: 'QS', value: getStat('qualityStarts'), rank: teamRanks.qs },
+        { label: 'HR', value: getStat('homeRunsAllowed'), rank: null },
+        { label: 'SO', value: getStat('strikeouts'), rank: null },
+      ].map(({ label, value, rank }) => (
+        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+          !rank ? 'border-zinc-700 bg-zinc-800/50' :
+          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+          'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+          {rank && (
+            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+              #{rank}
+            </div>
+          )}
+        </div>
+      ));
+    })()}
+  </div>
+</div>
 
-                  {/* Fielding Stats */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(() => {
-                        const fld = teamStats.stats.find(c => c.name === 'fielding');
-                        const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        return [
-                          { label: 'FPCT', value: getStat('fieldingPct') },
-                          { label: 'E', value: getStat('errors') },
-                          { label: 'DP', value: getStat('doublePlays') },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
+{/* Fielding */}
+<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
+  <div className="grid grid-cols-3 gap-2">
+    {(() => {
+      const fld = teamStats.stats.find(c => c.name === 'fielding');
+      const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
+      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+      return [
+        { label: 'FPCT', value: getStat('fieldingPct'), rank: teamRanks.fpct },
+        { label: 'E', value: getStat('errors'), rank: teamRanks.errors },
+        { label: 'DP', value: getStat('doublePlays'), rank: null },
+      ].map(({ label, value, rank }) => (
+        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+          !rank ? 'border-zinc-700 bg-zinc-800/50' :
+          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+          'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="text-lg font-bold text-white">{value}</div>
+          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+          {rank && (
+            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+              #{rank}
+            </div>
+          )}
+        </div>
+      ));
+    })()}
+  </div>
+</div>
 
                   {/* Run Differential Bars */}
                   <div className="bg-zinc-900 rounded-2xl p-4">
