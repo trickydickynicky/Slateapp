@@ -1477,7 +1477,7 @@ return rows.map(({ player, idx, isSub }) => (
 )}
 {player.athlete?.shortName}
 {isSub ? (
-  <span className="text-gray-500"> • {idx ? `${idx} SUB` : 'SUB'} {player.position?.abbreviation}</span>
+  <span className="text-gray-500"> • SUB {player.position?.abbreviation}</span>
 ) : (
   player.athlete?.position?.abbreviation && (
     <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
