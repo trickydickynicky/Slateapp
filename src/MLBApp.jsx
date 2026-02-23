@@ -1644,7 +1644,9 @@ return rows.map(({ player, idx, isSub }) => (
                 )}
                 <div className="flex-1">
                   <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
-                  <div className="text-xs text-gray-400">{player.position?.abbreviation}</div>
+                  <div className="text-xs text-gray-400">
+  {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
+</div>
                 </div>
               </div>
             ))}
