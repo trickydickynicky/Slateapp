@@ -1264,7 +1264,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                             { name: 'triples', label: 'Triples', cat: 'batting' },
                             { name: 'ERA', label: 'ERA', inverse: true, cat: 'pitching' },
                             { name: 'WHIP', label: 'WHIP', inverse: true, cat: 'pitching' },
-                            { name: 'strikeouts', label: 'Pitcher K\'s', cat: 'pitching' },
                           ];
 
                           return statsToCompare.map((statDef, idx) => {
@@ -1436,30 +1435,34 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                               {(() => {
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
+                                console.log('first player athlete:', players[0]?.athlete); // ADD THIS
+
                                 return players
-                                  .sort((a, b) => (parseInt(b.stats?.[1]) || 0) - (parseInt(a.stats?.[1]) || 0))
-                                  .map((player, idx) => (
+                                .map((player, idx) => (
                                     <tr key={idx} className="border-b border-zinc-800 last:border-0 h-12">
                                       <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
-                                        <div className="flex items-center gap-0">
-                                          {player.athlete?.headshot?.href ? (
-                                            <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-                                              className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
-                                          ) : (
-                                            <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-                                              {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                            </div>
-                                          )}
-                                          <div className="absolute left-14 top-0 z-30">
-                                            <div className="text-xs text-gray-400 whitespace-nowrap">
-                                              {player.athlete?.shortName}
-                                              {player.athlete?.position?.abbreviation && (
-                                                <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </td>
+  <div className="flex items-center gap-0">
+    {player.athlete?.headshot?.href ? (
+      <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+        className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
+    ) : (
+      <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+        {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+      </div>
+    )}
+    <div className="absolute left-14 top-0 z-30">
+      <div className="text-xs text-gray-400 whitespace-nowrap">
+      {idx < 9 && (
+  <span className="text-gray-600 mr-1">{idx + 1}.</span>
+)}
+        {player.athlete?.shortName}
+        {player.athlete?.position?.abbreviation && (
+          <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
+        )}
+      </div>
+    </div>
+  </div>
+</td>
                                       {/* AB, R, H, RBI, BB, SO, AVG, HR */}
                                       {[
   { label: 'AB', val: player.stats?.[1] },
@@ -1498,6 +1501,8 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 // Try pitching stats (index 1 in players array)
                                 const pitchers = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
+                                console.log('first pitcher:', pitchers[0]);
+
                                 if (pitchers.length === 0) return (
                                   <tr><td className="text-gray-500 text-xs p-2">No pitching data</td></tr>
                                 );
@@ -1514,14 +1519,28 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                           </div>
                                         )}
                                         <div className="absolute left-14 top-0 z-30">
-                                          <div className="text-xs text-gray-400 whitespace-nowrap">
-                                            {player.athlete?.shortName}
-                                            {player.didWin !== undefined && (
-                                              <span className={`ml-1 text-[10px] font-bold ${player.didWin ? 'text-green-400' : 'text-red-400'}`}>
-                                                {player.didWin ? 'W' : player.didLose ? 'L' : 'S'}
-                                              </span>
-                                            )}
-                                          </div>
+                                        <div className="text-xs text-gray-400 whitespace-nowrap">
+  {player.athlete?.shortName}
+  {player.starter && (
+    <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
+  )}
+  {(() => {
+  const decision = player.notes?.find(n => n.type === 'pitchingDecision')?.text;
+  if (!decision) return null;
+  const isWin = decision.startsWith('W');
+  const isLoss = decision.startsWith('L');
+  const isSave = decision.startsWith('SV');
+  const record = decision.split(', ')[1];
+  return (
+    <>
+      {isWin && <span className="ml-1 text-green-400 text-xs font-bold">W</span>}
+      {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">L</span>}
+      {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">SV</span>}
+      {record && <span className="ml-1 text-gray-500 text-xs">({record})</span>}
+    </>
+  );
+})()}
+</div>
                                         </div>
                                       </div>
                                     </td>
