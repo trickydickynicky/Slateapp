@@ -295,7 +295,8 @@ export default function MLBApp({ sport, setSport }) {
         `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/summary?event=${gameId}`
       );
       const data = await response.json();
-      console.log('=== MLB BOXSCORE PLAYERS ===', JSON.stringify(data.boxscore?.players, null, 2));
+      console.log('pregame full data:', Object.keys(data));
+      console.log('pregame rosters:', data.rosters);
 
       const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
       setGameDetails(prev => {
@@ -306,6 +307,7 @@ export default function MLBApp({ sport, setSport }) {
           header: data.header,
           plays: data.plays,
           linescore: data.linescore,
+          rosters: data.rosters,
         };
       });
       setTimeout(() => {
@@ -1591,14 +1593,67 @@ return rows.map(({ player, idx, isSub }) => (
                     </div>
                   )}
 
-                  {/* TEAM TAB — Pre-game roster */}
-                  {(selectedTeamTab === 'away' || selectedTeamTab === 'home') && selectedGame.isPreGame && (
-                    <div className="bg-zinc-900 rounded-2xl p-4">
-                      <div className="text-gray-400 text-center py-4 text-sm">
-                        Lineup not yet available
-                      </div>
-                    </div>
-                  )}
+            {/* TEAM TAB — Pre-game roster */}
+{(selectedTeamTab === 'away' || selectedTeamTab === 'home') && selectedGame.isPreGame && (
+  <div className="space-y-3">
+    {(() => {
+      const side = selectedTeamTab;
+      const comp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === side);
+      const pitcher = comp?.probables?.[0];
+      if (!pitcher) return null;
+      return (
+        <div className="bg-zinc-900 rounded-2xl p-4">
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+            style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitcher</h4>
+          <div className="flex items-center gap-3">
+            {pitcher.athlete?.headshot?.href ? (
+              <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName}
+                className="w-12 h-12 rounded-md object-cover" />
+            ) : (
+              <div className="w-12 h-12 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">SP</div>
+            )}
+            <div className="flex-1">
+              <div className="text-sm font-semibold">{pitcher.athlete?.displayName}</div>
+              <div className="text-xs text-gray-400">
+                {pitcher.statistics?.[0]?.displayValue} • ERA: {pitcher.statistics?.[1]?.displayValue || '-'}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    })()}
+    <div className="bg-zinc-900 rounded-2xl p-4">
+      {(() => {
+        const side = selectedTeamTab === 'away' ? 'away' : 'home';
+        const roster = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
+        if (roster.length === 0) return (
+          <div className="text-gray-400 text-center py-4 text-sm">Lineup not yet available</div>
+        );
+        return (
+          <div className="space-y-2">
+            {roster.sort((a, b) => a.batOrder - b.batOrder).map((player) => (
+              <div key={player.athlete?.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0">
+                <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
+                {player.athlete?.headshot?.href ? (
+                  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+                    className="w-8 h-8 rounded-md object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+                    {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
+                  <div className="text-xs text-gray-400">{player.position?.abbreviation}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  </div>
+)}
                 </div>
               ) : null}
             </div>
