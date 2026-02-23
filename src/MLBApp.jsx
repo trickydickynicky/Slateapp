@@ -1415,7 +1415,6 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                           { label: 'HR', value: hr },
                                           { label: 'BB', value: bb },
                                           { label: 'K', value: k },
-                                          { label: '#P', value: p },
                                           { label: 'AVG', value: avg },
                                           { label: 'OBP', value: obp },
                                           { label: 'SLG', value: slg },
@@ -1435,8 +1434,7 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                               {(() => {
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
-                                console.log('first player athlete:', players[0]?.athlete); // ADD THIS
-                                console.log('sub player full:', players[10]);
+                                console.log('all batter stats:', players.map(p => p.stats));
 
                                 // Build starter slots 1-9
 const starters = players.filter(p => p.starter);
@@ -1477,7 +1475,7 @@ return rows.map(({ player, idx, isSub }) => (
 )}
 {player.athlete?.shortName}
 {isSub ? (
-  <span className="text-gray-500"> • SUB {player.position?.abbreviation}</span>
+  <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
 ) : (
   player.athlete?.position?.abbreviation && (
     <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
@@ -1495,7 +1493,7 @@ return rows.map(({ player, idx, isSub }) => (
       { label: 'HR', val: player.stats?.[5] },
       { label: 'BB', val: player.stats?.[6] },
       { label: 'K', val: player.stats?.[7] },
-      { label: '#P', val: player.stats?.[8] },
+      { label: 'H/AB', val: player.stats?.[0] },
       { label: 'AVG', val: player.stats?.[9] },
       { label: 'OBP', val: player.stats?.[10] },
       { label: 'SLG', val: player.stats?.[11] },
