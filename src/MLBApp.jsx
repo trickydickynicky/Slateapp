@@ -298,6 +298,7 @@ export default function MLBApp({ sport, setSport }) {
       console.log('pregame full data:', Object.keys(data));
       console.log('pregame rosters:', data.rosters);
 
+      
       const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
       setGameDetails(prev => {
         if (!prev) return data;
@@ -1441,13 +1442,20 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                 // Build starter slots 1-9
 const starters = players.filter(p => p.starter);
 const subs = players.filter(p => !p.starter);
+console.log('=== STARTERS ===', starters.length, starters.map(p => p.position?.abbreviation));
+console.log('=== SUBS ===', subs.length, subs.map(p => p.position?.abbreviation));
 
 // For each sub, find the starter with matching position
 const rows = [];
-starters.forEach((starter, idx) => {
+const usedSubs = new Set();
+starters.sort((a, b) => a.batOrder - b.batOrder).forEach((starter, idx) => {
   rows.push({ player: starter, idx: idx + 1, isSub: false });
-  const matchingSubs = subs.filter(s => s.position?.abbreviation === starter.position?.abbreviation);
+  const matchingSubs = subs.filter(s => 
+    s.position?.abbreviation === starter.position?.abbreviation && 
+    !usedSubs.has(s.athlete?.id)
+  );
   matchingSubs.forEach(sub => {
+    usedSubs.add(sub.athlete?.id);
     rows.push({ player: sub, idx: idx + 1, isSub: true });
   });
 });
@@ -1525,6 +1533,7 @@ return rows.map(({ player, idx, isSub }) => (
                                 // Try pitching stats (index 1 in players array)
                                 const pitchers = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
                                 console.log('first pitcher:', pitchers[0]);
+                                console.log('pitcher notes:', pitchers.map(p => ({ name: p.athlete?.shortName, notes: p.notes })));
 
                                 if (pitchers.length === 0) return (
                                   <tr><td className="text-gray-500 text-xs p-2">No pitching data</td></tr>
@@ -1553,12 +1562,16 @@ return rows.map(({ player, idx, isSub }) => (
   const isWin = decision.startsWith('W');
   const isLoss = decision.startsWith('L');
   const isSave = decision.startsWith('SV');
-  const record = decision.split(', ')[1];
+  const isHold = decision.startsWith('H,') || decision === 'H';
+  const isBlownSave = decision.startsWith('BS');
+  const record = (isWin || isLoss || isSave) ? decision.split(', ')[1] : null;
   return (
     <>
-      {isWin && <span className="ml-1 text-green-400 text-xs font-bold">W</span>}
-      {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">L</span>}
-      {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">SV</span>}
+      {isWin && <span className="ml-1 text-green-400 text-xs font-bold">Win</span>}
+      {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">Loss</span>}
+      {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">Save</span>}
+      {isHold && <span className="ml-1 text-blue-400 text-xs font-bold">Hold</span>}
+      {isBlownSave && <span className="ml-1 text-orange-400 text-xs font-bold">Blown Save</span>}
       {record && <span className="ml-1 text-gray-500 text-xs">({record})</span>}
     </>
   );
