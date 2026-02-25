@@ -1170,7 +1170,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
       const totalInnings = Math.max(awayInnings.length, homeInnings.length, 9);
 
       return (
-        <table className="w-full text-center text-sm min-w-[340px]">
+        <table className="w-full text-center text-sm">
           <thead>
             <tr className="text-gray-500 text-xs">
               <th className="text-left pb-1 w-8">Team</th>
