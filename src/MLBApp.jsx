@@ -44,6 +44,11 @@ export default function MLBApp({ sport, setSport }) {
     }
     return null;
   });
+  const [selectedMLBPlayer, setSelectedMLBPlayer] = useState(null);
+const [mlbPlayerStats, setMlbPlayerStats] = useState(null);
+const [loadingMLBStats, setLoadingMLBStats] = useState(false);
+const [selectedMLBSeason, setSelectedMLBSeason] = useState(null);
+const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -594,6 +599,104 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     localStorage.setItem('mlbLeagueRankings', JSON.stringify(rankings));
     localStorage.setItem('mlbLeagueRankings_time', now.toString());
     setLeagueRankings(rankings);
+  };
+
+  const fetchMLBPlayerStats = async (playerName, playerId, specificSeason = null) => {
+    setLoadingMLBStats(true);
+    try {
+      const cacheKey = `mlb_stats_${playerId}`;
+      const cached = localStorage.getItem(cacheKey);
+      const cacheTime = localStorage.getItem(`${cacheKey}_time`);
+      const now = Date.now();
+  
+      if (!specificSeason && cached && cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+        const cachedData = JSON.parse(cached);
+        setMlbPlayerStats(cachedData);
+        setMlbAvailableSeasons(cachedData.allSeasons || []);
+        setSelectedMLBSeason(cachedData.currentSeason?.year);
+        setLoadingMLBStats(false);
+        return;
+      }
+  
+      const response = await fetch(
+        `https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/${playerId}/stats`
+      );
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      const data = await response.json();
+  
+      const averagesCategory = data.categories?.find(cat => cat.name === 'batting') 
+        || data.categories?.find(cat => cat.name === 'pitching')
+        || data.categories?.[0];
+  
+      if (!averagesCategory) throw new Error('No stats found');
+  
+      const allSeasons = [];
+      const seenYears = new Set();
+      averagesCategory.statistics?.forEach(stat => {
+        if (!seenYears.has(stat.season.year)) {
+          seenYears.add(stat.season.year);
+          allSeasons.push({ year: stat.season.year, displayName: stat.season.displayName });
+        }
+      });
+      allSeasons.sort((a, b) => b.year - a.year);
+  
+      const targetYear = specificSeason || allSeasons[0]?.year;
+  
+      const allSeasonsData = {};
+      averagesCategory.statistics?.forEach(stat => {
+        const year = stat.season.year;
+        const labels = averagesCategory.labels || [];
+        const statsObj = { year, displayName: stat.season.displayName };
+        labels.forEach((label, i) => {
+          statsObj[label] = stat.stats[i] ?? '-';
+        });
+        if (!allSeasonsData[year]) allSeasonsData[year] = statsObj;
+      });
+  
+      // Also grab pitching if available
+      const pitchingCategory = data.categories?.find(cat => cat.name === 'pitching');
+      const pitchingByYear = {};
+      if (pitchingCategory) {
+        pitchingCategory.statistics?.forEach(stat => {
+          const year = stat.season.year;
+          const labels = pitchingCategory.labels || [];
+          const statsObj = {};
+          labels.forEach((label, i) => { statsObj[label] = stat.stats[i] ?? '-'; });
+          pitchingByYear[year] = statsObj;
+        });
+      }
+  
+      const formattedStats = {
+        playerName,
+        playerId,
+        allSeasons,
+        allSeasonsData,
+        pitchingByYear,
+        currentSeason: allSeasonsData[targetYear],
+        currentPitching: pitchingByYear[targetYear] || null,
+        isPitcher: !!pitchingCategory && !averagesCategory.statistics?.some(s => s.stats.some(v => v !== '-' && v !== '0')),
+      };
+  
+      if (!specificSeason) {
+        localStorage.setItem(cacheKey, JSON.stringify(formattedStats));
+        localStorage.setItem(`${cacheKey}_time`, now.toString());
+      }
+  
+      setMlbPlayerStats(formattedStats);
+      setMlbAvailableSeasons(allSeasons);
+      setSelectedMLBSeason(targetYear);
+    } catch (error) {
+      console.error('Error fetching MLB player stats:', error);
+      setMlbPlayerStats({ error: 'Could not load stats' });
+    }
+    setLoadingMLBStats(false);
+  };
+  
+  const handleMLBPlayerClick = (playerName, playerId, headshotUrl, teamAbbr, teamLogo, jersey, position) => {
+    if (!playerId) return;
+    setSlideDirection('right');
+    setSelectedMLBPlayer({ name: playerName, id: playerId, headshot: headshotUrl, teamAbbr, teamLogo, jersey, position });
+    fetchMLBPlayerStats(playerName, playerId);
   };
 
   const toggleFavorite = (teamAbbr) => {
@@ -1470,17 +1573,27 @@ return rows.map(({ player, idx, isSub }) => (
   <tr key={player.athlete?.id} className="border-b border-zinc-800 last:border-0 h-12">
     <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
       <div className="flex items-center gap-0">
-        {player.athlete?.headshot?.href ? (
-          <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-            className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
-        ) : (
+      {player.athlete?.headshot?.href ? (
+  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+    className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+    onClick={() => handleMLBPlayerClick(
+      player.athlete.displayName || player.athlete.shortName,
+      player.athlete.id,
+      player.athlete.headshot?.href,
+      selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
+      selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+      player.athlete.jersey,
+      player.athlete.position?.abbreviation
+    )}
+  />
+) : (
           <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
             {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
           </div>
         )}
-        <div className="absolute left-14 top-0 z-30">
-          <div className="text-xs text-gray-400 whitespace-nowrap">
-          {!isSub && (
+        <div className="absolute left-14 top-0 z-30 pointer-events-none">
+  <div className="text-xs text-gray-400 whitespace-nowrap">
+  {!isSub && (
   <span className="text-blue-500 mr-1">{idx}.</span>
 )}
 {player.athlete?.shortName}
@@ -1543,16 +1656,29 @@ return rows.map(({ player, idx, isSub }) => (
                                   <tr key={idx} className="border-b border-zinc-800 last:border-0 h-12">
                                     <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
                                       <div className="flex items-center">
-                                        {player.athlete?.headshot?.href ? (
-                                          <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-                                            className="w-10 h-10 rounded-md object-cover flex-shrink-0" />
-                                        ) : (
-                                          <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-                                            {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                          </div>
-                                        )}
-                                        <div className="absolute left-14 top-0 z-30">
-                                        <div className="text-xs text-gray-400 whitespace-nowrap">
+                                      {player.athlete?.headshot?.href ? (
+  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+    className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+   onClick={() => {
+  console.log('PLAYER CLICKED:', player.athlete.displayName, player.athlete.id);
+  handleMLBPlayerClick(
+    player.athlete.displayName || player.athlete.shortName,
+    player.athlete.id,
+    player.athlete.headshot?.href,
+    selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
+    selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+    player.athlete.jersey,
+    player.athlete.position?.abbreviation
+  );
+}}
+  />
+) : (
+  <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+    {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+  </div>
+)}
+                                      <div className="absolute left-14 top-0 z-30 pointer-events-none">
+  <div className="text-xs text-gray-400 whitespace-nowrap">
   {player.athlete?.shortName}
   {player.starter && (
     <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
@@ -2058,7 +2184,269 @@ return rows.map(({ player, idx, isSub }) => (
             </div>
           </div>
         </div>
-      )}
+    
+    
+    )}
+
+{selectedMLBPlayer && (
+  <div className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
+    style={{ animation: 'slideInRight 0.3s ease-out' }}>
+    <div className="min-h-screen px-4 pt-12 pb-8">
+      <div className="max-w-2xl mx-auto">
+
+        <div className="flex items-center mb-6">
+          <button
+            onClick={() => {
+              setSelectedMLBPlayer(null);
+              setMlbPlayerStats(null);
+              setSelectedMLBSeason(null);
+              setMlbAvailableSeasons([]);
+            }}
+            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+          >‹</button>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
+        </div>
+
+        {/* Hero Header */}
+        {(() => {
+          const color = teamColors[selectedMLBPlayer.teamAbbr] || '#3B82F6';
+          return (
+            <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`,
+                border: `1px solid ${color}44`,
+              }}>
+              <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
+                style={{ background: color }} />
+              <div className="flex items-center gap-4 relative z-10 mb-4">
+                {selectedMLBPlayer.headshot ? (
+                  <img src={selectedMLBPlayer.headshot} alt={selectedMLBPlayer.name}
+                    className="w-20 h-20 rounded-2xl object-cover"
+                    style={{ border: `2px solid ${color}66` }} />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-zinc-800 flex items-center justify-center text-2xl font-bold text-gray-400">
+                    {selectedMLBPlayer.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                    {selectedMLBPlayer.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    {selectedMLBPlayer.teamLogo && (
+                      <img src={selectedMLBPlayer.teamLogo} alt={selectedMLBPlayer.teamAbbr} className="w-4 h-4" />
+                    )}
+                    <span className="text-gray-400 text-xs">
+                      {teamFullNames[selectedMLBPlayer.teamAbbr] || selectedMLBPlayer.teamAbbr}
+                    </span>
+                  </div>
+                  <div className="text-gray-500 text-xs mt-0.5">
+                    #{selectedMLBPlayer.jersey || '-'} • {selectedMLBPlayer.position || 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Key stats preview */}
+              {mlbPlayerStats?.currentSeason && (
+                <div className="relative z-10 grid grid-cols-3 gap-2">
+                  {(() => {
+                    const s = mlbPlayerStats.currentSeason;
+                    const isPitcher = mlbPlayerStats.currentPitching && s['AVG'] === '-';
+                    const p = mlbPlayerStats.currentPitching;
+                    if (isPitcher && p) {
+                      return [
+                        { label: 'ERA', value: p['ERA'] },
+                        { label: 'W-L', value: `${p['W'] ?? '-'}-${p['L'] ?? '-'}` },
+                        { label: 'SO', value: p['SO'] },
+                      ];
+                    }
+                    return [
+                      { label: 'AVG', value: s['AVG'] },
+                      { label: 'HR', value: s['HR'] },
+                      { label: 'RBI', value: s['RBI'] },
+                    ];
+                  })().map(({ label, value }) => (
+                    <div key={label} className="flex flex-col items-center py-2 rounded-xl"
+                      style={{ background: `${color}22`, border: `1px solid ${color}33` }}>
+                      <span className="text-2xl font-bold">{value ?? '-'}</span>
+                      <span className="text-[11px] text-gray-400 mt-0.5">{label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Season Selector */}
+        {mlbAvailableSeasons.length > 0 && (
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
+            <select
+              value={selectedMLBSeason || ''}
+              onChange={(e) => {
+                const newSeason = parseInt(e.target.value);
+                setSelectedMLBSeason(newSeason);
+                if (mlbPlayerStats?.allSeasonsData?.[newSeason]) {
+                  setMlbPlayerStats(prev => ({
+                    ...prev,
+                    currentSeason: prev.allSeasonsData[newSeason],
+                    currentPitching: prev.pitchingByYear?.[newSeason] || null,
+                  }));
+                } else {
+                  fetchMLBPlayerStats(selectedMLBPlayer.name, selectedMLBPlayer.id, newSeason);
+                }
+              }}
+              className="bg-transparent text-blue-400 text-sm font-semibold outline-none appearance-none cursor-pointer pr-4"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right center',
+              }}
+            >
+              {mlbAvailableSeasons.map(season => (
+                <option key={season.year} value={season.year} className="bg-zinc-900">
+                  {season.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {loadingMLBStats ? (
+          <div className="text-center py-12 text-gray-400">Loading stats...</div>
+        ) : mlbPlayerStats?.error ? (
+          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">{mlbPlayerStats.error}</div>
+        ) : mlbPlayerStats?.currentSeason ? (
+          <div>
+            {/* Batting Stats */}
+            {(() => {
+              const s = mlbPlayerStats.currentSeason;
+              const hasBatting = s['AVG'] && s['AVG'] !== '-';
+              if (!hasBatting) return null;
+              return (
+                <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
+                  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                    style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h5>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[
+                      { label: 'AVG', value: s['AVG'] },
+                      { label: 'OBP', value: s['OBP'] },
+                      { label: 'SLG', value: s['SLG'] },
+                      { label: 'OPS', value: s['OPS'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[
+                      { label: 'HR', value: s['HR'] },
+                      { label: 'RBI', value: s['RBI'] },
+                      { label: 'R', value: s['R'] },
+                      { label: 'H', value: s['H'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'SB', value: s['SB'] },
+                      { label: 'BB', value: s['BB'] },
+                      { label: 'SO', value: s['SO'] },
+                      { label: '2B', value: s['2B'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Pitching Stats */}
+            {(() => {
+              const p = mlbPlayerStats.currentPitching;
+              if (!p) return null;
+              return (
+                <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
+                  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                    style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h5>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[
+                      { label: 'ERA', value: p['ERA'] },
+                      { label: 'WHIP', value: p['WHIP'] },
+                      { label: 'W', value: p['W'] },
+                      { label: 'L', value: p['L'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-2">
+                    {[
+                      { label: 'SO', value: p['SO'] },
+                      { label: 'BB', value: p['BB'] },
+                      { label: 'IP', value: p['IP'] },
+                      { label: 'SV', value: p['SV'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[
+                      { label: 'H', value: p['H'] },
+                      { label: 'HR', value: p['HR'] },
+                      { label: 'GS', value: p['GS'] },
+                      { label: 'G', value: p['G'] },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                        <span className="text-lg font-bold">{value ?? '-'}</span>
+                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Availability */}
+            <div className="bg-zinc-900 rounded-2xl p-4">
+              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'G', value: mlbPlayerStats.currentSeason['G'] },
+                  { label: 'GS', value: mlbPlayerStats.currentSeason['GS'] },
+                  { label: 'AB', value: mlbPlayerStats.currentSeason['AB'] },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                    <span className="text-lg font-bold">{value ?? '-'}</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">No stats available</div>
+        )}
+      </div>
+    </div>
+  </div>
+)} 
     </div>
   );
 }
