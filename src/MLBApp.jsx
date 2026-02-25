@@ -1173,13 +1173,13 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         <table className="w-full text-center text-sm min-w-[340px]">
           <thead>
             <tr className="text-gray-500 text-xs">
-              <th className="text-left pb-1 w-14">Team</th>
+              <th className="text-left pb-1 w-8">Team</th>
               {Array.from({ length: totalInnings }, (_, i) => (
                 <th key={i} className="pb-1 px-1">{i + 1}</th>
               ))}
-              <th className="pb-1 px-2 border-l border-zinc-700">R</th>
-              <th className="pb-1 px-2">H</th>
-              <th className="pb-1 px-2">E</th>
+              <th className="pb-1 px-1 border-l border-zinc-700">R</th>
+<th className="pb-1 px-1">H</th>
+<th className="pb-1 px-1">E</th>
             </tr>
           </thead>
           <tbody>
@@ -1190,7 +1190,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
               const totalErrors = innings.reduce((sum, inn) => sum + (inn.errors || 0), 0);
               return (
                 <tr key={side} className="border-t border-zinc-800">
-                  <td className="text-left py-2 font-semibold">{teamAbbr}</td>
+                  <td className="text-left py-2 font-semibold w-8">{teamAbbr}</td>
                   {Array.from({ length: totalInnings }, (_, i) => {
                     const val = innings[i]?.displayValue;
                     return (
@@ -1199,12 +1199,12 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                       </td>
                     );
                   })}
-                  <td className="py-2 px-2 font-bold border-l border-zinc-700">
-                    {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
-                  </td>
-                  <td className="py-2 px-2 text-gray-300">{totalHits || '-'}</td>
-                  <td className="py-2 px-2 text-gray-300">{totalErrors !== undefined ? totalErrors : '-'}</td>
-                </tr>
+                  <td className="py-2 px-1 font-bold border-l border-zinc-700">
+  {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
+</td>
+<td className="py-2 px-1 text-gray-300">{totalHits || '-'}</td>
+<td className="py-2 px-1 text-gray-300">{totalErrors !== undefined ? totalErrors : '-'}</td>
+</tr>
               );
             })}
           </tbody>
@@ -1534,6 +1534,7 @@ return rows.map(({ player, idx, isSub }) => (
                                 const pitchers = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
                                 console.log('first pitcher:', pitchers[0]);
                                 console.log('pitcher notes:', pitchers.map(p => ({ name: p.athlete?.shortName, notes: p.notes })));
+                                console.log('pitcher stats full:', pitchers.map(p => ({ name: p.athlete?.shortName, stats: p.stats })));
 
                                 if (pitchers.length === 0) return (
                                   <tr><td className="text-gray-500 text-xs p-2">No pitching data</td></tr>
@@ -1582,15 +1583,18 @@ return rows.map(({ player, idx, isSub }) => (
                                     </td>
                                     {/* IP, H, R, ER, BB, SO, HR, ERA */}
                                     {[
-                                      { label: 'IP', val: player.stats?.[0] },
-                                      { label: 'H', val: player.stats?.[1] },
-                                      { label: 'R', val: player.stats?.[2] },
-                                      { label: 'ER', val: player.stats?.[3] },
-                                      { label: 'BB', val: player.stats?.[4] },
-                                      { label: 'SO', val: player.stats?.[5] },
-                                      { label: 'HR', val: player.stats?.[6] },
-                                      { label: 'ERA', val: player.stats?.[8] },
-                                    ].map(({ label, val }) => (
+  { label: 'IP', val: player.stats?.[0] },
+  { label: 'H', val: player.stats?.[1] },
+  { label: 'R', val: player.stats?.[2] },
+  { label: 'ER', val: player.stats?.[3] },
+  { label: 'BB', val: player.stats?.[4] },
+  { label: 'SO', val: player.stats?.[5] },
+  { label: 'HR', val: player.stats?.[6] },
+  { label: 'PC', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[0] : '-'; })() },
+  { label: 'ST', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[1] : '-'; })() },
+  { label: 'B', val: (() => { const s = player.stats?.[7]; if (!s || s === '-----') return '-'; const [pc, st] = s.split('-').map(Number); return pc - st; })() },
+  { label: 'ERA', val: player.stats?.[8] },
+].map(({ label, val }) => (
                                       <td key={label} className="text-center px-2 pt-2">
                                         <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
                                         <div className="text-[10px] text-gray-400">{label}</div>
