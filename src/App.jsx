@@ -71,6 +71,11 @@ const [winProbabilities, setWinProbabilities] = useState(() => {
 });
 const gameDetailScrollRef = useRef(null);
 const [gameTeamRecords, setGameTeamRecords] = useState(null);
+const [currentGameIndex, setCurrentGameIndex] = useState(0);
+const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
+const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
+const scoreboardSwipeStart = useRef(null);
+const scoreboardRef = useRef(null);
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -1137,6 +1142,7 @@ console.log('🏀 FULL DATA:', data);
     setSlideDirection('right');
     setSelectedGame(game);
     setSelectedTeam('away');
+    setCurrentGameIndex(liveGames.findIndex(g => g.id === game.id));
     fetchGameDetails(game.id);
     fetchGameTeamRecords(game.awayTeam, game.homeTeam);
   };
@@ -1167,6 +1173,73 @@ console.log('🏀 FULL DATA:', data);
       setSelectedGame(null);
       setGameDetails(null);
     }
+  };
+
+  const handleScoreboardSwipe = (direction) => {
+    const newIndex = direction === 'next'
+      ? Math.min(currentGameIndex + 1, liveGames.length - 1)
+      : Math.max(currentGameIndex - 1, 0);
+  
+    if (newIndex === currentGameIndex) return; // edge — do nothing
+  
+    const nextGame = liveGames[newIndex];
+    setCurrentGameIndex(newIndex);
+    setSelectedGame(nextGame);
+    setSelectedTeam('away');
+    setGameDetails(null);
+    setPregameMatchupStats(null);
+    fetchGameDetails(nextGame.id);
+    fetchGameTeamRecords(nextGame.awayTeam, nextGame.homeTeam);
+  };
+
+  const onScoreboardTouchStart = (e) => {
+    scoreboardSwipeStart.current = e.changedTouches[0].clientX;
+    setIsScoreboardSwiping(true);
+  };
+  
+  const onScoreboardTouchMove = (e) => {
+    if (!isScoreboardSwiping || scoreboardSwipeStart.current === null) return;
+    const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
+    const atStart = currentGameIndex === 0 && delta > 0;
+    const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
+    // Rubber-band: resist at edges
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+  };
+  
+  const onScoreboardTouchEnd = (e) => {
+    if (!isScoreboardSwiping) return;
+    const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
+    if (Math.abs(delta) > 50) {
+      handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    }
+    setScoreboardSwipeX(0);
+    setIsScoreboardSwiping(false);
+    scoreboardSwipeStart.current = null;
+  };
+  
+  // Mouse drag support
+  const onScoreboardMouseDown = (e) => {
+    scoreboardSwipeStart.current = e.clientX;
+    setIsScoreboardSwiping(true);
+  };
+  
+  const onScoreboardMouseMove = (e) => {
+    if (!isScoreboardSwiping || scoreboardSwipeStart.current === null) return;
+    const delta = e.clientX - scoreboardSwipeStart.current;
+    const atStart = currentGameIndex === 0 && delta > 0;
+    const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+  };
+  
+  const onScoreboardMouseUp = (e) => {
+    if (!isScoreboardSwiping) return;
+    const delta = e.clientX - scoreboardSwipeStart.current;
+    if (Math.abs(delta) > 50) {
+      handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    }
+    setScoreboardSwipeX(0);
+    setIsScoreboardSwiping(false);
+    scoreboardSwipeStart.current = null;
   };
 
   const closePlayerModal = () => {
@@ -2049,7 +2122,23 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
           </button>
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
         </div>
-        <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+        <div
+  ref={scoreboardRef}
+  className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
+  style={{
+    transform: `translateX(${scoreboardSwipeX}px)`,
+    transition: isScoreboardSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    touchAction: 'pan-y',
+    userSelect: 'none',
+  }}
+  onTouchStart={onScoreboardTouchStart}
+  onTouchMove={onScoreboardTouchMove}
+  onTouchEnd={onScoreboardTouchEnd}
+  onMouseDown={onScoreboardMouseDown}
+  onMouseMove={onScoreboardMouseMove}
+  onMouseUp={onScoreboardMouseUp}
+  onMouseLeave={onScoreboardMouseUp}
+>
           <div className="flex items-start justify-between min-h-[120px]">
             {/* AWAY TEAM - LEFT SIDE */}
             <div 
@@ -2208,6 +2297,8 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   })()}
 
 </div>
+
+
 
 {/* Quarter-by-Quarter Breakdown */}
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
