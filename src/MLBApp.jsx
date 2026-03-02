@@ -45,14 +45,17 @@ export default function MLBApp({ sport, setSport }) {
     return null;
   });
   const [selectedMLBPlayer, setSelectedMLBPlayer] = useState(null);
-const [mlbPlayerStats, setMlbPlayerStats] = useState(null);
-const [loadingMLBStats, setLoadingMLBStats] = useState(false);
-const [selectedMLBSeason, setSelectedMLBSeason] = useState(null);
-const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
-const [currentGameIndex, setCurrentGameIndex] = useState(0);
-const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
-const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
-const scoreboardSwipeStart = useRef(null);
+  const [mlbPlayerStats, setMlbPlayerStats] = useState(null);
+  const [loadingMLBStats, setLoadingMLBStats] = useState(false);
+  const [selectedMLBSeason, setSelectedMLBSeason] = useState(null);
+  const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
+  const [currentGameIndex, setCurrentGameIndex] = useState(0);
+  const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
+  const [scoreboardSlideX, setScoreboardSlideX] = useState(0);
+  const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const scoreboardSwipeStart = useRef(null);
+  const swipeDirectionRef = useRef(null);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -140,8 +143,6 @@ const scoreboardSwipeStart = useRef(null);
     'STL': '24', 'TB': '30', 'TEX': '13', 'TOR': '14', 'WSH': '20',
   };
 
- 
-
   useEffect(() => {
     fetchLiveScores();
     fetchLeagueRankings();
@@ -176,7 +177,6 @@ const scoreboardSwipeStart = useRef(null);
         `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=${dateStr}`
       );
       const data = await response.json();
-     
 
       const games = data.events.map(event => {
         const competition = event.competitions[0];
@@ -193,7 +193,7 @@ const scoreboardSwipeStart = useRef(null);
           homeRecord: homeTeam.records?.[0]?.summary || '',
           awayRecord: awayTeam.records?.[0]?.summary || '',
           status: event.status.type.description,
-          period: event.status.period,    // inning number
+          period: event.status.period,
           clock: event.status.displayClock,
           isLive: event.status.type.state === 'in',
           isPreGame: event.status.type.state === 'pre',
@@ -201,7 +201,6 @@ const scoreboardSwipeStart = useRef(null);
           gameTime: event.date,
           homeLogo: homeTeam.team.logo,
           awayLogo: awayTeam.team.logo,
-          // Baseball-specific
           inning: event.status.period,
           isTopInning: situation.isTopInning ?? null,
           balls: situation.balls ?? null,
@@ -259,7 +258,6 @@ const scoreboardSwipeStart = useRef(null);
       console.log('pregame full data:', Object.keys(data));
       console.log('pregame rosters:', data.rosters);
 
-      
       const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
       setGameDetails(prev => {
         if (!prev) return data;
@@ -294,7 +292,7 @@ const scoreboardSwipeStart = useRef(null);
 
       data.children?.forEach(league => {
         const isAL = league.name?.includes('American');
-        data.children?.forEach(() => {}); // noop
+        data.children?.forEach(() => {});
 
         league.children?.forEach(division => {
           division.standings?.entries?.forEach(entry => {
@@ -325,7 +323,6 @@ const scoreboardSwipeStart = useRef(null);
         });
       });
 
-      // Sort by wins descending within division grouping
       const sortByWins = arr => [...arr].sort((a, b) =>
         parseInt(b.wins) - parseInt(a.wins)
       );
@@ -340,43 +337,43 @@ const scoreboardSwipeStart = useRef(null);
   const fetchTeamStats = async (teamAbbr) => {
     setLoadingTeamStats(true);
     try {
-        const [standingsRes, teamsRes] = await Promise.all([
-            fetch('https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'),
-            fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams')
-          ]);
-          const standingsData = await standingsRes.json();
-          console.log('=== STANDINGS KEYS ===', JSON.stringify(Object.keys(standingsData), null, 2));
-console.log('=== STANDINGS CHILDREN ===', JSON.stringify(standingsData.children?.[0], null, 2));
-const teamsData = await teamsRes.json();
+      const [standingsRes, teamsRes] = await Promise.all([
+        fetch('https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'),
+        fetch('https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams')
+      ]);
+      const standingsData = await standingsRes.json();
+      console.log('=== STANDINGS KEYS ===', JSON.stringify(Object.keys(standingsData), null, 2));
+      console.log('=== STANDINGS CHILDREN ===', JSON.stringify(standingsData.children?.[0], null, 2));
+      const teamsData = await teamsRes.json();
 
-const teamEntry = teamsData.sports?.[0]?.leagues?.[0]?.teams?.find(
-    t => t.team.abbreviation === teamAbbr
-  );
-  let teamId = teamEntry?.team?.id || null;
-  console.log('teamsData structure:', JSON.stringify(Object.keys(teamsData), null, 2));
-  console.log('teamEntry:', JSON.stringify(teamEntry, null, 2));
-  console.log('teamId:', teamId);
-  let teamRecord = null;
+      const teamEntry = teamsData.sports?.[0]?.leagues?.[0]?.teams?.find(
+        t => t.team.abbreviation === teamAbbr
+      );
+      let teamId = teamEntry?.team?.id || null;
+      console.log('teamsData structure:', JSON.stringify(Object.keys(teamsData), null, 2));
+      console.log('teamEntry:', JSON.stringify(teamEntry, null, 2));
+      console.log('teamId:', teamId);
+      let teamRecord = null;
 
-const teamRecordsMap = {};
-          standingsData.children?.forEach(league => {
-            league.children?.forEach(division => {
-              division.standings?.entries?.forEach(entry => {
-                const abbr = entry.team.abbreviation;
-                const w = entry.stats?.find(s => s.name === 'wins')?.displayValue || '0';
-                const l = entry.stats?.find(s => s.name === 'losses')?.displayValue || '0';
-                teamRecordsMap[abbr] = `${w}-${l}`;
-              });
-            });
+      const teamRecordsMap = {};
+      standingsData.children?.forEach(league => {
+        league.children?.forEach(division => {
+          division.standings?.entries?.forEach(entry => {
+            const abbr = entry.team.abbreviation;
+            const w = entry.stats?.find(s => s.name === 'wins')?.displayValue || '0';
+            const l = entry.stats?.find(s => s.name === 'losses')?.displayValue || '0';
+            teamRecordsMap[abbr] = `${w}-${l}`;
           });
-          
-          standingsData.children?.forEach(league => {
-            league.children?.forEach(division => {
-              const entry = division.standings?.entries?.find(
-                e => e.team.abbreviation === teamAbbr
-              );
-              if (entry) {
-                if (!teamId) teamId = entry.team.id;
+        });
+      });
+
+      standingsData.children?.forEach(league => {
+        league.children?.forEach(division => {
+          const entry = division.standings?.entries?.find(
+            e => e.team.abbreviation === teamAbbr
+          );
+          if (entry) {
+            if (!teamId) teamId = entry.team.id;
             const getStat = (name) =>
               entry.stats?.find(s => s.name === name)?.displayValue || '-';
             teamRecord = {
@@ -397,9 +394,9 @@ const teamRecordsMap = {};
       });
 
       console.log('teamRecordsMap:', teamRecordsMap);
-console.log('looking for:', teamAbbr);
-console.log('teamId found:', teamId);
-if (!teamId) throw new Error('Team not found');
+      console.log('looking for:', teamAbbr);
+      console.log('teamId found:', teamId);
+      if (!teamId) throw new Error('Team not found');
 
       const [statsRes, scheduleRes] = await Promise.all([
         fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${teamId}/statistics`),
@@ -407,12 +404,12 @@ if (!teamId) throw new Error('Team not found');
       ]);
 
       const statsData = await statsRes.json();
-console.log('=== MLB BATTING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'batting')?.stats?.map(s => s.name), null, 2));
-console.log('=== MLB PITCHING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'pitching')?.stats?.map(s => s.name), null, 2));
-console.log('=== MLB FIELDING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'fielding')?.stats?.map(s => s.name), null, 2));
-console.log('=== STANDINGS ENTRY ===', JSON.stringify(standingsData.children?.[0]?.children?.[0]?.standings?.entries?.[0]?.stats?.map(s => s.name), null, 2));
-const scheduleData = await scheduleRes.json();
-console.log('=== SCHEDULE FIRST COMPLETED ===', JSON.stringify(scheduleData.events?.filter(e => e.competitions?.[0]?.status?.type?.completed)?.[0]?.competitions?.[0]?.competitors, null, 2));
+      console.log('=== MLB BATTING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'batting')?.stats?.map(s => s.name), null, 2));
+      console.log('=== MLB PITCHING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'pitching')?.stats?.map(s => s.name), null, 2));
+      console.log('=== MLB FIELDING STATS ===', JSON.stringify(statsData.results?.stats?.categories?.find(c => c.name === 'fielding')?.stats?.map(s => s.name), null, 2));
+      console.log('=== STANDINGS ENTRY ===', JSON.stringify(standingsData.children?.[0]?.children?.[0]?.standings?.entries?.[0]?.stats?.map(s => s.name), null, 2));
+      const scheduleData = await scheduleRes.json();
+      console.log('=== SCHEDULE FIRST COMPLETED ===', JSON.stringify(scheduleData.events?.filter(e => e.competitions?.[0]?.status?.type?.completed)?.[0]?.competitions?.[0]?.competitors, null, 2));
 
       const recentGames = scheduleData.events
         ?.filter(e => e.competitions?.[0]?.status?.type?.completed)
@@ -425,7 +422,7 @@ console.log('=== SCHEDULE FIRST COMPLETED ===', JSON.stringify(scheduleData.even
             if (!teamComp || !oppComp) return null;
             const isHome = teamComp.homeAway === 'home';
             const teamScoreVal = parseInt(teamComp.score?.value ?? teamComp.score) || 0;
-const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
+            const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
             return {
               gameId: event.id,
               opponent: oppComp.team.abbreviation,
@@ -479,11 +476,9 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         upcomingGames,
       });
     } catch (error) {
-        console.error('Error fetching MLB team stats:', error);
-        console.log('teamId was:', teamId);
-        console.log('teamAbbr was:', teamAbbr);
-        setTeamStats(null);
-      }
+      console.error('Error fetching MLB team stats:', error);
+      setTeamStats(null);
+    }
     setLoadingTeamStats(false);
   };
 
@@ -564,7 +559,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
       const cached = localStorage.getItem(cacheKey);
       const cacheTime = localStorage.getItem(`${cacheKey}_time`);
       const now = Date.now();
-  
+
       if (!specificSeason && cached && cacheTime && (now - parseInt(cacheTime)) < 86400000) {
         const cachedData = JSON.parse(cached);
         setMlbPlayerStats(cachedData);
@@ -573,19 +568,19 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         setLoadingMLBStats(false);
         return;
       }
-  
+
       const response = await fetch(
         `https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/athletes/${playerId}/stats`
       );
       if (!response.ok) throw new Error('Failed to fetch stats');
       const data = await response.json();
-  
-      const averagesCategory = data.categories?.find(cat => cat.name === 'batting') 
+
+      const averagesCategory = data.categories?.find(cat => cat.name === 'batting')
         || data.categories?.find(cat => cat.name === 'pitching')
         || data.categories?.[0];
-  
+
       if (!averagesCategory) throw new Error('No stats found');
-  
+
       const allSeasons = [];
       const seenYears = new Set();
       averagesCategory.statistics?.forEach(stat => {
@@ -595,9 +590,9 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         }
       });
       allSeasons.sort((a, b) => b.year - a.year);
-  
+
       const targetYear = specificSeason || allSeasons[0]?.year;
-  
+
       const allSeasonsData = {};
       averagesCategory.statistics?.forEach(stat => {
         const year = stat.season.year;
@@ -608,8 +603,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         });
         if (!allSeasonsData[year]) allSeasonsData[year] = statsObj;
       });
-  
-      // Also grab pitching if available
+
       const pitchingCategory = data.categories?.find(cat => cat.name === 'pitching');
       const pitchingByYear = {};
       if (pitchingCategory) {
@@ -621,7 +615,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
           pitchingByYear[year] = statsObj;
         });
       }
-  
+
       const formattedStats = {
         playerName,
         playerId,
@@ -632,12 +626,12 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
         currentPitching: pitchingByYear[targetYear] || null,
         isPitcher: !!pitchingCategory && !averagesCategory.statistics?.some(s => s.stats.some(v => v !== '-' && v !== '0')),
       };
-  
+
       if (!specificSeason) {
         localStorage.setItem(cacheKey, JSON.stringify(formattedStats));
         localStorage.setItem(`${cacheKey}_time`, now.toString());
       }
-  
+
       setMlbPlayerStats(formattedStats);
       setMlbAvailableSeasons(allSeasons);
       setSelectedMLBSeason(targetYear);
@@ -647,7 +641,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     }
     setLoadingMLBStats(false);
   };
-  
+
   const handleMLBPlayerClick = (playerName, playerId, headshotUrl, teamAbbr, teamLogo, jersey, position) => {
     if (!playerId) return;
     setSlideDirection('right');
@@ -693,27 +687,38 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
   };
 
   const handleScoreboardSwipe = (direction) => {
+    if (isAnimating) return;
     const newIndex = direction === 'next'
       ? Math.min(currentGameIndex + 1, liveGames.length - 1)
       : Math.max(currentGameIndex - 1, 0);
     if (newIndex === currentGameIndex) return;
-  
-    const newGame = liveGames[newIndex];
-    const slideOut = direction === 'next' ? '-100%' : '100%';
-  
-    // Animate the strip sliding out
-    setScoreboardSwipeX(direction === 'next' ? -window.innerWidth : window.innerWidth);
-  
+
+    setIsAnimating(true);
+    swipeDirectionRef.current = direction;
+    const slideOut = direction === 'next' ? -window.innerWidth : window.innerWidth;
+
+    setScoreboardSlideX(slideOut);
+
     setTimeout(() => {
+      const nextGame = liveGames[newIndex];
       setCurrentGameIndex(newIndex);
-      setSelectedGame(newGame);
+      setSelectedGame(nextGame);
       setSelectedTeamTab('away');
       setGameDetails(null);
-      fetchGameDetails(newGame.id);
+      fetchGameDetails(nextGame.id);
+      const slideIn = direction === 'next' ? window.innerWidth : -window.innerWidth;
       setScoreboardSwipeX(0);
-    }, 250);
+      setScoreboardSlideX(slideIn);
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setScoreboardSlideX(0);
+          setTimeout(() => setIsAnimating(false), 300);
+        });
+      });
+    }, 220);
   };
-  
+
   const onScoreboardTouchStart = (e) => {
     scoreboardSwipeStart.current = e.changedTouches[0].clientX;
     setIsScoreboardSwiping(true);
@@ -728,7 +733,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
   const onScoreboardTouchEnd = (e) => {
     if (!isScoreboardSwiping) return;
     const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
-    if (Math.abs(delta) > 50) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    if (Math.abs(delta) > 50 && !isAnimating) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
     setScoreboardSwipeX(0);
     setIsScoreboardSwiping(false);
     scoreboardSwipeStart.current = null;
@@ -742,12 +747,12 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     const delta = e.clientX - scoreboardSwipeStart.current;
     const atStart = currentGameIndex === 0 && delta > 0;
     const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
-    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.1 : delta);
   };
   const onScoreboardMouseUp = (e) => {
     if (!isScoreboardSwiping) return;
     const delta = e.clientX - scoreboardSwipeStart.current;
-    if (Math.abs(delta) > 50) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    if (Math.abs(delta) > 50 && !isAnimating) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
     setScoreboardSwipeX(0);
     setIsScoreboardSwiping(false);
     scoreboardSwipeStart.current = null;
@@ -861,7 +866,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     d1.getMonth() === d2.getMonth() &&
     d1.getFullYear() === d2.getFullYear();
 
-  // Baseball base runners visual
   const BasesDisplay = ({ onFirst, onSecond, onThird }) => (
     <div className="relative w-5 h-5 flex-shrink-0">
       <div className={`absolute w-1.5 h-1.5 ${onSecond ? 'bg-yellow-400' : 'bg-zinc-700'}`}
@@ -873,7 +877,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     </div>
   );
 
-  // Count display (balls-strikes-outs)
   const CountDisplay = ({ balls, strikes, outs }) => (
     <div className="flex items-center gap-1.5 text-xs">
       <span className="text-gray-500">{balls}-{strikes}</span>
@@ -885,7 +888,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     </div>
   );
 
-  // Inning display
   const InningDisplay = ({ inning, isTopInning, clock }) => {
     const half = isTopInning ? '▲' : '▼';
     return (
@@ -897,7 +899,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
 
   return (
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-
 
       <div className="px-4 pt-12 pb-4">
         {/* Header */}
@@ -942,22 +943,22 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
           </div>
         )}
 
-        {/* Date Picker */}
         {!selectedGame && !showStandings && !selectedTeamInfo && !selectedNBAPlayer && !showFavorites && !showSearch && (
-            <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
+          <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
             <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
-      {['NBA', 'MLB'].map(s => (
-        <button key={s} onClick={() => setSport(s)}
-          className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
-            sport === s
-              ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
-              : 'text-gray-400'
-          }`}>{s}</button>
-      ))}
-    </div>
-  </div>
-)}
-<div className="mt-2 overflow-x-auto scrollbar-hide py-4"
+              {['NBA', 'MLB'].map(s => (
+                <button key={s} onClick={() => setSport(s)}
+                  className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
+                    sport === s
+                      ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
+                      : 'text-gray-400'
+                  }`}>{s}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-2 overflow-x-auto scrollbar-hide py-4"
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}>
           <div className="flex gap-2">
             {generateDateRange().map((date, idx) => {
@@ -1018,7 +1019,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                 style={{ animation: `fadeIn 0.5s ease-out ${0.1 + index * 0.07}s both`, opacity: 0 }}
               >
                 <div className="flex flex-col">
-                  {/* Status Row */}
                   <div className="mb-2">
                     {game.isLive && (
                       <div className="flex items-center justify-between">
@@ -1026,7 +1026,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                           <span className="text-red-500 text-xs font-semibold">LIVE</span>
                           <InningDisplay inning={game.inning} isTopInning={game.isTopInning} />
                         </div>
-                        {/* Bases + Count */}
                         <div className="flex items-center gap-2">
                           {game.balls !== null && (
                             <CountDisplay balls={game.balls} strikes={game.strikes} outs={game.outs} />
@@ -1045,9 +1044,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                     )}
                   </div>
 
-                  {/* Teams + Scores */}
                   <div className="space-y-1 mb-3">
-                    {/* Away */}
                     <div className={`flex items-center justify-between ${
                       game.isFinal && parseInt(game.awayScore) > parseInt(game.homeScore)
                         ? 'border-l-2 border-blue-500 -ml-3 pl-3' : ''
@@ -1070,7 +1067,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                       )}
                     </div>
 
-                    {/* Home */}
                     <div className={`flex items-center justify-between ${
                       game.isFinal && parseInt(game.homeScore) > parseInt(game.awayScore)
                         ? 'border-l-2 border-blue-500 -ml-3 pl-3' : ''
@@ -1094,7 +1090,6 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                     </div>
                   </div>
 
-                  {/* Pitching matchup for pre-game */}
                   {game.isPreGame && (
                     <div className="text-xs text-gray-600 border-t border-zinc-800 pt-2">⚾ MLB</div>
                   )}
@@ -1203,151 +1198,157 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
               </div>
 
-              {/* Score Header */}
-              <div
-  className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
-  style={{
-    transform: `translateX(${scoreboardSwipeX}px)`,
-    transition: isScoreboardSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-    touchAction: 'pan-y',
-    userSelect: 'none',
-  }}
-  onTouchStart={onScoreboardTouchStart}
-  onTouchMove={onScoreboardTouchMove}
-  onTouchEnd={onScoreboardTouchEnd}
-  onMouseDown={onScoreboardMouseDown}
-  onMouseMove={onScoreboardMouseMove}
-  onMouseUp={onScoreboardMouseUp}
-  onMouseLeave={onScoreboardMouseUp}
->
-                <div className="flex items-start justify-between min-h-[120px]">
-                  {/* Away */}
-                  <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}>
-                    <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
-                    <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                      {teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}
-                    </span>
-                    {selectedGame.awayRecord && <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>}
-                    {!selectedGame.isPreGame && (
-                      <span className={`text-4xl font-bold mt-3 ${
-                        parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) ? 'text-white' : 'text-gray-500'
-                      }`}>{selectedGame.awayScore}</span>
-                    )}
-                  </div>
+              {/* Score Header — clipping wrapper */}
+              <div style={{ overflow: 'hidden', borderRadius: '1rem', marginBottom: '1.5rem' }}>
+                <div
+                  className="bg-zinc-900 rounded-2xl p-6 select-none cursor-grab active:cursor-grabbing"
+                  style={{
+                    transform: `translateX(${scoreboardSwipeX + scoreboardSlideX}px)`,
+                    transition: isScoreboardSwiping
+                      ? 'none'
+                      : 'transform 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                    touchAction: 'pan-y',
+                    userSelect: 'none',
+                    willChange: 'transform',
+                  }}
+                  onTouchStart={onScoreboardTouchStart}
+                  onTouchMove={onScoreboardTouchMove}
+                  onTouchEnd={onScoreboardTouchEnd}
+                  onMouseDown={onScoreboardMouseDown}
+                  onMouseMove={onScoreboardMouseMove}
+                  onMouseUp={onScoreboardMouseUp}
+                  onMouseLeave={onScoreboardMouseUp}
+                >
+                  <div className="flex items-start justify-between min-h-[120px]">
+                    {/* Away */}
+                    <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}>
+                      <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
+                      <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                        {teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}
+                      </span>
+                      {selectedGame.awayRecord && <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>}
+                      {!selectedGame.isPreGame && (
+                        <span className={`text-4xl font-bold mt-3 ${
+                          parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) ? 'text-white' : 'text-gray-500'
+                        }`}>{selectedGame.awayScore}</span>
+                      )}
+                    </div>
 
-                  {/* Center */}
-                  <div className="flex flex-col items-center px-4 pt-2 min-w-[90px]">
-                    {selectedGame.isLive && (
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 justify-center mb-1">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-red-500 font-bold text-xs tracking-widest uppercase">Live</span>
+                    {/* Center */}
+                    <div className="flex flex-col items-center px-4 pt-2 min-w-[90px]">
+                      {selectedGame.isLive && (
+                        <div className="text-center">
+                          <div className="flex items-center gap-1 justify-center mb-1">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                            <span className="text-red-500 font-bold text-xs tracking-widest uppercase">Live</span>
+                          </div>
+                          <InningDisplay inning={selectedGame.inning} isTopInning={selectedGame.isTopInning} />
+                          {selectedGame.balls !== null && (
+                            <div className="mt-1 flex flex-col items-center gap-1">
+                              <CountDisplay balls={selectedGame.balls} strikes={selectedGame.strikes} outs={selectedGame.outs} />
+                              <BasesDisplay onFirst={selectedGame.onFirst} onSecond={selectedGame.onSecond} onThird={selectedGame.onThird} />
+                            </div>
+                          )}
+                          {selectedGame.allBroadcasts?.length > 0 && (
+                            <div className="flex flex-col items-center mt-1">
+                              {selectedGame.allBroadcasts.map((ch, i) => (
+                                <div key={i} className="text-xs text-gray-500">{abbreviateChannel(ch)}</div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <InningDisplay inning={selectedGame.inning} isTopInning={selectedGame.isTopInning} />
-                        {selectedGame.balls !== null && (
-                          <div className="mt-1 flex flex-col items-center gap-1">
-                            <CountDisplay balls={selectedGame.balls} strikes={selectedGame.strikes} outs={selectedGame.outs} />
-                            <BasesDisplay onFirst={selectedGame.onFirst} onSecond={selectedGame.onSecond} onThird={selectedGame.onThird} />
-                          </div>
-                        )}
-                        {selectedGame.allBroadcasts?.length > 0 && (
-                          <div className="flex flex-col items-center mt-1">
-                            {selectedGame.allBroadcasts.map((ch, i) => (
-                              <div key={i} className="text-xs text-gray-500">{abbreviateChannel(ch)}</div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {selectedGame.isPreGame && (
-                      <div className="text-center">
-                        <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
-                        {selectedGame.allBroadcasts?.length > 0 && (
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {selectedGame.isFinal && (
-                      <div className="text-center">
-                        <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
-                      </div>
-                    )}
+                      )}
+                      {selectedGame.isPreGame && (
+                        <div className="text-center">
+                          <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
+                          {selectedGame.allBroadcasts?.length > 0 && (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {selectedGame.isFinal && (
+                        <div className="text-center">
+                          <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Home */}
+                    <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}>
+                      <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
+                      <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                        {teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}
+                      </span>
+                      {selectedGame.homeRecord && <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>}
+                      {!selectedGame.isPreGame && (
+                        <span className={`text-4xl font-bold mt-3 ${
+                          parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) ? 'text-white' : 'text-gray-500'
+                        }`}>{selectedGame.homeScore}</span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Home */}
-                  <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}>
-                    <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
-                    <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                      {teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}
-                    </span>
-                    {selectedGame.homeRecord && <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>}
-                    {!selectedGame.isPreGame && (
-                      <span className={`text-4xl font-bold mt-3 ${
-                        parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) ? 'text-white' : 'text-gray-500'
-                      }`}>{selectedGame.homeScore}</span>
-                    )}
-                  </div>
-                </div>
+                  {/* Inning-by-Inning linescore */}
+                  {!selectedGame.isPreGame && gameDetails && (
+                    <div className="mt-4 pt-4 border-t border-zinc-800 overflow-x-auto">
+                      {(() => {
+                        const awayComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'away');
+                        const homeComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'home');
+                        const awayInnings = awayComp?.linescores || [];
+                        const homeInnings = homeComp?.linescores || [];
+                        const totalInnings = Math.max(awayInnings.length, homeInnings.length, 9);
 
- {/* Inning-by-Inning linescore */}
-{!selectedGame.isPreGame && gameDetails && (
-  <div className="mt-4 pt-4 border-t border-zinc-800 overflow-x-auto">
-    {(() => {
-      const awayComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'away');
-      const homeComp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === 'home');
-      const awayInnings = awayComp?.linescores || [];
-      const homeInnings = homeComp?.linescores || [];
-      const totalInnings = Math.max(awayInnings.length, homeInnings.length, 9);
+                        return (
+                          <table className="w-full text-center text-sm">
+                            <thead>
+                              <tr className="text-gray-500 text-xs">
+                                <th className="text-left pb-1 w-8">Team</th>
+                                {Array.from({ length: totalInnings }, (_, i) => (
+                                  <th key={i} className="pb-1 px-1">{i + 1}</th>
+                                ))}
+                                <th className="pb-1 px-1 border-l border-zinc-700">R</th>
+                                <th className="pb-1 px-1">H</th>
+                                <th className="pb-1 px-1">E</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {['away', 'home'].map(side => {
+                                const teamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+                                const innings = side === 'away' ? awayInnings : homeInnings;
+                                const totalHits = innings.reduce((sum, inn) => sum + (inn.hits || 0), 0);
+                                const totalErrors = innings.reduce((sum, inn) => sum + (inn.errors || 0), 0);
+                                return (
+                                  <tr key={side} className="border-t border-zinc-800">
+                                    <td className="text-left py-2 font-semibold w-8">{teamAbbr}</td>
+                                    {Array.from({ length: totalInnings }, (_, i) => {
+                                      const val = innings[i]?.displayValue;
+                                      return (
+                                        <td key={i} className={`py-2 px-1 text-xs ${val !== undefined ? 'text-white' : 'text-gray-700'}`}>
+                                          {val !== undefined ? val : '-'}
+                                        </td>
+                                      );
+                                    })}
+                                    <td className="py-2 px-1 font-bold border-l border-zinc-700">
+                                      {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
+                                    </td>
+                                    <td className="py-2 px-1 text-gray-300">{totalHits || '-'}</td>
+                                    <td className="py-2 px-1 text-gray-300">{totalErrors !== undefined ? totalErrors : '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>{/* end scoreboard card */}
+              </div>{/* end clipping wrapper */}
 
-      return (
-        <table className="w-full text-center text-sm">
-          <thead>
-            <tr className="text-gray-500 text-xs">
-              <th className="text-left pb-1 w-8">Team</th>
-              {Array.from({ length: totalInnings }, (_, i) => (
-                <th key={i} className="pb-1 px-1">{i + 1}</th>
-              ))}
-              <th className="pb-1 px-1 border-l border-zinc-700">R</th>
-<th className="pb-1 px-1">H</th>
-<th className="pb-1 px-1">E</th>
-            </tr>
-          </thead>
-          <tbody>
-            {['away', 'home'].map(side => {
-              const teamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
-              const innings = side === 'away' ? awayInnings : homeInnings;
-              const totalHits = innings.reduce((sum, inn) => sum + (inn.hits || 0), 0);
-              const totalErrors = innings.reduce((sum, inn) => sum + (inn.errors || 0), 0);
-              return (
-                <tr key={side} className="border-t border-zinc-800">
-                  <td className="text-left py-2 font-semibold w-8">{teamAbbr}</td>
-                  {Array.from({ length: totalInnings }, (_, i) => {
-                    const val = innings[i]?.displayValue;
-                    return (
-                      <td key={i} className={`py-2 px-1 text-xs ${val !== undefined ? 'text-white' : 'text-gray-700'}`}>
-                        {val !== undefined ? val : '-'}
-                      </td>
-                    );
-                  })}
-                  <td className="py-2 px-1 font-bold border-l border-zinc-700">
-  {side === 'away' ? selectedGame.awayScore : selectedGame.homeScore}
-</td>
-<td className="py-2 px-1 text-gray-300">{totalHits || '-'}</td>
-<td className="py-2 px-1 text-gray-300">{totalErrors !== undefined ? totalErrors : '-'}</td>
-</tr>
-              );
-            })}
-          </tbody>
-        </table>
-      );
-    })()}
-  </div>
-)}
-</div>
               {/* Team Tabs */}
               <div className="flex gap-2 mb-3">
                 {[
@@ -1370,6 +1371,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                 <div className="text-center py-12 text-gray-400">Loading details...</div>
               ) : gameDetails ? (
                 <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+
                   {/* GAME TAB — Team stat comparison bars */}
                   {selectedTeamTab === 'game' && !selectedGame.isPreGame && (
                     <div className="bg-zinc-900 rounded-2xl p-4">
@@ -1377,12 +1379,12 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
                         {(() => {
                           const awayStats = gameDetails.boxscore?.teams?.[0]?.statistics || [];
                           const homeStats = gameDetails.boxscore?.teams?.[1]?.statistics || [];
-                          
+
                           const awaybatting = awayStats.find(c => c.name === 'batting')?.stats || [];
                           const homebatting = homeStats.find(c => c.name === 'batting')?.stats || [];
                           const awaypitching = awayStats.find(c => c.name === 'pitching')?.stats || [];
                           const homepitching = homeStats.find(c => c.name === 'pitching')?.stats || [];
-                          
+
                           const findStat = (stats, name) => parseFloat(stats.find(s => s.name === name)?.displayValue || '0') || 0;
 
                           const statsToCompare = [
@@ -1405,7 +1407,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
 
                           return statsToCompare.map((statDef, idx) => {
                             const av = findStat(statDef.cat === 'pitching' ? awaypitching : awaybatting, statDef.name);
-const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, statDef.name);
+                            const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, statDef.name);
                             const total = av + hv;
                             const ap = total > 0 ? (av / total) * 100 : 50;
                             const hp = total > 0 ? (hv / total) * 100 : 50;
@@ -1435,7 +1437,6 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                   {/* GAME TAB — Pre-game: injuries / probable pitchers */}
                   {selectedTeamTab === 'game' && selectedGame.isPreGame && (
                     <div className="space-y-3">
-                      {/* Probable Pitchers */}
                       <div className="bg-zinc-900 rounded-2xl p-4">
                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
                           style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitchers</h4>
@@ -1466,7 +1467,6 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                         )}
                       </div>
 
-                      {/* Injuries */}
                       {[selectedGame.awayTeam, selectedGame.homeTeam].map(teamAbbr => {
                         const isAway = teamAbbr === selectedGame.awayTeam;
                         const logo = isAway ? selectedGame.awayLogo : selectedGame.homeLogo;
@@ -1515,7 +1515,6 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                         <div className="overflow-x-auto -ml-4">
                           <table className="w-full text-sm">
                             <thead>
-                              {/* Team totals row */}
                               <tr className="border-b border-zinc-700">
                                 <td colSpan="10" className="bg-zinc-900 pb-2 px-2">
                                   {(() => {
@@ -1573,92 +1572,89 @@ const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, sta
                                 const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
                                 console.log('all batter stats:', players.map(p => p.stats));
 
-                                // Build starter slots 1-9
-const starters = players.filter(p => p.starter);
-const subs = players.filter(p => !p.starter);
-console.log('=== STARTERS ===', starters.length, starters.map(p => p.position?.abbreviation));
-console.log('=== SUBS ===', subs.length, subs.map(p => p.position?.abbreviation));
+                                const starters = players.filter(p => p.starter);
+                                const subs = players.filter(p => !p.starter);
+                                console.log('=== STARTERS ===', starters.length, starters.map(p => p.position?.abbreviation));
+                                console.log('=== SUBS ===', subs.length, subs.map(p => p.position?.abbreviation));
 
-// For each sub, find the starter with matching position
-const rows = [];
-const usedSubs = new Set();
-starters.sort((a, b) => a.batOrder - b.batOrder).forEach((starter, idx) => {
-  rows.push({ player: starter, idx: idx + 1, isSub: false });
-  const matchingSubs = subs.filter(s => 
-    s.position?.abbreviation === starter.position?.abbreviation && 
-    !usedSubs.has(s.athlete?.id)
-  );
-  matchingSubs.forEach(sub => {
-    usedSubs.add(sub.athlete?.id);
-    rows.push({ player: sub, idx: idx + 1, isSub: true });
-  });
-});
+                                const rows = [];
+                                const usedSubs = new Set();
+                                starters.sort((a, b) => a.batOrder - b.batOrder).forEach((starter, idx) => {
+                                  rows.push({ player: starter, idx: idx + 1, isSub: false });
+                                  const matchingSubs = subs.filter(s =>
+                                    s.position?.abbreviation === starter.position?.abbreviation &&
+                                    !usedSubs.has(s.athlete?.id)
+                                  );
+                                  matchingSubs.forEach(sub => {
+                                    usedSubs.add(sub.athlete?.id);
+                                    rows.push({ player: sub, idx: idx + 1, isSub: true });
+                                  });
+                                });
 
-// Any subs whose position didn't match a starter
-const unmatchedSubs = subs.filter(s => !starters.some(st => st.position?.abbreviation === s.position?.abbreviation));
-unmatchedSubs.forEach(sub => {
-  rows.push({ player: sub, idx: null, isSub: true });
-});
+                                const unmatchedSubs = subs.filter(s => !starters.some(st => st.position?.abbreviation === s.position?.abbreviation));
+                                unmatchedSubs.forEach(sub => {
+                                  rows.push({ player: sub, idx: null, isSub: true });
+                                });
 
-return rows.map(({ player, idx, isSub }) => (
-  <tr key={player.athlete?.id} className="border-b border-zinc-800 last:border-0 h-12">
-    <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
-      <div className="flex items-center gap-0">
-      {player.athlete?.headshot?.href ? (
-  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-    className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-    onClick={() => handleMLBPlayerClick(
-      player.athlete.displayName || player.athlete.shortName,
-      player.athlete.id,
-      player.athlete.headshot?.href,
-      selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
-      selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-      player.athlete.jersey,
-      player.athlete.position?.abbreviation
-    )}
-  />
-) : (
-          <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-            {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-          </div>
-        )}
-        <div className="absolute left-14 top-0 z-30 pointer-events-none">
-  <div className="text-xs text-gray-400 whitespace-nowrap">
-  {!isSub && (
-  <span className="text-blue-500 mr-1">{idx}.</span>
-)}
-{player.athlete?.shortName}
-{isSub ? (
-  <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
-) : (
-  player.athlete?.position?.abbreviation && (
-    <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
-  )
-)}
-          </div>
-        </div>
-      </div>
-    </td>
-    {[
-      { label: 'AB', val: player.stats?.[1] },
-      { label: 'R', val: player.stats?.[2] },
-      { label: 'H', val: player.stats?.[3] },
-      { label: 'RBI', val: player.stats?.[4] },
-      { label: 'HR', val: player.stats?.[5] },
-      { label: 'BB', val: player.stats?.[6] },
-      { label: 'K', val: player.stats?.[7] },
-      { label: 'H/AB', val: player.stats?.[0] },
-      { label: 'AVG', val: player.stats?.[9] },
-      { label: 'OBP', val: player.stats?.[10] },
-      { label: 'SLG', val: player.stats?.[11] },
-    ].map(({ label, val }) => (
-      <td key={label} className="text-center px-2 pt-2">
-        <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
-        <div className="text-[10px] text-gray-400">{label}</div>
-      </td>
-    ))}
-  </tr>
-));
+                                return rows.map(({ player, idx, isSub }) => (
+                                  <tr key={player.athlete?.id} className="border-b border-zinc-800 last:border-0 h-12">
+                                    <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
+                                      <div className="flex items-center gap-0">
+                                        {player.athlete?.headshot?.href ? (
+                                          <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+                                            className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => handleMLBPlayerClick(
+                                              player.athlete.displayName || player.athlete.shortName,
+                                              player.athlete.id,
+                                              player.athlete.headshot?.href,
+                                              selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
+                                              selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+                                              player.athlete.jersey,
+                                              player.athlete.position?.abbreviation
+                                            )}
+                                          />
+                                        ) : (
+                                          <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+                                            {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                          </div>
+                                        )}
+                                        <div className="absolute left-14 top-0 z-30 pointer-events-none">
+                                          <div className="text-xs text-gray-400 whitespace-nowrap">
+                                            {!isSub && (
+                                              <span className="text-blue-500 mr-1">{idx}.</span>
+                                            )}
+                                            {player.athlete?.shortName}
+                                            {isSub ? (
+                                              <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
+                                            ) : (
+                                              player.athlete?.position?.abbreviation && (
+                                                <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
+                                              )
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    {[
+                                      { label: 'AB', val: player.stats?.[1] },
+                                      { label: 'R', val: player.stats?.[2] },
+                                      { label: 'H', val: player.stats?.[3] },
+                                      { label: 'RBI', val: player.stats?.[4] },
+                                      { label: 'HR', val: player.stats?.[5] },
+                                      { label: 'BB', val: player.stats?.[6] },
+                                      { label: 'K', val: player.stats?.[7] },
+                                      { label: 'H/AB', val: player.stats?.[0] },
+                                      { label: 'AVG', val: player.stats?.[9] },
+                                      { label: 'OBP', val: player.stats?.[10] },
+                                      { label: 'SLG', val: player.stats?.[11] },
+                                    ].map(({ label, val }) => (
+                                      <td key={label} className="text-center px-2 pt-2">
+                                        <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
+                                        <div className="text-[10px] text-gray-400">{label}</div>
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ));
                               })()}
                             </tbody>
                           </table>
@@ -1674,7 +1670,6 @@ return rows.map(({ player, idx, isSub }) => (
                             <tbody>
                               {(() => {
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
-                                // Try pitching stats (index 1 in players array)
                                 const pitchers = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
                                 console.log('first pitcher:', pitchers[0]);
                                 console.log('pitcher notes:', pitchers.map(p => ({ name: p.athlete?.shortName, notes: p.notes })));
@@ -1687,71 +1682,70 @@ return rows.map(({ player, idx, isSub }) => (
                                   <tr key={idx} className="border-b border-zinc-800 last:border-0 h-12">
                                     <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
                                       <div className="flex items-center">
-                                      {player.athlete?.headshot?.href ? (
-  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-    className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-   onClick={() => {
-  console.log('PLAYER CLICKED:', player.athlete.displayName, player.athlete.id);
-  handleMLBPlayerClick(
-    player.athlete.displayName || player.athlete.shortName,
-    player.athlete.id,
-    player.athlete.headshot?.href,
-    selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
-    selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-    player.athlete.jersey,
-    player.athlete.position?.abbreviation
-  );
-}}
-  />
-) : (
-  <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-    {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-  </div>
-)}
-                                      <div className="absolute left-14 top-0 z-30 pointer-events-none">
-  <div className="text-xs text-gray-400 whitespace-nowrap">
-  {player.athlete?.shortName}
-  {player.starter && (
-    <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
-  )}
-  {(() => {
-  const decision = player.notes?.find(n => n.type === 'pitchingDecision')?.text;
-  if (!decision) return null;
-  const isWin = decision.startsWith('W');
-  const isLoss = decision.startsWith('L');
-  const isSave = decision.startsWith('SV');
-  const isHold = decision.startsWith('H,') || decision === 'H';
-  const isBlownSave = decision.startsWith('BS');
-  const record = (isWin || isLoss || isSave) ? decision.split(', ')[1] : null;
-  return (
-    <>
-      {isWin && <span className="ml-1 text-green-400 text-xs font-bold">Win</span>}
-      {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">Loss</span>}
-      {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">Save</span>}
-      {isHold && <span className="ml-1 text-blue-400 text-xs font-bold">Hold</span>}
-      {isBlownSave && <span className="ml-1 text-orange-400 text-xs font-bold">Blown Save</span>}
-      {record && <span className="ml-1 text-gray-500 text-xs">({record})</span>}
-    </>
-  );
-})()}
-</div>
+                                        {player.athlete?.headshot?.href ? (
+                                          <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+                                            className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                            onClick={() => {
+                                              console.log('PLAYER CLICKED:', player.athlete.displayName, player.athlete.id);
+                                              handleMLBPlayerClick(
+                                                player.athlete.displayName || player.athlete.shortName,
+                                                player.athlete.id,
+                                                player.athlete.headshot?.href,
+                                                selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
+                                                selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+                                                player.athlete.jersey,
+                                                player.athlete.position?.abbreviation
+                                              );
+                                            }}
+                                          />
+                                        ) : (
+                                          <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+                                            {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                          </div>
+                                        )}
+                                        <div className="absolute left-14 top-0 z-30 pointer-events-none">
+                                          <div className="text-xs text-gray-400 whitespace-nowrap">
+                                            {player.athlete?.shortName}
+                                            {player.starter && (
+                                              <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
+                                            )}
+                                            {(() => {
+                                              const decision = player.notes?.find(n => n.type === 'pitchingDecision')?.text;
+                                              if (!decision) return null;
+                                              const isWin = decision.startsWith('W');
+                                              const isLoss = decision.startsWith('L');
+                                              const isSave = decision.startsWith('SV');
+                                              const isHold = decision.startsWith('H,') || decision === 'H';
+                                              const isBlownSave = decision.startsWith('BS');
+                                              const record = (isWin || isLoss || isSave) ? decision.split(', ')[1] : null;
+                                              return (
+                                                <>
+                                                  {isWin && <span className="ml-1 text-green-400 text-xs font-bold">Win</span>}
+                                                  {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">Loss</span>}
+                                                  {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">Save</span>}
+                                                  {isHold && <span className="ml-1 text-blue-400 text-xs font-bold">Hold</span>}
+                                                  {isBlownSave && <span className="ml-1 text-orange-400 text-xs font-bold">Blown Save</span>}
+                                                  {record && <span className="ml-1 text-gray-500 text-xs">({record})</span>}
+                                                </>
+                                              );
+                                            })()}
+                                          </div>
                                         </div>
                                       </div>
                                     </td>
-                                    {/* IP, H, R, ER, BB, SO, HR, ERA */}
                                     {[
-  { label: 'IP', val: player.stats?.[0] },
-  { label: 'H', val: player.stats?.[1] },
-  { label: 'R', val: player.stats?.[2] },
-  { label: 'ER', val: player.stats?.[3] },
-  { label: 'BB', val: player.stats?.[4] },
-  { label: 'SO', val: player.stats?.[5] },
-  { label: 'HR', val: player.stats?.[6] },
-  { label: 'PC', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[0] : '-'; })() },
-  { label: 'ST', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[1] : '-'; })() },
-  { label: 'B', val: (() => { const s = player.stats?.[7]; if (!s || s === '-----') return '-'; const [pc, st] = s.split('-').map(Number); return pc - st; })() },
-  { label: 'ERA', val: player.stats?.[8] },
-].map(({ label, val }) => (
+                                      { label: 'IP', val: player.stats?.[0] },
+                                      { label: 'H', val: player.stats?.[1] },
+                                      { label: 'R', val: player.stats?.[2] },
+                                      { label: 'ER', val: player.stats?.[3] },
+                                      { label: 'BB', val: player.stats?.[4] },
+                                      { label: 'SO', val: player.stats?.[5] },
+                                      { label: 'HR', val: player.stats?.[6] },
+                                      { label: 'PC', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[0] : '-'; })() },
+                                      { label: 'ST', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[1] : '-'; })() },
+                                      { label: 'B', val: (() => { const s = player.stats?.[7]; if (!s || s === '-----') return '-'; const [pc, st] = s.split('-').map(Number); return pc - st; })() },
+                                      { label: 'ERA', val: player.stats?.[8] },
+                                    ].map(({ label, val }) => (
                                       <td key={label} className="text-center px-2 pt-2">
                                         <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
                                         <div className="text-[10px] text-gray-400">{label}</div>
@@ -1767,69 +1761,69 @@ return rows.map(({ player, idx, isSub }) => (
                     </div>
                   )}
 
-            {/* TEAM TAB — Pre-game roster */}
-{(selectedTeamTab === 'away' || selectedTeamTab === 'home') && selectedGame.isPreGame && (
-  <div className="space-y-3">
-    {(() => {
-      const side = selectedTeamTab;
-      const comp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === side);
-      const pitcher = comp?.probables?.[0];
-      if (!pitcher) return null;
-      return (
-        <div className="bg-zinc-900 rounded-2xl p-4">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-            style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitcher</h4>
-          <div className="flex items-center gap-3">
-            {pitcher.athlete?.headshot?.href ? (
-              <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName}
-                className="w-12 h-12 rounded-md object-cover" />
-            ) : (
-              <div className="w-12 h-12 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">SP</div>
-            )}
-            <div className="flex-1">
-              <div className="text-sm font-semibold">{pitcher.athlete?.displayName}</div>
-              <div className="text-xs text-gray-400">
-                {pitcher.statistics?.[0]?.displayValue} • ERA: {pitcher.statistics?.[1]?.displayValue || '-'}
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    })()}
-    <div className="bg-zinc-900 rounded-2xl p-4">
-      {(() => {
-        const side = selectedTeamTab === 'away' ? 'away' : 'home';
-        const roster = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
-        if (roster.length === 0) return (
-          <div className="text-gray-400 text-center py-4 text-sm">Lineup not yet available</div>
-        );
-        return (
-          <div className="space-y-2">
-            {roster.sort((a, b) => a.batOrder - b.batOrder).map((player) => (
-              <div key={player.athlete?.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0">
-                <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
-                {player.athlete?.headshot?.href ? (
-                  <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-                    className="w-8 h-8 rounded-md object-cover" />
-                ) : (
-                  <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-                    {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
-                  <div className="text-xs text-gray-400">
-  {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
-</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      })()}
-    </div>
-  </div>
-)}
+                  {/* TEAM TAB — Pre-game roster */}
+                  {(selectedTeamTab === 'away' || selectedTeamTab === 'home') && selectedGame.isPreGame && (
+                    <div className="space-y-3">
+                      {(() => {
+                        const side = selectedTeamTab;
+                        const comp = gameDetails.header?.competitions?.[0]?.competitors?.find(c => c.homeAway === side);
+                        const pitcher = comp?.probables?.[0];
+                        if (!pitcher) return null;
+                        return (
+                          <div className="bg-zinc-900 rounded-2xl p-4">
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                              style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitcher</h4>
+                            <div className="flex items-center gap-3">
+                              {pitcher.athlete?.headshot?.href ? (
+                                <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName}
+                                  className="w-12 h-12 rounded-md object-cover" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">SP</div>
+                              )}
+                              <div className="flex-1">
+                                <div className="text-sm font-semibold">{pitcher.athlete?.displayName}</div>
+                                <div className="text-xs text-gray-400">
+                                  {pitcher.statistics?.[0]?.displayValue} • ERA: {pitcher.statistics?.[1]?.displayValue || '-'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <div className="bg-zinc-900 rounded-2xl p-4">
+                        {(() => {
+                          const side = selectedTeamTab === 'away' ? 'away' : 'home';
+                          const roster = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
+                          if (roster.length === 0) return (
+                            <div className="text-gray-400 text-center py-4 text-sm">Lineup not yet available</div>
+                          );
+                          return (
+                            <div className="space-y-2">
+                              {roster.sort((a, b) => a.batOrder - b.batOrder).map((player) => (
+                                <div key={player.athlete?.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0">
+                                  <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
+                                  {player.athlete?.headshot?.href ? (
+                                    <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+                                      className="w-8 h-8 rounded-md object-cover" />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+                                      {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
+                                    <div className="text-xs text-gray-400">
+                                      {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1854,7 +1848,6 @@ return rows.map(({ player, idx, isSub }) => (
                 <div className="text-center py-12 text-gray-400">Loading team stats...</div>
               ) : teamStats ? (
                 <div>
-                  {/* Team Header Card */}
                   <div
                     className="rounded-2xl p-5 mb-4 relative overflow-hidden"
                     style={{
@@ -1889,7 +1882,6 @@ return rows.map(({ player, idx, isSub }) => (
                       </div>
                     </div>
 
-                    {/* Win bar */}
                     <div className="relative z-10 mb-3">
                       <div className="flex h-1.5 bg-zinc-700 rounded-full overflow-hidden">
                         <div className="h-full rounded-full"
@@ -1904,7 +1896,6 @@ return rows.map(({ player, idx, isSub }) => (
                       </div>
                     </div>
 
-                    {/* Home/Away split */}
                     <div className="relative z-10 flex gap-3">
                       {[
                         { label: 'Home', val: teamStats.record?.home },
@@ -1921,158 +1912,158 @@ return rows.map(({ player, idx, isSub }) => (
                   </div>
 
                   {/* Batting */}
-<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
-  <div className="grid grid-cols-4 gap-2 mb-2">
-    {(() => {
-      const bat = teamStats.stats.find(c => c.name === 'batting');
-      const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-      return [
-        { label: 'AVG', value: getStat('avg'), rank: teamRanks.avg },
-        { label: 'OBP', value: getStat('onBasePct'), rank: teamRanks.obp },
-{ label: 'SLG', value: getStat('slugAvg'), rank: teamRanks.slg },
-{ label: 'OPS', value: getStat('OPS'), rank: teamRanks.ops },
-      ].map(({ label, value, rank }) => (
-        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-          !rank ? 'border-zinc-700 bg-zinc-800/50' :
-          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-          'border-red-500/20 bg-red-500/5'
-        }`}>
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-          {rank && (
-            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-              #{rank}
-            </div>
-          )}
-        </div>
-      ));
-    })()}
-  </div>
-  <div className="grid grid-cols-4 gap-2">
-    {(() => {
-      const bat = teamStats.stats.find(c => c.name === 'batting');
-      const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-      return [
-        { label: 'HR', value: getStat('homeRuns'), rank: teamRanks.hr },
-        { label: 'RBI', value: getStat('RBIs'), rank: teamRanks.rbi },
-        { label: 'SB', value: getStat('stolenBases'), rank: teamRanks.sb },
-        { label: 'SO', value: getStat('strikeouts'), rank: teamRanks.so_bat },
-      ].map(({ label, value, rank }) => (
-        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-          !rank ? 'border-zinc-700 bg-zinc-800/50' :
-          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-          'border-red-500/20 bg-red-500/5'
-        }`}>
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-          {rank && (
-            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-              #{rank}
-            </div>
-          )}
-        </div>
-      ));
-    })()}
-  </div>
-</div>
+                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
+                    <div className="grid grid-cols-4 gap-2 mb-2">
+                      {(() => {
+                        const bat = teamStats.stats.find(c => c.name === 'batting');
+                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                        return [
+                          { label: 'AVG', value: getStat('avg'), rank: teamRanks.avg },
+                          { label: 'OBP', value: getStat('onBasePct'), rank: teamRanks.obp },
+                          { label: 'SLG', value: getStat('slugAvg'), rank: teamRanks.slg },
+                          { label: 'OPS', value: getStat('OPS'), rank: teamRanks.ops },
+                        ].map(({ label, value, rank }) => (
+                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+                            'border-red-500/20 bg-red-500/5'
+                          }`}>
+                            <div className="text-lg font-bold text-white">{value}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                            {rank && (
+                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+                                #{rank}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {(() => {
+                        const bat = teamStats.stats.find(c => c.name === 'batting');
+                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                        return [
+                          { label: 'HR', value: getStat('homeRuns'), rank: teamRanks.hr },
+                          { label: 'RBI', value: getStat('RBIs'), rank: teamRanks.rbi },
+                          { label: 'SB', value: getStat('stolenBases'), rank: teamRanks.sb },
+                          { label: 'SO', value: getStat('strikeouts'), rank: teamRanks.so_bat },
+                        ].map(({ label, value, rank }) => (
+                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+                            'border-red-500/20 bg-red-500/5'
+                          }`}>
+                            <div className="text-lg font-bold text-white">{value}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                            {rank && (
+                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+                                #{rank}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
 
-{/* Pitching */}
-<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
-  <div className="grid grid-cols-4 gap-2 mb-2">
-    {(() => {
-      const pit = teamStats.stats.find(c => c.name === 'pitching');
-      const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-      return [
-        { label: 'ERA', value: getStat('ERA'), rank: teamRanks.era },
-        { label: 'WHIP', value: getStat('WHIP'), rank: teamRanks.whip },
-        { label: 'K/9', value: getStat('strikeoutsPerNineInnings'), rank: teamRanks.k9 },
-        { label: 'BB/9', value: getStat('walksPerNineInnings'), rank: teamRanks.bb9 },
-      ].map(({ label, value, rank }) => (
-        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-          !rank ? 'border-zinc-700 bg-zinc-800/50' :
-          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-          'border-red-500/20 bg-red-500/5'
-        }`}>
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-          {rank && (
-            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-              #{rank}
-            </div>
-          )}
-        </div>
-      ));
-    })()}
-  </div>
-  <div className="grid grid-cols-4 gap-2">
-    {(() => {
-      const pit = teamStats.stats.find(c => c.name === 'pitching');
-      const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-      return [
-        { label: 'SV', value: getStat('saves'), rank: teamRanks.saves },
-        { label: 'QS', value: getStat('qualityStarts'), rank: teamRanks.qs },
-        { label: 'HR', value: getStat('homeRunsAllowed'), rank: null },
-        { label: 'SO', value: getStat('strikeouts'), rank: null },
-      ].map(({ label, value, rank }) => (
-        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-          !rank ? 'border-zinc-700 bg-zinc-800/50' :
-          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-          'border-red-500/20 bg-red-500/5'
-        }`}>
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-          {rank && (
-            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-              #{rank}
-            </div>
-          )}
-        </div>
-      ));
-    })()}
-  </div>
-</div>
+                  {/* Pitching */}
+                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
+                    <div className="grid grid-cols-4 gap-2 mb-2">
+                      {(() => {
+                        const pit = teamStats.stats.find(c => c.name === 'pitching');
+                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                        return [
+                          { label: 'ERA', value: getStat('ERA'), rank: teamRanks.era },
+                          { label: 'WHIP', value: getStat('WHIP'), rank: teamRanks.whip },
+                          { label: 'K/9', value: getStat('strikeoutsPerNineInnings'), rank: teamRanks.k9 },
+                          { label: 'BB/9', value: getStat('walksPerNineInnings'), rank: teamRanks.bb9 },
+                        ].map(({ label, value, rank }) => (
+                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+                            'border-red-500/20 bg-red-500/5'
+                          }`}>
+                            <div className="text-lg font-bold text-white">{value}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                            {rank && (
+                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+                                #{rank}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {(() => {
+                        const pit = teamStats.stats.find(c => c.name === 'pitching');
+                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                        return [
+                          { label: 'SV', value: getStat('saves'), rank: teamRanks.saves },
+                          { label: 'QS', value: getStat('qualityStarts'), rank: teamRanks.qs },
+                          { label: 'HR', value: getStat('homeRunsAllowed'), rank: null },
+                          { label: 'SO', value: getStat('strikeouts'), rank: null },
+                        ].map(({ label, value, rank }) => (
+                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+                            'border-red-500/20 bg-red-500/5'
+                          }`}>
+                            <div className="text-lg font-bold text-white">{value}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                            {rank && (
+                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+                                #{rank}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
 
-{/* Fielding */}
-<div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
-  <div className="grid grid-cols-3 gap-2">
-    {(() => {
-      const fld = teamStats.stats.find(c => c.name === 'fielding');
-      const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
-      const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-      return [
-        { label: 'FPCT', value: getStat('fieldingPct'), rank: teamRanks.fpct },
-        { label: 'E', value: getStat('errors'), rank: teamRanks.errors },
-        { label: 'DP', value: getStat('doublePlays'), rank: null },
-      ].map(({ label, value, rank }) => (
-        <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-          !rank ? 'border-zinc-700 bg-zinc-800/50' :
-          rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-          rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-          'border-red-500/20 bg-red-500/5'
-        }`}>
-          <div className="text-lg font-bold text-white">{value}</div>
-          <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-          {rank && (
-            <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-              #{rank}
-            </div>
-          )}
-        </div>
-      ));
-    })()}
-  </div>
-</div>
+                  {/* Fielding */}
+                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(() => {
+                        const fld = teamStats.stats.find(c => c.name === 'fielding');
+                        const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
+                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                        return [
+                          { label: 'FPCT', value: getStat('fieldingPct'), rank: teamRanks.fpct },
+                          { label: 'E', value: getStat('errors'), rank: teamRanks.errors },
+                          { label: 'DP', value: getStat('doublePlays'), rank: null },
+                        ].map(({ label, value, rank }) => (
+                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
+                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
+                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
+                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
+                            'border-red-500/20 bg-red-500/5'
+                          }`}>
+                            <div className="text-lg font-bold text-white">{value}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                            {rank && (
+                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
+                                #{rank}
+                              </div>
+                            )}
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
 
                   {/* Run Differential Bars */}
                   <div className="bg-zinc-900 rounded-2xl p-4">
@@ -2215,269 +2206,261 @@ return rows.map(({ player, idx, isSub }) => (
             </div>
           </div>
         </div>
-    
-    
-    )}
+      )}
 
-{selectedMLBPlayer && (
-  <div className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
-    style={{ animation: 'slideInRight 0.3s ease-out' }}>
-    <div className="min-h-screen px-4 pt-12 pb-8">
-      <div className="max-w-2xl mx-auto">
+      {selectedMLBPlayer && (
+        <div className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
+          style={{ animation: 'slideInRight 0.3s ease-out' }}>
+          <div className="min-h-screen px-4 pt-12 pb-8">
+            <div className="max-w-2xl mx-auto">
 
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => {
-              setSelectedMLBPlayer(null);
-              setMlbPlayerStats(null);
-              setSelectedMLBSeason(null);
-              setMlbAvailableSeasons([]);
-            }}
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >‹</button>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
-        </div>
-
-        {/* Hero Header */}
-        {(() => {
-          const color = teamColors[selectedMLBPlayer.teamAbbr] || '#3B82F6';
-          return (
-            <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`,
-                border: `1px solid ${color}44`,
-              }}>
-              <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
-                style={{ background: color }} />
-              <div className="flex items-center gap-4 relative z-10 mb-4">
-                {selectedMLBPlayer.headshot ? (
-                  <img src={selectedMLBPlayer.headshot} alt={selectedMLBPlayer.name}
-                    className="w-20 h-20 rounded-2xl object-cover"
-                    style={{ border: `2px solid ${color}66` }} />
-                ) : (
-                  <div className="w-20 h-20 rounded-2xl bg-zinc-800 flex items-center justify-center text-2xl font-bold text-gray-400">
-                    {selectedMLBPlayer.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                    {selectedMLBPlayer.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    {selectedMLBPlayer.teamLogo && (
-                      <img src={selectedMLBPlayer.teamLogo} alt={selectedMLBPlayer.teamAbbr} className="w-4 h-4" />
-                    )}
-                    <span className="text-gray-400 text-xs">
-                      {teamFullNames[selectedMLBPlayer.teamAbbr] || selectedMLBPlayer.teamAbbr}
-                    </span>
-                  </div>
-                  <div className="text-gray-500 text-xs mt-0.5">
-                    #{selectedMLBPlayer.jersey || '-'} • {selectedMLBPlayer.position || 'N/A'}
-                  </div>
-                </div>
+              <div className="flex items-center mb-6">
+                <button
+                  onClick={() => {
+                    setSelectedMLBPlayer(null);
+                    setMlbPlayerStats(null);
+                    setSelectedMLBSeason(null);
+                    setMlbAvailableSeasons([]);
+                  }}
+                  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
+                >‹</button>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
               </div>
 
-              {/* Key stats preview */}
-              {mlbPlayerStats?.currentSeason && (
-                <div className="relative z-10 grid grid-cols-3 gap-2">
-                  {(() => {
-                    const s = mlbPlayerStats.currentSeason;
-                    const isPitcher = mlbPlayerStats.currentPitching && s['AVG'] === '-';
-                    const p = mlbPlayerStats.currentPitching;
-                    if (isPitcher && p) {
-                      return [
-                        { label: 'ERA', value: p['ERA'] },
-                        { label: 'W-L', value: `${p['W'] ?? '-'}-${p['L'] ?? '-'}` },
-                        { label: 'SO', value: p['SO'] },
-                      ];
-                    }
-                    return [
-                      { label: 'AVG', value: s['AVG'] },
-                      { label: 'HR', value: s['HR'] },
-                      { label: 'RBI', value: s['RBI'] },
-                    ];
-                  })().map(({ label, value }) => (
-                    <div key={label} className="flex flex-col items-center py-2 rounded-xl"
-                      style={{ background: `${color}22`, border: `1px solid ${color}33` }}>
-                      <span className="text-2xl font-bold">{value ?? '-'}</span>
-                      <span className="text-[11px] text-gray-400 mt-0.5">{label}</span>
+              {(() => {
+                const color = teamColors[selectedMLBPlayer.teamAbbr] || '#3B82F6';
+                return (
+                  <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
+                    style={{
+                      background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`,
+                      border: `1px solid ${color}44`,
+                    }}>
+                    <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
+                      style={{ background: color }} />
+                    <div className="flex items-center gap-4 relative z-10 mb-4">
+                      {selectedMLBPlayer.headshot ? (
+                        <img src={selectedMLBPlayer.headshot} alt={selectedMLBPlayer.name}
+                          className="w-20 h-20 rounded-2xl object-cover"
+                          style={{ border: `2px solid ${color}66` }} />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-zinc-800 flex items-center justify-center text-2xl font-bold text-gray-400">
+                          {selectedMLBPlayer.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                          {selectedMLBPlayer.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          {selectedMLBPlayer.teamLogo && (
+                            <img src={selectedMLBPlayer.teamLogo} alt={selectedMLBPlayer.teamAbbr} className="w-4 h-4" />
+                          )}
+                          <span className="text-gray-400 text-xs">
+                            {teamFullNames[selectedMLBPlayer.teamAbbr] || selectedMLBPlayer.teamAbbr}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs mt-0.5">
+                          #{selectedMLBPlayer.jersey || '-'} • {selectedMLBPlayer.position || 'N/A'}
+                        </div>
+                      </div>
                     </div>
-                  ))}
+
+                    {mlbPlayerStats?.currentSeason && (
+                      <div className="relative z-10 grid grid-cols-3 gap-2">
+                        {(() => {
+                          const s = mlbPlayerStats.currentSeason;
+                          const isPitcher = mlbPlayerStats.currentPitching && s['AVG'] === '-';
+                          const p = mlbPlayerStats.currentPitching;
+                          if (isPitcher && p) {
+                            return [
+                              { label: 'ERA', value: p['ERA'] },
+                              { label: 'W-L', value: `${p['W'] ?? '-'}-${p['L'] ?? '-'}` },
+                              { label: 'SO', value: p['SO'] },
+                            ];
+                          }
+                          return [
+                            { label: 'AVG', value: s['AVG'] },
+                            { label: 'HR', value: s['HR'] },
+                            { label: 'RBI', value: s['RBI'] },
+                          ];
+                        })().map(({ label, value }) => (
+                          <div key={label} className="flex flex-col items-center py-2 rounded-xl"
+                            style={{ background: `${color}22`, border: `1px solid ${color}33` }}>
+                            <span className="text-2xl font-bold">{value ?? '-'}</span>
+                            <span className="text-[11px] text-gray-400 mt-0.5">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {mlbAvailableSeasons.length > 0 && (
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
+                  <select
+                    value={selectedMLBSeason || ''}
+                    onChange={(e) => {
+                      const newSeason = parseInt(e.target.value);
+                      setSelectedMLBSeason(newSeason);
+                      if (mlbPlayerStats?.allSeasonsData?.[newSeason]) {
+                        setMlbPlayerStats(prev => ({
+                          ...prev,
+                          currentSeason: prev.allSeasonsData[newSeason],
+                          currentPitching: prev.pitchingByYear?.[newSeason] || null,
+                        }));
+                      } else {
+                        fetchMLBPlayerStats(selectedMLBPlayer.name, selectedMLBPlayer.id, newSeason);
+                      }
+                    }}
+                    className="bg-transparent text-blue-400 text-sm font-semibold outline-none appearance-none cursor-pointer pr-4"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right center',
+                    }}
+                  >
+                    {mlbAvailableSeasons.map(season => (
+                      <option key={season.year} value={season.year} className="bg-zinc-900">
+                        {season.displayName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
-            </div>
-          );
-        })()}
 
-        {/* Season Selector */}
-        {mlbAvailableSeasons.length > 0 && (
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
-            <select
-              value={selectedMLBSeason || ''}
-              onChange={(e) => {
-                const newSeason = parseInt(e.target.value);
-                setSelectedMLBSeason(newSeason);
-                if (mlbPlayerStats?.allSeasonsData?.[newSeason]) {
-                  setMlbPlayerStats(prev => ({
-                    ...prev,
-                    currentSeason: prev.allSeasonsData[newSeason],
-                    currentPitching: prev.pitchingByYear?.[newSeason] || null,
-                  }));
-                } else {
-                  fetchMLBPlayerStats(selectedMLBPlayer.name, selectedMLBPlayer.id, newSeason);
-                }
-              }}
-              className="bg-transparent text-blue-400 text-sm font-semibold outline-none appearance-none cursor-pointer pr-4"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right center',
-              }}
-            >
-              {mlbAvailableSeasons.map(season => (
-                <option key={season.year} value={season.year} className="bg-zinc-900">
-                  {season.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+              {loadingMLBStats ? (
+                <div className="text-center py-12 text-gray-400">Loading stats...</div>
+              ) : mlbPlayerStats?.error ? (
+                <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">{mlbPlayerStats.error}</div>
+              ) : mlbPlayerStats?.currentSeason ? (
+                <div>
+                  {(() => {
+                    const s = mlbPlayerStats.currentSeason;
+                    const hasBatting = s['AVG'] && s['AVG'] !== '-';
+                    if (!hasBatting) return null;
+                    return (
+                      <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
+                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h5>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {[
+                            { label: 'AVG', value: s['AVG'] },
+                            { label: 'OBP', value: s['OBP'] },
+                            { label: 'SLG', value: s['SLG'] },
+                            { label: 'OPS', value: s['OPS'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {[
+                            { label: 'HR', value: s['HR'] },
+                            { label: 'RBI', value: s['RBI'] },
+                            { label: 'R', value: s['R'] },
+                            { label: 'H', value: s['H'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: 'SB', value: s['SB'] },
+                            { label: 'BB', value: s['BB'] },
+                            { label: 'SO', value: s['SO'] },
+                            { label: '2B', value: s['2B'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-        {loadingMLBStats ? (
-          <div className="text-center py-12 text-gray-400">Loading stats...</div>
-        ) : mlbPlayerStats?.error ? (
-          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">{mlbPlayerStats.error}</div>
-        ) : mlbPlayerStats?.currentSeason ? (
-          <div>
-            {/* Batting Stats */}
-            {(() => {
-              const s = mlbPlayerStats.currentSeason;
-              const hasBatting = s['AVG'] && s['AVG'] !== '-';
-              if (!hasBatting) return null;
-              return (
-                <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-                  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                    style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h5>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[
-                      { label: 'AVG', value: s['AVG'] },
-                      { label: 'OBP', value: s['OBP'] },
-                      { label: 'SLG', value: s['SLG'] },
-                      { label: 'OPS', value: s['OPS'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                  {(() => {
+                    const p = mlbPlayerStats.currentPitching;
+                    if (!p) return null;
+                    return (
+                      <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
+                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h5>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {[
+                            { label: 'ERA', value: p['ERA'] },
+                            { label: 'WHIP', value: p['WHIP'] },
+                            { label: 'W', value: p['W'] },
+                            { label: 'L', value: p['L'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {[
+                            { label: 'SO', value: p['SO'] },
+                            { label: 'BB', value: p['BB'] },
+                            { label: 'IP', value: p['IP'] },
+                            { label: 'SV', value: p['SV'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: 'H', value: p['H'] },
+                            { label: 'HR', value: p['HR'] },
+                            { label: 'GS', value: p['GS'] },
+                            { label: 'G', value: p['G'] },
+                          ].map(({ label, value }) => (
+                            <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                              <span className="text-lg font-bold">{value ?? '-'}</span>
+                              <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[
-                      { label: 'HR', value: s['HR'] },
-                      { label: 'RBI', value: s['RBI'] },
-                      { label: 'R', value: s['R'] },
-                      { label: 'H', value: s['H'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'SB', value: s['SB'] },
-                      { label: 'BB', value: s['BB'] },
-                      { label: 'SO', value: s['SO'] },
-                      { label: '2B', value: s['2B'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                      </div>
-                    ))}
+                    );
+                  })()}
+
+                  <div className="bg-zinc-900 rounded-2xl p-4">
+                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
+                      style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { label: 'G', value: mlbPlayerStats.currentSeason['G'] },
+                        { label: 'GS', value: mlbPlayerStats.currentSeason['GS'] },
+                        { label: 'AB', value: mlbPlayerStats.currentSeason['AB'] },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
+                          <span className="text-lg font-bold">{value ?? '-'}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              );
-            })()}
-
-            {/* Pitching Stats */}
-            {(() => {
-              const p = mlbPlayerStats.currentPitching;
-              if (!p) return null;
-              return (
-                <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-                  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                    style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h5>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[
-                      { label: 'ERA', value: p['ERA'] },
-                      { label: 'WHIP', value: p['WHIP'] },
-                      { label: 'W', value: p['W'] },
-                      { label: 'L', value: p['L'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[
-                      { label: 'SO', value: p['SO'] },
-                      { label: 'BB', value: p['BB'] },
-                      { label: 'IP', value: p['IP'] },
-                      { label: 'SV', value: p['SV'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { label: 'H', value: p['H'] },
-                      { label: 'HR', value: p['HR'] },
-                      { label: 'GS', value: p['GS'] },
-                      { label: 'G', value: p['G'] },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                        <span className="text-lg font-bold">{value ?? '-'}</span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Availability */}
-            <div className="bg-zinc-900 rounded-2xl p-4">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'G', value: mlbPlayerStats.currentSeason['G'] },
-                  { label: 'GS', value: mlbPlayerStats.currentSeason['GS'] },
-                  { label: 'AB', value: mlbPlayerStats.currentSeason['AB'] },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                    <span className="text-lg font-bold">{value ?? '-'}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                  </div>
-                ))}
-              </div>
+              ) : (
+                <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">No stats available</div>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">No stats available</div>
-        )}
-      </div>
-    </div>
-  </div>
-)} 
+        </div>
+      )}
     </div>
   );
 }
