@@ -1138,7 +1138,7 @@ console.log('🏀 FULL DATA:', data);
     const atStart = currentGameIndex === 0 && delta > 0;
     const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
     // Rubber-band: resist at edges
-    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.1 : delta);
   };
   
   const onScoreboardTouchEnd = (e) => {

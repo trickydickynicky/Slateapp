@@ -714,7 +714,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
     const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
     const atStart = currentGameIndex === 0 && delta > 0;
     const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
-    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.1 : delta);
   };
   const onScoreboardTouchEnd = (e) => {
     if (!isScoreboardSwiping) return;
