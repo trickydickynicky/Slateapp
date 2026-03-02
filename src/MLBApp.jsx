@@ -140,55 +140,7 @@ const scoreboardSwipeStart = useRef(null);
     'STL': '24', 'TB': '30', 'TEX': '13', 'TOR': '14', 'WSH': '20',
   };
 
-  // Swipe to go back
-  useEffect(() => {
-    const cameFromHome = navigationStack.length > 0 &&
-      navigationStack[navigationStack.length - 1].type === 'home';
-
-    if (!selectedGame || !cameFromHome || selectedTeamInfo || selectedNBAPlayer) return;
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isSwiping = false;
-
-    const handleTouchStart = (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-      if (touchStartX < 100) isSwiping = true;
-    };
-    const handleTouchMove = (e) => {
-      if (!isSwiping) return;
-      const currentX = e.changedTouches[0].screenX;
-      const deltaX = currentX - touchStartX;
-      const deltaY = Math.abs(e.changedTouches[0].screenY - touchStartY);
-      if (deltaX > 0 && deltaX > deltaY) setSwipeOffset(deltaX);
-    };
-    const handleTouchEnd = (e) => {
-      if (!isSwiping) return;
-      const swipeDistance = e.changedTouches[0].screenX - touchStartX;
-      if (swipeDistance > 50) {
-        setSwipeOffset(window.innerWidth);
-        setTimeout(() => {
-          setSelectedGame(null);
-          setGameDetails(null);
-          setNavigationStack([]);
-          setSwipeOffset(0);
-        }, 300);
-      } else {
-        setSwipeOffset(0);
-      }
-      isSwiping = false;
-    };
-
-    document.addEventListener('touchstart', handleTouchStart);
-    document.addEventListener('touchmove', handleTouchMove);
-    document.addEventListener('touchend', handleTouchEnd);
-    return () => {
-      document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
-      document.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [selectedGame, navigationStack, selectedTeamInfo, selectedNBAPlayer]);
+ 
 
   useEffect(() => {
     fetchLiveScores();
