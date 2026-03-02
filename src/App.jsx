@@ -2414,7 +2414,7 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
 {loadingDetails ? (
   <div className="text-center py-12 text-gray-400">Loading details...</div>
 ) : gameDetails ? (
-  <div>
+  <div style={{ animation: 'fadeSlideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
     {selectedTeam === 'game' && !selectedGame.isPreGame ? (
       /* TEAM COMPARISON VIEW */
       <div className="bg-zinc-900 rounded-2xl p-4">

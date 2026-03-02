@@ -49,6 +49,10 @@ const [mlbPlayerStats, setMlbPlayerStats] = useState(null);
 const [loadingMLBStats, setLoadingMLBStats] = useState(false);
 const [selectedMLBSeason, setSelectedMLBSeason] = useState(null);
 const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
+const [currentGameIndex, setCurrentGameIndex] = useState(0);
+const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
+const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
+const scoreboardSwipeStart = useRef(null);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -708,12 +712,11 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
   };
 
   const handleGameClick = (game) => {
-    console.log('GAME CLICKED:', game.id);
-
     setNavigationStack(prev => [...prev, { type: 'home' }]);
     setSlideDirection('right');
     setSelectedGame(game);
     setSelectedTeamTab('away');
+    setCurrentGameIndex(liveGames.findIndex(g => g.id === game.id));
     fetchGameDetails(game.id);
   };
 
@@ -735,6 +738,58 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
       setSelectedGame(null);
       setGameDetails(null);
     }
+  };
+
+  const handleScoreboardSwipe = (direction) => {
+    const newIndex = direction === 'next'
+      ? Math.min(currentGameIndex + 1, liveGames.length - 1)
+      : Math.max(currentGameIndex - 1, 0);
+    if (newIndex === currentGameIndex) return;
+    const nextGame = liveGames[newIndex];
+    setCurrentGameIndex(newIndex);
+    setSelectedGame(nextGame);
+    setSelectedTeamTab('away');
+    setGameDetails(null);
+    fetchGameDetails(nextGame.id);
+  };
+  
+  const onScoreboardTouchStart = (e) => {
+    scoreboardSwipeStart.current = e.changedTouches[0].clientX;
+    setIsScoreboardSwiping(true);
+  };
+  const onScoreboardTouchMove = (e) => {
+    if (!isScoreboardSwiping || scoreboardSwipeStart.current === null) return;
+    const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
+    const atStart = currentGameIndex === 0 && delta > 0;
+    const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+  };
+  const onScoreboardTouchEnd = (e) => {
+    if (!isScoreboardSwiping) return;
+    const delta = e.changedTouches[0].clientX - scoreboardSwipeStart.current;
+    if (Math.abs(delta) > 50) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    setScoreboardSwipeX(0);
+    setIsScoreboardSwiping(false);
+    scoreboardSwipeStart.current = null;
+  };
+  const onScoreboardMouseDown = (e) => {
+    scoreboardSwipeStart.current = e.clientX;
+    setIsScoreboardSwiping(true);
+  };
+  const onScoreboardMouseMove = (e) => {
+    if (!isScoreboardSwiping || scoreboardSwipeStart.current === null) return;
+    const delta = e.clientX - scoreboardSwipeStart.current;
+    const atStart = currentGameIndex === 0 && delta > 0;
+    const atEnd = currentGameIndex === liveGames.length - 1 && delta < 0;
+    setScoreboardSwipeX(atStart || atEnd ? delta * 0.2 : delta);
+  };
+  const onScoreboardMouseUp = (e) => {
+    if (!isScoreboardSwiping) return;
+    const delta = e.clientX - scoreboardSwipeStart.current;
+    if (Math.abs(delta) > 50) handleScoreboardSwipe(delta < 0 ? 'next' : 'prev');
+    setScoreboardSwipeX(0);
+    setIsScoreboardSwiping(false);
+    scoreboardSwipeStart.current = null;
   };
 
   const handleTeamClick = (teamAbbr, teamLogo) => {
@@ -1188,7 +1243,22 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
               </div>
 
               {/* Score Header */}
-              <div className="bg-zinc-900 rounded-2xl p-6 mb-6">
+              <div
+  className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
+  style={{
+    transform: `translateX(${scoreboardSwipeX}px)`,
+    transition: isScoreboardSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    touchAction: 'pan-y',
+    userSelect: 'none',
+  }}
+  onTouchStart={onScoreboardTouchStart}
+  onTouchMove={onScoreboardTouchMove}
+  onTouchEnd={onScoreboardTouchEnd}
+  onMouseDown={onScoreboardMouseDown}
+  onMouseMove={onScoreboardMouseMove}
+  onMouseUp={onScoreboardMouseUp}
+  onMouseLeave={onScoreboardMouseUp}
+>
                 <div className="flex items-start justify-between min-h-[120px]">
                   {/* Away */}
                   <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
