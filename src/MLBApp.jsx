@@ -1002,7 +1002,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
             liveGames.map((game, index) => (
               <div
                 key={game.id}
-                className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors ${
+                className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer ${
                   game.isLive ? 'border-2 border-blue-500' : ''
                 }`}
                 onClick={() => handleGameClick(game)}
@@ -1360,7 +1360,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
               {loadingDetails ? (
                 <div className="text-center py-12 text-gray-400">Loading details...</div>
               ) : gameDetails ? (
-                <div>
+                <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
                   {/* GAME TAB — Team stat comparison bars */}
                   {selectedTeamTab === 'game' && !selectedGame.isPreGame && (
                     <div className="bg-zinc-900 rounded-2xl p-4">

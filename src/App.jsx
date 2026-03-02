@@ -1728,7 +1728,7 @@ console.log('🏀 FULL DATA:', data);
       liveGames.map((game, index) => (
         <div 
   key={game.id} 
-  className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer hover:bg-zinc-800 transition-colors ${
+  className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer ${
     game.isLive ? 'border-2 border-blue-500' : ''
   }`}
   onClick={() => handleGameClick(game)}
@@ -2349,7 +2349,7 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
 {loadingDetails ? (
   <div className="text-center py-12 text-gray-400">Loading details...</div>
 ) : gameDetails ? (
-  <div style={{ animation: 'fadeSlideUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
+  <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
     {selectedTeam === 'game' && !selectedGame.isPreGame ? (
       /* TEAM COMPARISON VIEW */
       <div className="bg-zinc-900 rounded-2xl p-4">
