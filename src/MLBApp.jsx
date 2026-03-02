@@ -1199,7 +1199,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
   className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
   style={{
     transform: `translateX(${scoreboardSwipeX}px)`,
-    transition: isScoreboardSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    transition: isScoreboardSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     touchAction: 'pan-y',
     userSelect: 'none',
   }}
