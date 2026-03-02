@@ -697,12 +697,21 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
       ? Math.min(currentGameIndex + 1, liveGames.length - 1)
       : Math.max(currentGameIndex - 1, 0);
     if (newIndex === currentGameIndex) return;
-    const nextGame = liveGames[newIndex];
-    setCurrentGameIndex(newIndex);
-    setSelectedGame(nextGame);
-    setSelectedTeamTab('away');
-    setGameDetails(null);
-    fetchGameDetails(nextGame.id);
+  
+    const newGame = liveGames[newIndex];
+    const slideOut = direction === 'next' ? '-100%' : '100%';
+  
+    // Animate the strip sliding out
+    setScoreboardSwipeX(direction === 'next' ? -window.innerWidth : window.innerWidth);
+  
+    setTimeout(() => {
+      setCurrentGameIndex(newIndex);
+      setSelectedGame(newGame);
+      setSelectedTeamTab('away');
+      setGameDetails(null);
+      fetchGameDetails(newGame.id);
+      setScoreboardSwipeX(0);
+    }, 250);
   };
   
   const onScoreboardTouchStart = (e) => {
@@ -1199,7 +1208,7 @@ const oppScoreVal = parseInt(oppComp.score?.value ?? oppComp.score) || 0;
   className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
   style={{
     transform: `translateX(${scoreboardSwipeX}px)`,
-    transition: isScoreboardSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    transition: isScoreboardSwiping ? 'none' : 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
     touchAction: 'pan-y',
     userSelect: 'none',
   }}
