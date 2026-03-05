@@ -1,11 +1,13 @@
 export const config = {
     runtime: 'edge',
   };
-export default async function handler(req, res) {
-    const endpoint = req.url.split('/api/')[1].split('?')[0];
-    const queryParams = new URLSearchParams(req.query);
-    const queryString = queryParams.toString();
-    const nbaUrl = `https://stats.nba.com/stats/${endpoint}${queryString ? `?${queryString}` : ''}`;
+  
+  export default async function handler(req) {
+    const url = new URL(req.url);
+    const endpoint = url.pathname.split('/api/')[1];
+    const queryString = url.search;
+    
+    const nbaUrl = `https://stats.nba.com/stats/${endpoint}${queryString}`;
   
     try {
       const response = await fetch(nbaUrl, {
@@ -23,16 +25,20 @@ export default async function handler(req, res) {
         },
       });
   
-      if (!response.ok) {
-        return res.status(response.status).json({ error: `NBA API returned ${response.status}` });
-      }
-  
       const data = await response.json();
-      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      return res.status(200).json(data);
+  
+      return new Response(JSON.stringify(data), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 's-maxage=60',
+        },
+      });
     } catch (error) {
-      console.error('NBA proxy error:', error);
-      return res.status(500).json({ error: 'Failed to fetch from NBA API' });
+      return new Response(JSON.stringify({ error: 'Failed to fetch from NBA API' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
   }
