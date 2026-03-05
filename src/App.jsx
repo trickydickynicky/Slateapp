@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
+import PlayerGameBreakdown from './PlayerGameBreakdown';
 export default function SportsApp() {
   // Store API key safely (in production, use environment variables)
  
@@ -61,6 +62,7 @@ const [compareTeam, setCompareTeam] = useState(null);
 const [isCompareMode, setIsCompareMode] = useState(false);
 const [compareTeamStats, setCompareTeamStats] = useState(null);
 const [showAllUpcoming, setShowAllUpcoming] = useState(false);
+const [selectedGamePlayer, setSelectedGamePlayer] = useState(null);
 const [showFavorites, setShowFavorites] = useState(false);
 const [showRoster, setShowRoster] = useState(false);
 const [rosterData, setRosterData] = useState(null);
@@ -3110,6 +3112,27 @@ onClick={(e) => {
 </div>
 </div>
 </td>
+{/* 📊 Breakdown button */}
+{!player.isInjuredOnly && player.stats ? (
+  <td className="text-center px-1 sticky left-14 bg-zinc-900 z-20">
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setSelectedGamePlayer({
+          id: player.athlete.id,
+          name: player.athlete.displayName || player.athlete.shortName,
+          headshot: player.athlete.headshot?.href,
+          athlete: player.athlete,
+        });
+      }}
+      className="text-blue-500 text-xs font-bold px-1.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+    >
+      📊
+    </button>
+  </td>
+) : (
+  <td />
+)}
 {player.isInjuredOnly ? (
 <td className="text-center px-2" colSpan="15"></td>
 ) : (
@@ -4263,10 +4286,10 @@ onClick={(e) => {
                 </div>
 
                 <div className="text-right text-xs text-gray-500 flex-shrink-0">
-  <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
-  <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
-</div>
-              </div>
+                <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
+              <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
+            </div>
+          </div>
             ))}
           </div>
         )}
@@ -4274,6 +4297,18 @@ onClick={(e) => {
     </div>
   </div>
 )}
-      </div>
-    );
-  }
+
+{/* Player Game Breakdown */}
+{selectedGamePlayer && selectedGame && gameDetails && (
+  <PlayerGameBreakdown
+    player={selectedGamePlayer}
+    game={selectedGame}
+    gameDetails={gameDetails}
+    selectedTeam={selectedTeam}
+    onClose={() => setSelectedGamePlayer(null)}
+  />
+)}
+
+    </div>
+  );
+}
