@@ -1,3 +1,6 @@
+export const config = {
+    runtime: 'edge',
+  };
 export default async function handler(req, res) {
     const endpoint = req.url.split('/api/')[1].split('?')[0];
     const queryParams = new URLSearchParams(req.query);
