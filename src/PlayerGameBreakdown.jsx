@@ -13,7 +13,7 @@ const nbaFetch = async (endpoint, params) => {
   } else {
     // On Vercel, fetch directly from browser via corsproxy.io
     const nbaUrl = `https://stats.nba.com/stats/${endpoint}?${queryString}`;
-    url = `https://corsproxy.io/?url=${encodeURIComponent(nbaUrl)}`;
+url = `https://api.allorigins.win/raw?url=${encodeURIComponent(nbaUrl)}`;
   }
 
   const res = await fetch(url, {
