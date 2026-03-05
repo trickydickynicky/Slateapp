@@ -3099,23 +3099,9 @@ onClick={(e) => {
 />
 )}
 <div className="absolute left-14 top-0 z-30" style={{top: '-1px'}}>
-<div
-  className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}
->
-{player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>} {player.starter && <span className="text-blue-500 font-bold ml-1">S</span>}
-</div>
-{playerInjury && (
-<div className="text-xs text-red-500 whitespace-nowrap">
-{playerInjury.status} - {playerInjury.details?.type || 'Injury'}
-</div>
-        )}
-</div>
-</div>
-</td>
-{/* 📊 Breakdown button */}
-{!player.isInjuredOnly && player.stats ? (
-  <td className="text-center px-1 sticky left-14 bg-zinc-900 z-20">
-    <button
+<div className={`text-xs font-normal whitespace-nowrap ${player.isInjuredOnly ? 'text-gray-500' : 'text-gray-400'}`}>
+  {!player.isInjuredOnly && player.stats && (
+    <span
       onClick={(e) => {
         e.stopPropagation();
         setSelectedGamePlayer({
@@ -3125,14 +3111,23 @@ onClick={(e) => {
           athlete: player.athlete,
         });
       }}
-      className="text-blue-500 text-xs font-bold px-1.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 transition-colors"
+      className="text-blue-500 mr-1 cursor-pointer"
+      style={{ fontSize: 9 }}
     >
       📊
-    </button>
-  </td>
-) : (
-  <td />
-)}
+    </span>
+  )}
+  {player.athlete.shortName} {player.athlete.position?.abbreviation && <span className="text-gray-400">• {player.athlete.position.abbreviation}</span>} {player.starter && <span className="text-blue-500 font-bold ml-1">S</span>}
+</div>
+{playerInjury && (
+<div className="text-xs text-red-500 whitespace-nowrap">
+{playerInjury.status} - {playerInjury.details?.type || 'Injury'}
+</div>
+        )}
+</div>
+</div>
+</td>
+
 {player.isInjuredOnly ? (
 <td className="text-center px-2" colSpan="15"></td>
 ) : (
