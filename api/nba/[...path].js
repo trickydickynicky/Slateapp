@@ -1,17 +1,22 @@
 export const config = {
   runtime: 'nodejs',
-  maxDuration: 20,
+  maxDuration: 30,
 };
 
 export default async function handler(req, res) {
   const url = new URL(req.url, `https://${req.headers.host}`);
   const pathParts = url.pathname.split('/api/nba/');
-  const endpoint = pathParts[1] || '';
-  const queryString = url.search;
-  const nbaUrl = `https://stats.nba.com/stats/${endpoint}${queryString}`;
+const endpoint = pathParts[1] || '';
+
+// Rebuild query string, stripping the 'path' param Vercel injects
+const params = new URLSearchParams(url.search);
+params.delete('path');
+const queryString = params.toString() ? `?${params.toString()}` : '';
+
+const nbaUrl = `https://stats.nba.com/stats/${endpoint}${queryString}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 25000);
 
   try {
     const response = await fetch(nbaUrl, {
