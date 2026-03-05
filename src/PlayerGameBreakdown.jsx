@@ -7,26 +7,26 @@ const nbaFetch = async (endpoint, params) => {
   const queryString = new URLSearchParams(params).toString();
 
   let url;
+  let fetchOptions = {};
+
   if (IS_LOCAL) {
-    // Vite proxy handles this locally → forwards to stats.nba.com
+    // Vite proxy handles this locally
     url = `/api/nba/${endpoint}?${queryString}`;
+    fetchOptions = {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'x-nba-stats-origin': 'stats',
+        'x-nba-stats-token': 'true',
+      },
+    };
   } else {
-    // On Vercel, fetch directly from browser via corsproxy.io
+    // allorigins fetches on our behalf — no custom headers needed
     const nbaUrl = `https://stats.nba.com/stats/${endpoint}?${queryString}`;
-url = `https://api.allorigins.win/raw?url=${encodeURIComponent(nbaUrl)}`;
+    url = `https://api.allorigins.win/raw?url=${encodeURIComponent(nbaUrl)}`;
+    fetchOptions = {};
   }
 
-  const res = await fetch(url, {
-    headers: {
-      'Accept': 'application/json, text/plain, */*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Origin': 'https://www.nba.com',
-      'Referer': 'https://www.nba.com/',
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-      'x-nba-stats-origin': 'stats',
-      'x-nba-stats-token': 'true',
-    },
-  });
+  const res = await fetch(url, fetchOptions);
   if (!res.ok) throw new Error(`NBA API ${res.status}`);
   return res.json();
 };
