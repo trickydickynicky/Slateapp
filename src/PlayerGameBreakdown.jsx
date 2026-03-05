@@ -83,7 +83,6 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const color = teamColors[teamAbbr] || '#3B82F6';
 
-  // ESPN boxscore stats
   const teamIdx = selectedTeam === 'away' ? 0 : 1;
   const boxscoreRow = gameDetails?.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes?.find(
     a => a.athlete.id === player.id
@@ -101,11 +100,12 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     to:     s[7]  || '0',
     stl:    s[8]  || '0',
     blk:    s[9]  || '0',
-    pf:     s[12] || '0',
+oreb:   s[10] || '0',
+dreb:   s[11] || '0',
+pf:     s[12] || '0',
     pm:     s[13] || '0',
   };
 
-  // Parse shooting splits
   const split = str => {
     const p = (str || '0-0').split('-');
     return [parseFloat(p[0]) || 0, parseFloat(p[1]) || 0];
@@ -127,11 +127,12 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const pmStr   = pm > 0 ? `+${pm}` : `${pm}`;
   const pmColor = pm > 0 ? '#22c55e' : pm < 0 ? '#ef4444' : '#52525b';
 
-  // Game result
   const myScore  = selectedTeam === 'away' ? parseInt(game.awayScore) || 0 : parseInt(game.homeScore) || 0;
   const oppScore = selectedTeam === 'away' ? parseInt(game.homeScore) || 0 : parseInt(game.awayScore) || 0;
   const oppAbbr  = selectedTeam === 'away' ? game.homeTeam : game.awayTeam;
-  const oppLogo  = selectedTeam === 'away' ? game.homeLogo : game.awayLogo;
+const oppLogo  = selectedTeam === 'away' ? game.homeLogo : game.awayLogo;
+const myAbbr   = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
+const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
   const won      = myScore > oppScore;
 
   const headshot = player.athlete?.headshot?.href || player.headshot;
@@ -198,10 +199,10 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
 
               {/* Matchup + result */}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <img src={oppLogo} alt={oppAbbr} style={{ width: 15, height: 15 }} />
-                <span style={{ fontSize: 11, color: '#71717a', fontWeight: 600 }}>
-                  vs {oppAbbr}
-                </span>
+              <img src={myLogo} alt={myAbbr} style={{ width: 15, height: 15 }} />
+<span style={{ fontSize: 11, color: '#71717a', fontWeight: 600 }}>
+  vs {oppAbbr}
+</span>
                 {(game.isFinal || game.isLive) && (
                   <>
                     <span style={{ color: '#2d2d2d', fontSize: 11 }}>·</span>
@@ -226,195 +227,102 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
                 )}
               </div>
 
-              <div style={{ fontSize: 10, color: '#2d2d2d', marginTop: 3, fontWeight: 600 }}>
-                {gs.min} MIN
-              </div>
+             
             </div>
 
-            {/* Big PTS */}
-            <div className="flex flex-col items-end flex-shrink-0">
-              <span
-                style={{
-                  fontSize: 58, fontWeight: 900, lineHeight: 0.88,
-                  fontFamily: 'Rajdhani, sans-serif',
-                  color: 'white',
-                  textShadow: `0 0 28px ${color}44`,
-                }}
-              >
-                {gs.pts}
-              </span>
-              <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
-                PTS
-              </span>
-            </div>
+   {/* Big MIN */}
+<div className="flex flex-col items-end flex-shrink-0">
+  <span
+    style={{
+      fontSize: 58, fontWeight: 900, lineHeight: 0.88,
+      fontFamily: 'Rajdhani, sans-serif',
+      color: 'white',
+      textShadow: `0 0 28px ${color}44`,
+    }}
+  >
+    {gs.min}
+  </span>
+  <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
+    MIN
+  </span>
+</div>
           </div>
         </div>
 
-        {/* ── CORE STATS: 6-wide ── */}
-        <div className="grid grid-cols-6 gap-1.5 mb-3">
-          {[
-            { v: gs.reb, l: 'REB' },
-            { v: gs.ast, l: 'AST' },
-            { v: gs.stl, l: 'STL' },
-            { v: gs.blk, l: 'BLK' },
-            { v: gs.to,  l: 'TO'  },
-            { v: pmStr,  l: '+/−', a: pmColor },
-          ].map(({ v, l, a }) => (
-            <Tile key={l} value={v} label={l} accent={a} />
-          ))}
+        {/* ── BIG 3: PTS / REB / AST ── */}
+        <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+        {[
+  { v: gs.pts, l: 'PTS', hi: parseInt(gs.pts) >= 20 },
+  { v: gs.reb, l: 'REB', hi: parseInt(gs.reb) >= 10 },
+  { v: gs.ast, l: 'AST', hi: parseInt(gs.ast) >= 10 },
+].map(({ v, l, hi }) => (
+  <Tile key={l} value={v} label={l} accent={hi ? '#22c55e' : null} large />
+))}
         </div>
+
+      {/* ── SECONDARY ROW 1 ── */}
+<div className="grid grid-cols-4 gap-1.5 mb-1.5">
+  {[
+    { v: gs.stl,  l: 'STL' },
+    { v: gs.blk,  l: 'BLK' },
+    { v: gs.to,   l: 'TO'  },
+    { v: pmStr,   l: '+/−', a: pmColor },
+  ].map(({ v, l, a }) => (
+    <Tile key={l} value={v} label={l} accent={a} />
+  ))}
+</div>
+
+{/* ── SECONDARY ROW 2 ── */}
+<div className="grid grid-cols-3 gap-1.5 mb-3">
+  {[
+    { v: gs.oreb, l: 'OREB' },
+    { v: gs.dreb, l: 'DREB' },
+    { v: gs.pf,   l: 'PF'   },
+  ].map(({ v, l }) => (
+    <Tile key={l} value={v} label={l} />
+  ))}
+</div>
 
         {/* ── SHOOTING ── */}
         <div
-          className="rounded-2xl p-4 mb-3"
+          className="rounded-2xl p-4"
           style={{ background: '#0a0a0a', border: '1px solid #171717' }}
         >
-          {/* Header */}
+          {/* Header with TS% / eFG% */}
           <div
-            className="flex items-center justify-between mb-3"
+            className="flex items-center justify-between mb-4"
             style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}
           >
             <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>
               SHOOTING
             </span>
             <div className="flex gap-3">
-              <span style={{ fontSize: 10, color: '#3f3f46' }}>
-                TS%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {tsPct}%
-                </span>
-              </span>
-              <span style={{ fontSize: 10, color: '#3f3f46' }}>
-                eFG%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {efgPct}%
-                </span>
-              </span>
-            </div>
+  <span style={{ fontSize: 10, color: '#3f3f46' }}>
+    TS%&nbsp;
+    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+      {tsPct}%
+    </span>
+  </span>
+  <span style={{ fontSize: 10, color: '#3f3f46' }}>
+    eFG%&nbsp;
+    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+      {efgPct}%
+    </span>
+  </span>
+  <span style={{ fontSize: 10, color: '#3f3f46' }}>
+    FTr&nbsp;
+    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+    {fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}
+    </span>
+  </span>
+</div>
           </div>
 
-          {/* Rings */}
-          <div className="flex justify-around mb-4">
+          {/* Rings only */}
+          <div className="flex justify-around">
             <Ring pct={fgPct}  made={fgm} att={fga} label="FG"  color={color} />
             <Ring pct={tpPct}  made={tpm} att={tpa} label="3PT" color={color} />
             <Ring pct={ftPct}  made={ftm} att={fta} label="FT"  color={color} />
-          </div>
-
-          {/* Detail bars */}
-          {[
-            { label: 'FG',  pct: parseFloat(fgPct),  made: fgm, att: fga },
-            { label: '3PT', pct: parseFloat(tpPct),  made: tpm, att: tpa },
-            { label: 'FT',  pct: parseFloat(ftPct),  made: ftm, att: fta },
-          ].map(({ label, pct, made, att }) => (
-            <div key={label} className="flex items-center gap-2 mb-1.5 last:mb-0">
-              <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, width: 22 }}>{label}</span>
-              <div className="flex-1 rounded-full overflow-hidden" style={{ height: 5, background: '#171717' }}>
-                <div
-                  style={{
-                    width: `${att > 0 ? pct : 0}%`,
-                    height: '100%',
-                    background: `linear-gradient(90deg, ${color}55, ${color})`,
-                    borderRadius: 9999,
-                  }}
-                />
-              </div>
-              <span style={{ fontSize: 10, color: '#3f3f46', width: 28, textAlign: 'right' }}>
-                {made}/{att}
-              </span>
-              <span style={{
-                fontSize: 11, fontWeight: 800, fontFamily: 'Rajdhani, sans-serif',
-                color: att > 0 ? '#e4e4e7' : '#2d2d2d',
-                width: 34, textAlign: 'right',
-              }}>
-                {att > 0 ? `${pct}%` : '—'}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        {/* ── FULL BOX SCORE ── */}
-        <div
-          className="rounded-2xl p-4"
-          style={{ background: '#0a0a0a', border: '1px solid #171717' }}
-        >
-          <span style={{
-            fontSize: 10, color: '#2d2d2d', fontWeight: 700,
-            letterSpacing: '0.1em', display: 'block', marginBottom: 10,
-          }}>
-            FULL BOX SCORE
-          </span>
-
-          {/* PTS / REB / AST / +/− */}
-          <div className="grid grid-cols-4 gap-2 mb-2">
-            {[
-              { v: gs.pts, l: 'PTS', hi: true },
-              { v: gs.reb, l: 'REB', hi: parseInt(gs.reb) >= 10 },
-              { v: gs.ast, l: 'AST', hi: parseInt(gs.ast) >= 10 },
-              { v: pmStr,  l: '+/−', a: pmColor },
-            ].map(({ v, l, hi, a }) => (
-              <Tile key={l} value={v} label={l} accent={hi ? color : a || null} large={l === 'PTS'} />
-            ))}
-          </div>
-
-          {/* STL / BLK / TO / PF */}
-          <div className="grid grid-cols-4 gap-2 mb-2">
-            {[
-              { v: gs.stl, l: 'STL' },
-              { v: gs.blk, l: 'BLK' },
-              { v: gs.to,  l: 'TO'  },
-              { v: gs.pf,  l: 'PF'  },
-            ].map(({ v, l }) => (
-              <Tile key={l} value={v} label={l} />
-            ))}
-          </div>
-
-          {/* FG / 3PT / FT splits */}
-          <div className="grid grid-cols-3 gap-2 mb-2">
-            {[
-              { v: gs.fg?.replace('-',    '/'), l: 'FG'  },
-              { v: gs.three?.replace('-', '/'), l: '3PT' },
-              { v: gs.ft?.replace('-',    '/'), l: 'FT'  },
-            ].map(({ v, l }) => (
-              <div
-                key={l}
-                className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}
-              >
-                <span style={{
-                  fontSize: 16, fontWeight: 800, color: 'white',
-                  fontFamily: 'Rajdhani, sans-serif',
-                }}>
-                  {v}
-                </span>
-                <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>
-                  {l}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* TS% / eFG% accent pills */}
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { v: `${tsPct}%`, l: 'TRUE SHOOTING' },
-              { v: `${efgPct}%`, l: 'EFF FG' },
-            ].map(({ v, l }) => (
-              <div
-                key={l}
-                className="flex items-center justify-between rounded-xl px-3 py-2.5"
-                style={{ background: `${color}0d`, border: `1px solid ${color}20` }}
-              >
-                <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.06em' }}>
-                  {l}
-                </span>
-                <span style={{
-                  fontSize: 17, fontWeight: 900, color,
-                  fontFamily: 'Rajdhani, sans-serif',
-                }}>
-                  {v}
-                </span>
-              </div>
-            ))}
           </div>
         </div>
 
