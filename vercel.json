@@ -1,5 +1,0 @@
-{
-    "rewrites": [
-      { "source": "/api/nba/:path*", "destination": "/api/nba/[...path]" }
-    ]
-  }
