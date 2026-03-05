@@ -22,7 +22,7 @@ const nbaFetch = async (endpoint, params) => {
   } else {
     // allorigins fetches on our behalf — no custom headers needed
     const nbaUrl = `https://stats.nba.com/stats/${endpoint}?${queryString}`;
-    url = `https://api.allorigins.win/raw?url=${encodeURIComponent(nbaUrl)}`;
+    url = `https://thingproxy.freeboard.io/fetch/${nbaUrl}`;
     fetchOptions = {};
   }
 
