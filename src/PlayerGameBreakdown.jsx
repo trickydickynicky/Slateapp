@@ -1,9 +1,44 @@
 import React, { useState, useEffect } from 'react';
 
+// ─── NBA fetch helper — runs in the browser, bypasses Vercel IP blocks ────────
+const IS_LOCAL = window.location.hostname === 'localhost';
+
+const nbaFetch = async (endpoint, params) => {
+  const queryString = new URLSearchParams(params).toString();
+
+  let url;
+  if (IS_LOCAL) {
+    // Vite proxy handles this locally → forwards to stats.nba.com
+    url = `/api/nba/${endpoint}?${queryString}`;
+  } else {
+    // On Vercel, fetch directly from browser via corsproxy.io
+    const nbaUrl = `https://stats.nba.com/stats/${endpoint}?${queryString}`;
+    url = `https://corsproxy.io/?url=${encodeURIComponent(nbaUrl)}`;
+  }
+
+  const res = await fetch(url, {
+    headers: {
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Origin': 'https://www.nba.com',
+      'Referer': 'https://www.nba.com/',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'x-nba-stats-origin': 'stats',
+      'x-nba-stats-token': 'true',
+    },
+  });
+  if (!res.ok) throw new Error(`NBA API ${res.status}`);
+  return res.json();
+};
+
+// ─── Resolve ESPN player name → NBA.com PERSON_ID ────────────────────────────
 const fetchNBAComPlayerId = async (espnId, playerName) => {
   try {
-    const res = await fetch('/api/nba/commonallplayers?LeagueID=00&Season=2024-25&IsOnlyCurrentSeason=0');
-    const data = await res.json();
+    const data = await nbaFetch('commonallplayers', {
+      LeagueID: '00',
+      Season: '2024-25',
+      IsOnlyCurrentSeason: '0',
+    });
     const headers = data.resultSets[0].headers;
     const rows = data.resultSets[0].rowSet;
     const nameIdx = headers.indexOf('DISPLAY_FIRST_LAST');
@@ -20,6 +55,7 @@ const fetchNBAComPlayerId = async (espnId, playerName) => {
   }
 };
 
+// ─── Resolve NBA.com PERSON_ID + game date → Game_ID ─────────────────────────
 const fetchNBAComGameId = async (nbaComPlayerId, gameTime) => {
   try {
     const gameDate = new Date(gameTime);
@@ -27,14 +63,12 @@ const fetchNBAComGameId = async (nbaComPlayerId, gameTime) => {
     const day = String(gameDate.getDate()).padStart(2, '0');
     const year = gameDate.getFullYear();
 
-    const res = await fetch(`/api/nba/playergamelog?PlayerID=${nbaComPlayerId}&Season=2025-26&SeasonType=Regular+Season&LeagueID=00`, {
-      headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'x-nba-stats-origin': 'stats',
-        'x-nba-stats-token': 'true',
-      }
+    const data = await nbaFetch('playergamelog', {
+      PlayerID: nbaComPlayerId,
+      Season: '2025-26',
+      SeasonType: 'Regular Season',
+      LeagueID: '00',
     });
-    const data = await res.json();
     const logHeaders = data.resultSets[0].headers;
     const rows = data.resultSets[0].rowSet;
     const gameIdIdx = logHeaders.indexOf('Game_ID');
@@ -42,9 +76,11 @@ const fetchNBAComGameId = async (nbaComPlayerId, gameTime) => {
 
     const matchingGame = rows.find(r => {
       const parsed = new Date(r[gameDateIdx]);
-      return String(parsed.getMonth() + 1).padStart(2, '0') === month &&
-             String(parsed.getDate()).padStart(2, '0') === day &&
-             String(parsed.getFullYear()) === String(year);
+      return (
+        String(parsed.getMonth() + 1).padStart(2, '0') === month &&
+        String(parsed.getDate()).padStart(2, '0') === day &&
+        String(parsed.getFullYear()) === String(year)
+      );
     });
 
     return matchingGame?.[gameIdIdx] || null;
@@ -54,7 +90,7 @@ const fetchNBAComGameId = async (nbaComPlayerId, gameTime) => {
   }
 };
 
-// ─── Team colors map ──────────────────────────────────────────────────────────
+// ─── Team colors ──────────────────────────────────────────────────────────────
 const teamColors = {
   ATL:'#E03A3E',BOS:'#007A33',BKN:'#000000',CHA:'#1D1160',CHI:'#CE1141',
   CLE:'#860038',DAL:'#00538C',DEN:'#0E2240',DET:'#C8102E',GS:'#1D428A',
@@ -83,14 +119,12 @@ function ShotChart({ shots, color }) {
       </div>
     );
   }
-
   const W = 280, H = 240;
   const scaleX = (x) => ((x + 250) / 500) * W;
   const scaleY = (y) => H - ((y + 52) / 470) * H;
   const makes = shots.filter(s => s.SHOT_MADE_FLAG === 1);
   const misses = shots.filter(s => s.SHOT_MADE_FLAG === 0);
   const pct = shots.length > 0 ? ((makes.length / shots.length) * 100).toFixed(1) : 0;
-
   return (
     <div>
       <div className="flex justify-between text-xs text-gray-400 mb-2">
@@ -209,16 +243,24 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     const fetchShots = async () => {
       setLoadingShots(true);
       try {
-        const url = `/api/nba/shotchartdetail?PlayerID=${nbaComPlayerId}&GameID=${nbaComGameId}&TeamID=0&Season=2025-26&SeasonType=Regular+Season&ContextMeasure=FGA&Period=0&LastNGames=0&Month=0&OpponentTeamID=0&RangeType=0&StartPeriod=1&EndPeriod=10&StartRange=0&EndRange=28800&LeagueID=00`;
-        const res = await fetch(url, {
-          headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'x-nba-stats-origin': 'stats',
-            'x-nba-stats-token': 'true',
-          }
+        const data = await nbaFetch('shotchartdetail', {
+          PlayerID: nbaComPlayerId,
+          GameID: nbaComGameId,
+          TeamID: '0',
+          Season: '2025-26',
+          SeasonType: 'Regular Season',
+          ContextMeasure: 'FGA',
+          Period: '0',
+          LastNGames: '0',
+          Month: '0',
+          OpponentTeamID: '0',
+          RangeType: '0',
+          StartPeriod: '1',
+          EndPeriod: '10',
+          StartRange: '0',
+          EndRange: '28800',
+          LeagueID: '00',
         });
-        if (!res.ok) throw new Error('Shot chart fetch failed');
-        const data = await res.json();
         const resultSet = data.resultSets?.[0];
         if (resultSet) {
           const headers = resultSet.headers;
@@ -244,16 +286,14 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     const fetchAdvanced = async () => {
       setLoadingAdvanced(true);
       try {
-        const url = `/api/nba/boxscoreadvancedv3?GameID=${nbaComGameId}&StartPeriod=0&EndPeriod=10&StartRange=0&EndRange=28800&RangeType=0`;
-        const res = await fetch(url, {
-          headers: {
-            'Accept': 'application/json',
-            'x-nba-stats-origin': 'stats',
-            'x-nba-stats-token': 'true',
-          }
+        const data = await nbaFetch('boxscoreadvancedv3', {
+          GameID: nbaComGameId,
+          StartPeriod: '0',
+          EndPeriod: '10',
+          StartRange: '0',
+          EndRange: '28800',
+          RangeType: '0',
         });
-        if (!res.ok) throw new Error('Advanced box score failed');
-        const data = await res.json();
         const allPlayers = [
           ...(data.boxScoreAdvanced?.homeTeam?.players || []),
           ...(data.boxScoreAdvanced?.awayTeam?.players || []),
@@ -291,18 +331,10 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     const fetchHustle = async () => {
       setLoadingHustle(true);
       try {
-        const url = `/api/nba/hustlestatsboxscore?GameID=${nbaComGameId}`;
-        const res = await fetch(url, {
-          headers: {
-            'Accept': 'application/json',
-            'x-nba-stats-origin': 'stats',
-            'x-nba-stats-token': 'true',
-          }
+        const data = await nbaFetch('hustlestatsboxscore', {
+          GameID: nbaComGameId,
         });
-        if (!res.ok) throw new Error('Hustle stats failed');
-        const data = await res.json();
-       
-const players = data.resultSets?.find(rs => rs.name === 'PlayerStats');
+        const players = data.resultSets?.find(rs => rs.name === 'PlayerStats');
         if (players) {
           const headers = players.headers;
           const row = players.rowSet.find(r => String(r[headers.indexOf('PLAYER_ID')]) === String(nbaComPlayerId));
