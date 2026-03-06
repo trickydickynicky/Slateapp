@@ -318,13 +318,116 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
 </div>
           </div>
 
-          {/* Rings only */}
-          <div className="flex justify-around">
+         {/* Rings only */}
+         <div className="flex justify-around">
             <Ring pct={fgPct}  made={fgm} att={fga} label="FG"  color={color} />
             <Ring pct={tpPct}  made={tpm} att={tpa} label="3PT" color={color} />
             <Ring pct={ftPct}  made={ftm} att={fta} label="FT"  color={color} />
           </div>
         </div>
+
+       {/* ── ADVANCED ANALYTICS ── */}
+       {parseFloat(gs.min) > 0 && (() => {
+          const min    = parseFloat(gs.min) || 0;
+          const ast    = parseFloat(gs.ast) || 0;
+          const to     = parseFloat(gs.to)  || 0;
+          const stl    = parseFloat(gs.stl) || 0;
+          const blk    = parseFloat(gs.blk) || 0;
+          const pf     = parseFloat(gs.pf)  || 0;
+          const oreb   = parseFloat(gs.oreb)|| 0;
+          const dreb   = parseFloat(gs.dreb)|| 0;
+
+          const atr    = to > 0 ? (ast / to).toFixed(1) : ast > 0 ? '∞' : '—';
+          const stocks = stl + blk;
+          const pps    = fga > 0 ? (pts / fga).toFixed(2) : '—';
+          const ppr    = ((ast - to) / min).toFixed(2);
+          const sbRate = ((stl + blk) / min).toFixed(2);
+          const foulR  = (pf / min).toFixed(2);
+          const orbPct = (oreb + dreb) > 0 ? ((oreb / (oreb + dreb)) * 100).toFixed(1) + '%' : '—';
+          const usage  = ((fga + 0.44 * fta + to) / min).toFixed(2);
+          const per36  = {
+            pts: ((pts / min) * 36).toFixed(1),
+            reb: (((oreb + dreb) / min) * 36).toFixed(1),
+            ast: ((ast / min) * 36).toFixed(1),
+            stl: ((stl / min) * 36).toFixed(1),
+            blk: ((blk / min) * 36).toFixed(1),
+          };
+          const per48 = {
+            pts: ((pts / min) * 48).toFixed(1),
+            reb: (((oreb + dreb) / min) * 48).toFixed(1),
+            ast: ((ast / min) * 48).toFixed(1),
+          };
+
+          return (
+            <div className="rounded-2xl p-4 mt-3" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
+              <div className="flex items-center justify-between mb-4" style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
+                <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1.5 mb-1.5">
+                {[
+                  { v: atr,    l: 'AST/TO'  },
+                  { v: stocks, l: 'STOCKS'  },
+                  { v: pps,    l: 'PTS/FGA' },
+                ].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
+                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-5 gap-1.5 mb-1.5">
+                {[
+                  { v: ppr,    l: 'PPR/MIN' },
+                  { v: sbRate, l: 'S+B/MIN' },
+                  { v: foulR,  l: 'PF/MIN'  },
+                  { v: usage,  l: 'USG/MIN' },
+                  { v: orbPct, l: 'OREB%'   },
+                ].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
+                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 12, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 36 MIN</div>
+              <div className="grid grid-cols-5 gap-1.5 mb-3">
+                {[
+                  { v: per36.pts, l: 'PTS' },
+                  { v: per36.reb, l: 'REB' },
+                  { v: per36.ast, l: 'AST' },
+                  { v: per36.stl, l: 'STL' },
+                  { v: per36.blk, l: 'BLK' },
+                ].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
+                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 48 MIN</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { v: per48.pts, l: 'PTS' },
+                  { v: per48.reb, l: 'REB' },
+                  { v: per48.ast, l: 'AST' },
+                ].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
+                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </div>

@@ -4079,27 +4079,59 @@ onClick={(e) => {
       );
     })}
   </div>
-  {[
-    { label: 'FG%', value: parseFloat(nbaPlayerStats.currentSeason.fg_pct) },
-    { label: '3P%', value: parseFloat(nbaPlayerStats.currentSeason.three_p_pct) },
-    { label: 'FT%', value: parseFloat(nbaPlayerStats.currentSeason.ft_pct) },
-  ].map(({ label, value }) => (
-    <div key={label} className="mb-2 last:mb-0">
-      <div className="flex justify-between text-[10px] text-gray-500 mb-1">
-        <span>{label}</span>
-        <span>{value}%</span>
+  {(() => {
+    const fgParts = (nbaPlayerStats.currentSeason.fg || '0-0').split('-');
+    const fgm = parseFloat(fgParts[0]) || 0;
+    const fga = parseFloat(fgParts[1]) || 0;
+    const tpParts = (nbaPlayerStats.currentSeason.three_pt || '0-0').split('-');
+    const tpm = parseFloat(tpParts[0]) || 0;
+    const tpa = parseFloat(tpParts[1]) || 0;
+    const ftParts = (nbaPlayerStats.currentSeason.ft || '0-0').split('-');
+    const ftm = parseFloat(ftParts[0]) || 0;
+    const fta = parseFloat(ftParts[1]) || 0;
+    const fgPct = parseFloat(nbaPlayerStats.currentSeason.fg_pct) || 0;
+    const tpPct = parseFloat(nbaPlayerStats.currentSeason.three_p_pct) || 0;
+    const ftPct = parseFloat(nbaPlayerStats.currentSeason.ft_pct) || 0;
+    const color = teamColors[selectedNBAPlayer?.teamAbbr || (selectedTeam === 'away' ? selectedGame?.awayTeam : selectedGame?.homeTeam)] || '#3B82F6';
+    const size = 80;
+    const rings = [
+      { pct: fgPct, made: fgm, att: fga, label: 'FG' },
+      { pct: tpPct, made: tpm, att: tpa, label: '3PT' },
+      { pct: ftPct, made: ftm, att: fta, label: 'FT' },
+    ];
+    return (
+      <div className="flex justify-around mt-1">
+        {rings.map(({ pct, made, att, label }) => {
+          const r = (size / 2) - 5;
+          const circ = 2 * Math.PI * r;
+          const dash = (pct / 100) * circ;
+          const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
+          const totalMade = Math.round(made * gp);
+          const totalAtt = Math.round(att * gp);
+          return (
+            <div key={label} className="flex flex-col items-center">
+              <div style={{ position: 'relative', width: size, height: size }}>
+                <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#27272a" strokeWidth="3.5" />
+                  {att > 0 && (
+                    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
+                      strokeWidth="3.5" strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
+                  )}
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#3f3f46', fontFamily: 'Rajdhani, sans-serif' }}>
+                    {att > 0 ? `${pct}%` : '—'}
+                  </span>
+                </div>
+              </div>
+              <span style={{ fontSize: 10, color: '#71717a', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
+              <span style={{ fontSize: 9, color: '#52525b', marginTop: 1 }}>{totalMade}/{totalAtt}</span>
+            </div>
+          );
+        })}
       </div>
-      <div className="h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${value}%`,
-            backgroundColor: teamColors[selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam] || '#3B82F6'
-          }}
-        />
-      </div>
-    </div>
-  ))}
+    );
+  })()}
 </div>
 {/* Per Game */}
             <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
