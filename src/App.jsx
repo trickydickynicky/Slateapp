@@ -4,6 +4,7 @@ import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
 import PlayerGameBreakdown from './PlayerGameBreakdown';
+import PlayerComparison from './PlayerComparison';
 export default function SportsApp() {
   // Store API key safely (in production, use environment variables)
  
@@ -78,7 +79,7 @@ const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
 const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
 const scoreboardSwipeStart = useRef(null);
 const scoreboardRef = useRef(null);
-
+const [showPlayerComparison, setShowPlayerComparison] = useState(false);
 const [playerCache, setPlayerCache] = useState({});
 
 const toggleFavorite = (teamAbbr) => {
@@ -3113,7 +3114,12 @@ alt={player.athlete.shortName}
 className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
 onClick={(e) => {
   e.stopPropagation();
-  handlePlayerStatsClick(player.athlete.displayName || player.athlete.shortName, player.athlete.id);
+  handlePlayerStatsClick(
+    player.athlete.displayName || player.athlete.shortName,
+    player.athlete.id,
+    player.athlete.headshot?.href,
+    selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam
+  );
 }}
 />
 )}
@@ -4013,7 +4019,12 @@ onClick={(e) => {
             </div>
           );
         })()}
-
+<button
+  onClick={() => setShowPlayerComparison(true)}
+  className="w-full bg-zinc-900 hover:bg-zinc-800 rounded-xl py-2.5 text-sm font-semibold text-blue-400 transition-colors mb-4"
+>
+  Compare Player
+</button>
         {/* Season selector */}
         {availableSeasons.length > 0 && (
           <div className="flex items-center justify-between mb-4">
@@ -4354,7 +4365,13 @@ onClick={(e) => {
     onClose={() => setSelectedGamePlayer(null)}
   />
 )}
-
+{showPlayerComparison && selectedNBAPlayer && (
+  <PlayerComparison
+    basePlayer={selectedNBAPlayer}
+    playerCache={playerCache}
+    onClose={() => setShowPlayerComparison(false)}
+  />
+)}
     </div>
   );
 }
