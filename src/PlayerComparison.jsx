@@ -94,30 +94,19 @@ const StatRow = ({ label, leftVal, rightVal, inverse = false, isPercent = false,
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #0d0d0d' }}>
-      {/* Left */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
         {leftWins && !tied && (
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: leftColor, boxShadow: `0 0 6px ${leftColor}`, flexShrink: 0 }} />
         )}
-        <span style={{
-          fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1,
-          color: leftWins && !tied ? 'white' : '#2e2e2e',
-        }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: leftWins && !tied ? 'white' : '#2e2e2e' }}>
           {fmt(lv)}
         </span>
       </div>
-
-      {/* Label */}
       <div style={{ width: 52, textAlign: 'center', flexShrink: 0 }}>
         <span style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.12em' }}>{label}</span>
       </div>
-
-      {/* Right */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 7 }}>
-        <span style={{
-          fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1,
-          color: rightWins && !tied ? 'white' : '#2e2e2e',
-        }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: rightWins && !tied ? 'white' : '#2e2e2e' }}>
           {fmt(rv)}
         </span>
         {rightWins && !tied && (
@@ -138,7 +127,7 @@ const SectionLabel = ({ label }) => (
 );
 
 // ── Slim player header ─────────────────────────────────────────────────────
-const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onClear }) => {
+const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onClear, isTarget }) => {
   const color = player ? (teamColors[player.teamAbbr] || '#3B82F6') : '#222';
   const isLeft = side === 'left';
 
@@ -146,10 +135,14 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
     return (
       <div style={{
         flex: 1, borderRadius: 14, height: 68,
-        background: '#0a0a0a', border: '1px dashed #1a1a1a',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: isTarget ? '#0f0f0f' : '#0a0a0a',
+        border: isTarget ? '1px dashed #3B82F6' : '1px dashed #1a1a1a',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}>
-        <span style={{ fontSize: 10, color: '#222', fontWeight: 600 }}>No player</span>
+        <Search style={{ width: 12, height: 12, color: isTarget ? '#3B82F6' : '#222' }} />
+        <span style={{ fontSize: 10, color: isTarget ? '#3B82F6' : '#222', fontWeight: 600 }}>
+          {isTarget ? 'Searching...' : 'No player'}
+        </span>
       </div>
     );
   }
@@ -158,17 +151,17 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
     <div style={{
       flex: 1, borderRadius: 14, padding: '9px 11px',
       background: `linear-gradient(${isLeft ? '135deg' : '225deg'}, ${color}1a 0%, #080808 65%)`,
-      border: `1px solid ${color}20`,
+      border: `1px solid ${isTarget ? color : color + '20'}`,
       position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
         position: 'absolute', width: 70, height: 70, borderRadius: '50%',
-        background: color, opacity: 0.06, filter: 'blur(20px',
+        background: color, opacity: 0.06, filter: 'blur(20px)',
         top: -16, [isLeft ? 'left' : 'right']: -16, pointerEvents: 'none',
       }} />
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: 9 }}>
         <img
-          src={player.headshot}
+          src={player.headshot?.href || player.headshot}
           alt={player.name}
           onError={e => { e.target.src = `https://a.espncdn.com/i/teamlogos/nba/500/${player.teamAbbr}.png`; }}
           style={{ width: 38, height: 38, borderRadius: 9, objectFit: 'cover', border: `1.5px solid ${color}30`, flexShrink: 0 }}
@@ -189,8 +182,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
                 marginTop: 4, fontSize: 10, fontWeight: 700, outline: 'none', cursor: 'pointer',
                 borderRadius: 6, paddingLeft: 6, paddingRight: 6, paddingTop: 2, paddingBottom: 2,
                 background: `${color}18`, border: `1px solid ${color}30`, color: color,
-                appearance: 'none', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em',
-                maxWidth: '100%',
+                appearance: 'none', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em', maxWidth: '100%',
               }}
             >
               {stats.allSeasons.map(s => (
@@ -201,7 +193,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
         </div>
         {onClear && (
           <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, alignSelf: 'flex-start' }}>
-            <X style={{ width: 11, height: 11, color: '#2a2a2a' }} />
+            <X style={{ width: 11, height: 11, color: '#333' }} />
           </button>
         )}
       </div>
@@ -211,21 +203,27 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [comparePlayer, setComparePlayer] = useState(null);
+  // Left and right players are now fully independent
+  const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
+  const [rightPlayer, setRightPlayer] = useState(null);
 
   const [leftStats, setLeftStats] = useState(null);
   const [rightStats, setRightStats] = useState(null);
-  const [loadingLeft, setLoadingLeft] = useState(true);
+  const [loadingLeft, setLoadingLeft] = useState(!!basePlayer);
   const [loadingRight, setLoadingRight] = useState(false);
 
   const [leftSeason, setLeftSeason] = useState(null);
   const [rightSeason, setRightSeason] = useState(null);
 
-  const leftColor = teamColors[basePlayer?.teamAbbr] || '#3B82F6';
-  const rightColor = comparePlayer ? (teamColors[comparePlayer.teamAbbr] || '#EF4444') : '#EF4444';
+  // Which slot the search bar is targeting — defaults to right
+  const [searchTarget, setSearchTarget] = useState('right');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
 
+  const leftColor = teamColors[leftPlayer?.teamAbbr] || '#3B82F6';
+  const rightColor = teamColors[rightPlayer?.teamAbbr] || '#EF4444';
+
+  // Load base player on mount
   useEffect(() => {
     if (!basePlayer?.id) return;
     setLoadingLeft(true);
@@ -239,19 +237,45 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
     setSearchQuery(q);
     if (!q || q.trim().length < 2) { setSearchResults([]); return; }
     const lq = q.toLowerCase();
-    // No restriction — allow same player for season-vs-season comparisons
     setSearchResults(Object.values(playerCache || {}).filter(p => p.strPlayer?.toLowerCase().includes(lq)).slice(0, 8));
   };
 
-  const selectComparePlayer = player => {
+  const selectPlayer = player => {
     setSearchQuery(''); setSearchResults([]);
-    const cp = { id: player.idPlayer, name: player.strPlayer, headshot: player.strThumb, teamAbbr: player.strTeamAbbr, position: player.strPosition };
-    setComparePlayer(cp);
-    setLoadingRight(true);
-    fetchPlayerStats(cp.name, cp.id)
-      .then(data => { setRightStats(data); setRightSeason(data.allSeasons[0]?.year); })
-      .catch(() => setRightStats({ error: true }))
-      .finally(() => setLoadingRight(false));
+    const p = {
+      id: player.idPlayer, name: player.strPlayer,
+      headshot: player.strThumb, teamAbbr: player.strTeamAbbr, position: player.strPosition,
+    };
+
+    if (searchTarget === 'left') {
+      setLeftPlayer(p);
+      setLeftStats(null); setLeftSeason(null);
+      setLoadingLeft(true);
+      fetchPlayerStats(p.name, p.id)
+        .then(data => { setLeftStats(data); setLeftSeason(data.allSeasons[0]?.year); })
+        .catch(() => setLeftStats({ error: true }))
+        .finally(() => setLoadingLeft(false));
+      // After filling left, target right if empty
+      if (!rightPlayer) setSearchTarget('right');
+    } else {
+      setRightPlayer(p);
+      setRightStats(null); setRightSeason(null);
+      setLoadingRight(true);
+      fetchPlayerStats(p.name, p.id)
+        .then(data => { setRightStats(data); setRightSeason(data.allSeasons[0]?.year); })
+        .catch(() => setRightStats({ error: true }))
+        .finally(() => setLoadingRight(false));
+    }
+  };
+
+  const clearLeft = () => {
+    setLeftPlayer(null); setLeftStats(null); setLeftSeason(null);
+    setSearchTarget('left'); setSearchQuery(''); setSearchResults([]);
+  };
+
+  const clearRight = () => {
+    setRightPlayer(null); setRightStats(null); setRightSeason(null);
+    setSearchTarget('right'); setSearchQuery(''); setSearchResults([]);
   };
 
   const handleLeftSeasonChange = year => {
@@ -281,13 +305,10 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
       { label: 'FG%', lv: L.fg_pct, rv: R.fg_pct, isPercent: true },
       { label: '3P%', lv: L.three_p_pct, rv: R.three_p_pct, isPercent: true },
       { label: 'FT%', lv: L.ft_pct, rv: R.ft_pct, isPercent: true },
-      { label: 'TS%', lv: calcTS(L), rv: calcTS(R), isPercent: true },
-      { label: 'eFG%', lv: calcEFG(L), rv: calcEFG(R), isPercent: true },
     ]},
     { label: 'PLAYMAKING', rows: [
       { label: 'AST', lv: L.ast, rv: R.ast },
       { label: 'TO', lv: L.to, rv: R.to, inverse: true },
-      { label: '+/-', lv: L.plus_minus, rv: R.plus_minus },
     ]},
     { label: 'REBOUNDING', rows: [
       { label: 'REB', lv: L.reb, rv: R.reb },
@@ -304,12 +325,20 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
       { label: 'GS', lv: L.gs, rv: R.gs },
       { label: 'MIN', lv: L.min, rv: R.min },
     ]},
+    { label: 'ADVANCED', rows: [
+      { label: 'TS%', lv: calcTS(L), rv: calcTS(R), isPercent: true },
+      { label: 'eFG%', lv: calcEFG(L), rv: calcEFG(R), isPercent: true },
+    ]},
   ];
 
-  const showStats = comparePlayer && !loadingRight && rightStats?.currentSeason && leftStats?.currentSeason;
+  const showStats = leftPlayer && rightPlayer && !loadingLeft && !loadingRight && leftStats?.currentSeason && rightStats?.currentSeason;
+
   const Spinner = ({ c }) => (
     <div style={{ width: 18, height: 18, border: `2px solid #1a1a1a`, borderTopColor: c, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
   );
+
+  const searchPlaceholder = searchTarget === 'left' ? 'Searching left slot...' : 'Searching right slot...';
+  const targetColor = searchTarget === 'left' ? leftColor : rightColor;
 
   return (
     <div className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
@@ -323,43 +352,77 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
 
         {/* Player Cards */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          {/* LEFT */}
           {loadingLeft ? (
             <div style={{ flex: 1, borderRadius: 14, background: '#0a0a0a', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Spinner c={leftColor} />
             </div>
           ) : (
-            <PlayerHeader player={basePlayer} stats={leftStats} selectedSeason={leftSeason} onSeasonChange={handleLeftSeasonChange} side="left" />
+            <PlayerHeader
+              player={leftPlayer} stats={leftStats} selectedSeason={leftSeason}
+              onSeasonChange={handleLeftSeasonChange} side="left"
+              onClear={clearLeft}
+              isTarget={searchTarget === 'left' && !leftPlayer}
+            />
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', paddingBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <span style={{ fontSize: 10, fontWeight: 900, color: '#1c1c1c', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif' }}>VS</span>
           </div>
 
-          {comparePlayer ? (
-            loadingRight ? (
-              <div style={{ flex: 1, borderRadius: 14, background: '#0a0a0a', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Spinner c={rightColor} />
-              </div>
-            ) : (
-              <PlayerHeader player={comparePlayer} stats={rightStats} selectedSeason={rightSeason} onSeasonChange={handleRightSeasonChange} side="right"
-                onClear={() => { setComparePlayer(null); setRightStats(null); setRightSeason(null); }} />
-            )
+          {/* RIGHT */}
+          {loadingRight ? (
+            <div style={{ flex: 1, borderRadius: 14, background: '#0a0a0a', height: 68, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Spinner c={rightColor} />
+            </div>
           ) : (
-            <PlayerHeader player={null} side="right" />
+            <PlayerHeader
+              player={rightPlayer} stats={rightStats} selectedSeason={rightSeason}
+              onSeasonChange={handleRightSeasonChange} side="right"
+              onClear={clearRight}
+              isTarget={searchTarget === 'right' && !rightPlayer}
+            />
           )}
         </div>
 
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#0a0a0a', borderRadius: 12, padding: '11px 14px', border: '1px solid #1a1a1a' }}>
-            <Search style={{ width: 14, height: 14, color: '#2d2d2d', flexShrink: 0 }} />
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            background: '#0a0a0a', borderRadius: 12, padding: '11px 14px',
+            border: `1px solid ${targetColor}33`,
+          }}>
+            <Search style={{ width: 14, height: 14, color: targetColor, flexShrink: 0, opacity: 0.6 }} />
             <input
               type="text"
-              placeholder="Search any player — same player works too..."
+              placeholder={searchPlaceholder}
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
               style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', flex: 1, fontSize: 13, fontFamily: 'inherit' }}
             />
+            {/* Slot toggle buttons */}
+            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+              <button
+                onClick={() => { setSearchTarget('left'); setSearchQuery(''); setSearchResults([]); }}
+                style={{
+                  fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 6, cursor: 'pointer',
+                  background: searchTarget === 'left' ? leftColor : 'transparent',
+                  border: `1px solid ${searchTarget === 'left' ? leftColor : '#222'}`,
+                  color: searchTarget === 'left' ? 'white' : '#333',
+                  fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.06em',
+                }}
+              >L</button>
+              <button
+                onClick={() => { setSearchTarget('right'); setSearchQuery(''); setSearchResults([]); }}
+                style={{
+                  fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 6, cursor: 'pointer',
+                  background: searchTarget === 'right' ? rightColor : 'transparent',
+                  border: `1px solid ${searchTarget === 'right' ? rightColor : '#222'}`,
+                  color: searchTarget === 'right' ? 'white' : '#333',
+                  fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.06em',
+                }}
+              >R</button>
+            </div>
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 <X style={{ width: 13, height: 13, color: '#333' }} />
@@ -377,8 +440,8 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
               {searchResults.map((player, i) => (
                 <div
                   key={player.idPlayer}
-                  onClick={() => selectComparePlayer(player)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #0f0f0f' : 'none', transition: 'background 0.1s' }}
+                  onClick={() => selectPlayer(player)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #0f0f0f' : 'none' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#111'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
@@ -393,13 +456,23 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'white', fontFamily: 'Rajdhani, sans-serif' }}>{player.strPlayer}</div>
                     <div style={{ fontSize: 10, color: '#3f3f46' }}>{teamFullNames[player.strTeamAbbr] || player.strTeamAbbr} · {player.strPosition}</div>
                   </div>
+                  {/* Slot indicator in dropdown */}
+                  <div style={{
+                    fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5,
+                    background: searchTarget === 'left' ? `${leftColor}22` : `${rightColor}22`,
+                    color: searchTarget === 'left' ? leftColor : rightColor,
+                    border: `1px solid ${searchTarget === 'left' ? leftColor + '44' : rightColor + '44'}`,
+                    fontFamily: 'Rajdhani, sans-serif',
+                  }}>
+                    {searchTarget === 'left' ? 'L' : 'R'}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Stats comparison */}
+        {/* Stats */}
         {showStats ? (
           <div style={{ background: '#0a0a0a', borderRadius: 18, border: '1px solid #111', overflow: 'hidden' }}>
             {/* Legend */}
@@ -408,7 +481,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
                 <div style={{ width: 3, height: 20, borderRadius: 2, background: leftColor }} />
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
-                    {basePlayer.name?.split(' ').slice(-1)[0]}
+                    {leftPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
                   <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {leftStats?.currentSeason?.displayName || ''}
@@ -419,7 +492,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
-                    {comparePlayer.name?.split(' ').slice(-1)[0]}
+                    {rightPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
                   <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {rightStats?.currentSeason?.displayName || ''}
@@ -441,7 +514,6 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
               ))}
             </div>
           </div>
-        
         ) : null}
 
       </div>
