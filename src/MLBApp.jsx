@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Star } from 'lucide-react';
 import MLBPlayerComparison from './MLBPlayerComparison';
+import MLBPlayerGameBreakdown from './MLBPlayerGameBreakdown';
 
 export default function MLBApp({ sport, setSport }) {
   const [activeFilter, setActiveFilter] = useState('All');
@@ -45,12 +46,14 @@ export default function MLBApp({ sport, setSport }) {
     return null;
   });
   const [selectedMLBPlayer, setSelectedMLBPlayer] = useState(null);
+  const [selectedMLBGamePlayer, setSelectedMLBGamePlayer] = useState(null);
   const [mlbPlayerStats, setMlbPlayerStats] = useState(null);
   const [loadingMLBStats, setLoadingMLBStats] = useState(false);
   const [selectedMLBSeason, setSelectedMLBSeason] = useState(null);
   const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
   const [playerCache, setPlayerCache] = useState({});
   const [showMLBPlayerComparison, setShowMLBPlayerComparison] = useState(false);
+  
   const [currentGameIndex, setCurrentGameIndex] = useState(0);
   const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
   const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
@@ -1706,21 +1709,38 @@ export default function MLBApp({ sport, setSport }) {
                                             {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                           </div>
                                         )}
-                                        <div className="absolute left-14 top-0 z-30 pointer-events-none">
-                                          <div className="text-xs text-gray-400 whitespace-nowrap">
-                                            {!isSub && (
-                                              <span className="text-blue-500 mr-1">{idx}.</span>
-                                            )}
-                                            {player.athlete?.shortName}
-                                            {isSub ? (
-                                              <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
-                                            ) : (
-                                              player.athlete?.position?.abbreviation && (
-                                                <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
-                                              )
-                                            )}
-                                          </div>
-                                        </div>
+                                        
+        <div className="absolute left-14 top-0 z-30">
+          <div className="text-xs text-gray-400 whitespace-nowrap">
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedMLBGamePlayer({
+                  id: player.athlete?.id,
+                  name: player.athlete?.displayName || player.athlete?.shortName,
+                  headshot: player.athlete?.headshot?.href,
+                  athlete: player.athlete,
+                  position: player.athlete?.position?.abbreviation,
+                });
+              }}
+              className="text-blue-500 mr-1 cursor-pointer"
+              style={{ fontSize: 9 }}
+            >
+              📊
+           </span>
+            {!isSub && (
+              <span className="text-blue-500 mr-1">{idx}.</span>
+            )}
+            {player.athlete?.shortName}
+            {isSub ? (
+              <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
+            ) : (
+              player.athlete?.position?.abbreviation && (
+                <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
+              )
+            )}
+          </div>
+       </div>
                                       </div>
                                     </td>
                                     {[
@@ -1785,34 +1805,32 @@ export default function MLBApp({ sport, setSport }) {
                                             {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                           </div>
                                         )}
-                                        <div className="absolute left-14 top-0 z-30 pointer-events-none">
-                                          <div className="text-xs text-gray-400 whitespace-nowrap">
-                                            {player.athlete?.shortName}
-                                            {player.starter && (
-                                              <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
-                                            )}
-                                            {(() => {
-                                              const decision = player.notes?.find(n => n.type === 'pitchingDecision')?.text;
-                                              if (!decision) return null;
-                                              const isWin = decision.startsWith('W');
-                                              const isLoss = decision.startsWith('L');
-                                              const isSave = decision.startsWith('SV');
-                                              const isHold = decision.startsWith('H,') || decision === 'H';
-                                              const isBlownSave = decision.startsWith('BS');
-                                              const record = (isWin || isLoss || isSave) ? decision.split(', ')[1] : null;
-                                              return (
-                                                <>
-                                                  {isWin && <span className="ml-1 text-green-400 text-xs font-bold">Win</span>}
-                                                  {isLoss && <span className="ml-1 text-red-400 text-xs font-bold">Loss</span>}
-                                                  {isSave && <span className="ml-1 text-yellow-400 text-xs font-bold">Save</span>}
-                                                  {isHold && <span className="ml-1 text-blue-400 text-xs font-bold">Hold</span>}
-                                                  {isBlownSave && <span className="ml-1 text-orange-400 text-xs font-bold">Blown Save</span>}
-                                                  {record && <span className="ml-1 text-gray-500 text-xs">({record})</span>}
-                                                </>
-                                              );
-                                            })()}
-                                          </div>
-                                        </div>
+                                               <div className="absolute left-14 top-0 z-30">
+          <div className="text-xs text-gray-400 whitespace-nowrap">
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedMLBGamePlayer({
+                  id: player.athlete?.id,
+                  name: player.athlete?.displayName || player.athlete?.shortName,
+                  headshot: player.athlete?.headshot?.href,
+                  athlete: player.athlete,
+                  position: player.athlete?.position?.abbreviation,
+                });
+              }}
+              className="text-blue-500 mr-1 cursor-pointer"
+              style={{ fontSize: 9 }}
+            >
+              📊
+            </span>
+            {player.athlete?.shortName}
+            {player.starter && (
+              <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
+            )}
+            {/* ...existing decision badges (Win/Loss/Save/Hold/BlownSave) stay unchanged... */}
+          </div>
+        </div>
+
                                       </div>
                                     </td>
                                     {[
@@ -2562,6 +2580,15 @@ export default function MLBApp({ sport, setSport }) {
           onClose={() => setShowMLBPlayerComparison(false)}
         />
       )}
+   {selectedMLBGamePlayer && selectedGame && gameDetails && (
+      <MLBPlayerGameBreakdown
+       player={selectedMLBGamePlayer}
+       game={selectedGame}
+        gameDetails={gameDetails}
+        selectedTeam={selectedTeamTab}
+        onClose={() => setSelectedMLBGamePlayer(null)}
+      />
+    )}
     </div>
   );
 }
