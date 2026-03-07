@@ -23,7 +23,7 @@ const [appReady, setAppReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
+  
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
   const [playerStats, setPlayerStats] = useState(null);
@@ -78,6 +78,8 @@ const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
 const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
 const scoreboardSwipeStart = useRef(null);
 const scoreboardRef = useRef(null);
+
+const [playerCache, setPlayerCache] = useState({});
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -309,7 +311,48 @@ useEffect(() => {
   return () => clearInterval(oddsInterval);
 }, []);
 
+useEffect(() => {
+  const loadAllPlayers = async () => {
+    const cached = localStorage.getItem('allPlayersCache');
+    const cacheTime = localStorage.getItem('allPlayersCache_time');
+    const now = Date.now();
+    
+    if (cached && cacheTime && (now - parseInt(cacheTime)) < 86400000) {
+      setPlayerCache(JSON.parse(cached));
+      return;
+    }
 
+    const allTeamIds = Object.values(espnTeamIds);
+    const players = {};
+
+    for (let i = 0; i < allTeamIds.length; i += 3) {
+      const batch = allTeamIds.slice(i, i + 3);
+      await Promise.all(batch.map(async (id) => {
+        try {
+          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/roster`);
+          const data = await res.json();
+          (data.athletes || []).forEach(p => {
+            players[p.id] = {
+              idPlayer: p.id,
+              strPlayer: p.displayName,
+              strThumb: p.headshot?.href || null,
+              strPosition: p.position?.abbreviation || '',
+              strTeamAbbr: Object.keys(espnTeamIds).find(k => espnTeamIds[k] === id) || '',
+              jersey: p.jersey || null,
+            };
+          });
+        } catch (e) {}
+      }));
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    localStorage.setItem('allPlayersCache', JSON.stringify(players));
+    localStorage.setItem('allPlayersCache_time', now.toString());
+    setPlayerCache(players);
+  };
+
+  loadAllPlayers();
+}, []);
   const fetchLiveScores = async () => {
     try {
        // Use local timezone date, not UTC
@@ -648,64 +691,42 @@ const calculateWinProbability = (spread, favoriteTeam, team, game) => {
 };
 
 
-const searchPlayers = async (query) => {
+const searchPlayers = (query) => {
   if (!query || query.trim().length < 2) {
     setSearchResults([]);
     setShowSearchResults(false);
     return;
   }
-
-  setIsSearching(true);
   setShowSearchResults(true);
-  try {
-    const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(query)}`);
-    const data = await response.json();
-    
-    const nbaPlayers = data.player?.filter(player => {
-      return player.strSport === 'Basketball' && (player.strLeague === 'NBA' || player.strTeam);
-    }) || [];
-    
-    setSearchResults(nbaPlayers);
-  } catch (error) {
-    console.error('Error searching players:', error);
-    setSearchResults([]);
-  }
-  setIsSearching(false);
+  const q = query.toLowerCase();
+  const results = Object.values(playerCache)
+    .filter(p => p.strPlayer?.toLowerCase().includes(q))
+    .slice(0, 10);
+  setSearchResults(results);
 };
-
-
 
 const handleSearchChange = (e) => {
   const query = e.target.value;
   setSearchQuery(query);
-  
-  if (window.searchTimeout) clearTimeout(window.searchTimeout);
-  window.searchTimeout = setTimeout(() => {
-    searchPlayers(query);
-  }, 300);
+  searchPlayers(query);
 };
 
-const fetchPlayerStats = async (player) => {
-  setLoadingPlayer(true);
-  
-  try {
-    const statsResponse = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${player.idPlayer}`);
-    const statsData = await statsResponse.json();
-    
-    setPlayerStats(statsData.players?.[0] || player);
-  } catch (error) {
-    console.error('Error fetching player stats:', error);
-    setPlayerStats(player);
-  }
-  
-  setLoadingPlayer(false);
-};
+
 
 const handlePlayerClick = (player) => {
   setShowSearchResults(false);
   setSearchQuery('');
-  setSelectedPlayer(player);
-  fetchPlayerStats(player);
+  setShowSearch(false);
+  const teamLogo = `https://a.espncdn.com/i/teamlogos/nba/500/${player.strTeamAbbr}.png`;
+  handlePlayerStatsClick(
+    player.strPlayer,
+    player.idPlayer,
+    player.strThumb,
+    player.strTeamAbbr,
+    teamLogo,
+    player.jersey,
+    player.strPosition
+  );
 };
 
   const fetchNBAPlayerStats = async (playerName, playerId, specificSeason = null) => {
@@ -1609,24 +1630,22 @@ console.log('🏀 FULL DATA:', data);
     </button>
     
     {showSearchResults && (
-      <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 rounded-xl max-h-96 overflow-y-auto z-50 shadow-lg border border-zinc-800">
-        {isSearching ? (
-          <div className="p-4 text-center text-gray-400">Searching...</div>
-        ) : searchResults.length > 0 ? (
-          <div className="py-2">
-            {searchResults.map((player) => (
-              <div
-                key={player.idPlayer}
-                className="px-4 py-3 hover:bg-zinc-800 cursor-pointer flex items-center gap-3"
-                onClick={() => handlePlayerClick(player)}
-              >
-                {player.strThumb && (
-                  <img 
-                    src={player.strThumb} 
-                    alt={player.strPlayer}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                )}
+  <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900 rounded-xl max-h-96 overflow-y-auto z-50 shadow-lg border border-zinc-800">
+    {searchResults.length > 0 ? (
+      <div className="py-2">
+        {searchResults.map((player) => (
+          <div
+            key={player.idPlayer}
+            className="px-4 py-3 hover:bg-zinc-800 cursor-pointer flex items-center gap-3"
+            onClick={() => handlePlayerClick(player)}
+          >
+            {player.strThumb && (
+              <img 
+                src={player.strThumb} 
+                alt={player.strPlayer}
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            )}
                 <div className="flex-1">
                   <div className="font-semibold">{player.strPlayer}</div>
                   <div className="text-sm text-gray-400">
