@@ -93,24 +93,24 @@ const StatRow = ({ label, leftVal, rightVal, inverse = false, isPercent = false,
   const fmt = v => isPercent ? `${v}%` : v;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #0d0d0d' }}>
+    <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #27272a' }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
         {leftWins && !tied && (
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: leftColor, boxShadow: `0 0 6px ${leftColor}`, flexShrink: 0 }} />
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3B82F6', boxShadow: '0 0 6px #3B82F6', flexShrink: 0 }} />
         )}
-        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: leftWins && !tied ? 'white' : '#2e2e2e' }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: leftWins && !tied ? 'white' : '#6b7280' }}>
           {fmt(lv)}
         </span>
       </div>
       <div style={{ width: 52, textAlign: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.12em' }}>{label}</span>
+        <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.12em' }}>{label}</span>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 7 }}>
-        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: rightWins && !tied ? 'white' : '#2e2e2e' }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: rightWins && !tied ? 'white' : '#6b7280' }}>
           {fmt(rv)}
         </span>
         {rightWins && !tied && (
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: rightColor, boxShadow: `0 0 6px ${rightColor}`, flexShrink: 0 }} />
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3B82F6', boxShadow: '0 0 6px #3B82F6', flexShrink: 0 }} />
         )}
       </div>
     </div>
@@ -120,15 +120,15 @@ const StatRow = ({ label, leftVal, rightVal, inverse = false, isPercent = false,
 // ── Section divider ────────────────────────────────────────────────────────
 const SectionLabel = ({ label }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, paddingBottom: 2 }}>
-    <div style={{ flex: 1, height: 1, background: '#111' }} />
-    <span style={{ fontSize: 9, color: '#222', fontWeight: 700, letterSpacing: '0.14em' }}>{label}</span>
-    <div style={{ flex: 1, height: 1, background: '#111' }} />
+    <div style={{ flex: 1, height: 1, background: '#3f3f46' }} />
+    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.14em' }}>{label}</span>
+    <div style={{ flex: 1, height: 1, background: '#3f3f46' }} />
   </div>
 );
 
 // ── Slim player header ─────────────────────────────────────────────────────
 const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onClear, isTarget }) => {
-  const color = player ? (teamColors[player.teamAbbr] || '#3B82F6') : '#222';
+  const color = player ? (teamColors[player.teamAbbr] || '#3B82F6') : '#6b7280';
   const isLeft = side === 'left';
 
   if (!player) {
@@ -136,11 +136,11 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
       <div style={{
         flex: 1, borderRadius: 14, height: 68,
         background: isTarget ? '#0f0f0f' : '#0a0a0a',
-        border: isTarget ? '1px dashed #3B82F6' : '1px dashed #1a1a1a',
+        border: isTarget ? '1px dashed #3B82F6' : '1px dashed #3f3f46',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}>
-        <Search style={{ width: 12, height: 12, color: isTarget ? '#3B82F6' : '#222' }} />
-        <span style={{ fontSize: 10, color: isTarget ? '#3B82F6' : '#222', fontWeight: 600 }}>
+        <Search style={{ width: 12, height: 12, color: isTarget ? '#3B82F6' : '#6b7280' }} />
+        <span style={{ fontSize: 10, color: isTarget ? '#3B82F6' : '#6b7280', fontWeight: 600 }}>
           {isTarget ? 'Searching...' : 'No player'}
         </span>
       </div>
@@ -172,7 +172,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
             <img src={`https://a.espncdn.com/i/teamlogos/nba/500/${player.teamAbbr}.png`} alt="" style={{ width: 10, height: 10 }} />
-            <span style={{ fontSize: 10, color: '#444', fontWeight: 600 }}>{player.teamAbbr}</span>
+            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 600 }}>{player.teamAbbr}</span>
           </div>
           {stats?.allSeasons?.length > 0 && (
             <select
@@ -181,7 +181,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
               style={{
                 marginTop: 4, fontSize: 10, fontWeight: 700, outline: 'none', cursor: 'pointer',
                 borderRadius: 6, paddingLeft: 6, paddingRight: 6, paddingTop: 2, paddingBottom: 2,
-                background: `${color}18`, border: `1px solid ${color}30`, color: color,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: 'white',
                 appearance: 'none', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em', maxWidth: '100%',
               }}
             >
@@ -193,7 +193,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
         </div>
         {onClear && (
           <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, alignSelf: 'flex-start' }}>
-            <X style={{ width: 11, height: 11, color: '#333' }} />
+            <X style={{ width: 11, height: 11, color: '#6b7280' }} />
           </button>
         )}
       </div>
@@ -203,7 +203,6 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
-  // Left and right players are now fully independent
   const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
   const [rightPlayer, setRightPlayer] = useState(null);
 
@@ -215,7 +214,6 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
   const [leftSeason, setLeftSeason] = useState(null);
   const [rightSeason, setRightSeason] = useState(null);
 
-  // Which slot the search bar is targeting — defaults to right
   const [searchTarget, setSearchTarget] = useState('right');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -223,7 +221,6 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
   const leftColor = teamColors[leftPlayer?.teamAbbr] || '#3B82F6';
   const rightColor = teamColors[rightPlayer?.teamAbbr] || '#EF4444';
 
-  // Load base player on mount
   useEffect(() => {
     if (!basePlayer?.id) return;
     setLoadingLeft(true);
@@ -255,7 +252,6 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
         .then(data => { setLeftStats(data); setLeftSeason(data.allSeasons[0]?.year); })
         .catch(() => setLeftStats({ error: true }))
         .finally(() => setLoadingLeft(false));
-      // After filling left, target right if empty
       if (!rightPlayer) setSearchTarget('right');
     } else {
       setRightPlayer(p);
@@ -334,7 +330,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
   const showStats = leftPlayer && rightPlayer && !loadingLeft && !loadingRight && leftStats?.currentSeason && rightStats?.currentSeason;
 
   const Spinner = ({ c }) => (
-    <div style={{ width: 18, height: 18, border: `2px solid #1a1a1a`, borderTopColor: c, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div style={{ width: 18, height: 18, border: `2px solid #3f3f46`, borderTopColor: c, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
   );
 
   const searchPlaceholder = searchTarget === 'left' ? 'Searching left slot...' : 'Searching right slot...';
@@ -346,7 +342,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-          <button onClick={onClose} style={{ color: '#52525b', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
           <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
         </div>
 
@@ -367,7 +363,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
           )}
 
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontSize: 10, fontWeight: 900, color: '#1c1c1c', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif' }}>VS</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: '#6b7280', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif' }}>VS</span>
           </div>
 
           {/* RIGHT */}
@@ -407,8 +403,8 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
                 style={{
                   fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 6, cursor: 'pointer',
                   background: searchTarget === 'left' ? leftColor : 'transparent',
-                  border: `1px solid ${searchTarget === 'left' ? leftColor : '#222'}`,
-                  color: searchTarget === 'left' ? 'white' : '#333',
+                  border: `1px solid ${searchTarget === 'left' ? leftColor : '#3f3f46'}`,
+                  color: searchTarget === 'left' ? 'white' : '#6b7280',
                   fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.06em',
                 }}
               >L</button>
@@ -417,15 +413,15 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
                 style={{
                   fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 6, cursor: 'pointer',
                   background: searchTarget === 'right' ? rightColor : 'transparent',
-                  border: `1px solid ${searchTarget === 'right' ? rightColor : '#222'}`,
-                  color: searchTarget === 'right' ? 'white' : '#333',
+                  border: `1px solid ${searchTarget === 'right' ? rightColor : '#3f3f46'}`,
+                  color: searchTarget === 'right' ? 'white' : '#6b7280',
                   fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.06em',
                 }}
               >R</button>
             </div>
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                <X style={{ width: 13, height: 13, color: '#333' }} />
+                <X style={{ width: 13, height: 13, color: '#6b7280' }} />
               </button>
             )}
           </div>
@@ -433,7 +429,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-              background: '#0a0a0a', borderRadius: 12, border: '1px solid #1a1a1a',
+              background: '#0a0a0a', borderRadius: 12, border: '1px solid #27272a',
               maxHeight: 260, overflowY: 'auto', zIndex: 50,
               boxShadow: '0 24px 60px rgba(0,0,0,0.9)',
             }}>
@@ -441,20 +437,20 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
                 <div
                   key={player.idPlayer}
                   onClick={() => selectPlayer(player)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #0f0f0f' : 'none' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #18181b' : 'none' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#111'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   {player.strThumb ? (
                     <img src={player.strThumb} alt={player.strPlayer} style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#444', flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#6b7280', flexShrink: 0 }}>
                       {player.strPlayer?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
                   )}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'white', fontFamily: 'Rajdhani, sans-serif' }}>{player.strPlayer}</div>
-                    <div style={{ fontSize: 10, color: '#3f3f46' }}>{teamFullNames[player.strTeamAbbr] || player.strTeamAbbr} · {player.strPosition}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>{teamFullNames[player.strTeamAbbr] || player.strTeamAbbr} · {player.strPosition}</div>
                   </div>
                   {/* Slot indicator in dropdown */}
                   <div style={{
@@ -474,27 +470,27 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
 
         {/* Stats */}
         {showStats ? (
-          <div style={{ background: '#0a0a0a', borderRadius: 18, border: '1px solid #111', overflow: 'hidden' }}>
+          <div style={{ background: '#0a0a0a', borderRadius: 18, border: '1px solid #27272a', overflow: 'hidden' }}>
             {/* Legend */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: '#080808', borderBottom: '1px solid #0f0f0f' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: '#080808', borderBottom: '1px solid #18181b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 3, height: 20, borderRadius: 2, background: leftColor }} />
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
                     {leftPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
-                  <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {leftStats?.currentSeason?.displayName || ''}
                   </div>
                 </div>
               </div>
-              <span style={{ fontSize: 9, color: '#1a1a1a', fontWeight: 700, letterSpacing: '0.1em' }}>VS</span>
+              <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>VS</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
                     {rightPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
-                  <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {rightStats?.currentSeason?.displayName || ''}
                   </div>
                 </div>

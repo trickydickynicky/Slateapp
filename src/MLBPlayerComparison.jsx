@@ -32,14 +32,12 @@ const fetchMLBPlayerStats = async (playerName, playerId) => {
   );
   if (!response.ok) throw new Error('Failed to fetch');
   const data = await response.json();
-  console.log('CATEGORIES:', data.categories?.map(c => c.name));
 
-  // Batting category
   const battingCategory = data.categories?.find(cat => cat.name === 'career-batting');
-const expandedCategory = data.categories?.find(cat => cat.name === 'expanded-batting');
-const pitchingCategory = data.categories?.find(cat => cat.name?.includes('pitching'));
-const primaryCategory = battingCategory || pitchingCategory || data.categories?.[0];
-if (!primaryCategory) throw new Error('No stats data');
+  const expandedCategory = data.categories?.find(cat => cat.name === 'expanded-batting');
+  const pitchingCategory = data.categories?.find(cat => cat.name?.includes('pitching'));
+  const primaryCategory = battingCategory || pitchingCategory || data.categories?.[0];
+  if (!primaryCategory) throw new Error('No stats data');
 
   const allSeasons = [];
   const seenYears = new Set();
@@ -75,11 +73,7 @@ if (!primaryCategory) throw new Error('No stats data');
   const latestYear = allSeasons[0]?.year;
 
   return {
-    playerName,
-    playerId,
-    allSeasons,
-    battingByYear,
-    pitchingByYear,
+    playerName, playerId, allSeasons, battingByYear, pitchingByYear,
     currentBatting: battingByYear[latestYear] || null,
     currentPitching: pitchingByYear[latestYear] || null,
     isPitcher: !!pitchingCategory && !battingCategory,
@@ -87,7 +81,7 @@ if (!primaryCategory) throw new Error('No stats data');
 };
 
 // ── Stat Row ──────────────────────────────────────────────────────────────
-const StatRow = ({ label, leftVal, rightVal, inverse = false, leftColor, rightColor }) => {
+const StatRow = ({ label, leftVal, rightVal, inverse = false }) => {
   const lv = parseFloat(leftVal) || 0;
   const rv = parseFloat(rightVal) || 0;
   const leftWins = inverse ? lv < rv : lv > rv;
@@ -98,29 +92,28 @@ const StatRow = ({ label, leftVal, rightVal, inverse = false, leftColor, rightCo
     if (v === '-' || v === undefined || v === null) return '-';
     const n = parseFloat(v);
     if (isNaN(n)) return v;
-    // Show decimals for rate stats (< 10), whole for counting stats
     return n < 10 && n % 1 !== 0 ? n.toFixed(3).replace(/^0/, '') : n % 1 !== 0 ? n.toFixed(2) : n.toString();
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #0d0d0d' }}>
+    <div style={{ display: 'flex', alignItems: 'center', paddingTop: 12, paddingBottom: 12, borderBottom: '1px solid #27272a' }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 7 }}>
         {leftWins && !tied && (
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: leftColor, boxShadow: `0 0 6px ${leftColor}`, flexShrink: 0 }} />
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3B82F6', boxShadow: '0 0 6px #3B82F6', flexShrink: 0 }} />
         )}
-        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: leftWins && !tied ? 'white' : '#2e2e2e' }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: leftWins && !tied ? 'white' : '#6b7280' }}>
           {fmt(leftVal)}
         </span>
       </div>
       <div style={{ width: 56, textAlign: 'center', flexShrink: 0 }}>
-        <span style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.12em' }}>{label}</span>
+        <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.12em' }}>{label}</span>
       </div>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 7 }}>
-        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: rightWins && !tied ? 'white' : '#2e2e2e' }}>
+        <span style={{ fontSize: 22, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1, color: rightWins && !tied ? 'white' : '#6b7280' }}>
           {fmt(rightVal)}
         </span>
         {rightWins && !tied && (
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: rightColor, boxShadow: `0 0 6px ${rightColor}`, flexShrink: 0 }} />
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#3B82F6', boxShadow: '0 0 6px #3B82F6', flexShrink: 0 }} />
         )}
       </div>
     </div>
@@ -129,15 +122,15 @@ const StatRow = ({ label, leftVal, rightVal, inverse = false, leftColor, rightCo
 
 const SectionLabel = ({ label }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 20, paddingBottom: 2 }}>
-    <div style={{ flex: 1, height: 1, background: '#111' }} />
-    <span style={{ fontSize: 9, color: '#222', fontWeight: 700, letterSpacing: '0.14em' }}>{label}</span>
-    <div style={{ flex: 1, height: 1, background: '#111' }} />
+    <div style={{ flex: 1, height: 1, background: '#3f3f46' }} />
+    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.14em' }}>{label}</span>
+    <div style={{ flex: 1, height: 1, background: '#3f3f46' }} />
   </div>
 );
 
-// ── Slim player header ────────────────────────────────────────────────────
+// ── Player Header ─────────────────────────────────────────────────────────
 const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onClear, isTarget }) => {
-  const color = player ? (teamColors[player.teamAbbr] || '#3B82F6') : '#222';
+  const color = player ? (teamColors[player.teamAbbr] || '#3B82F6') : '#6b7280';
   const isLeft = side === 'left';
 
   if (!player) {
@@ -145,11 +138,11 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
       <div style={{
         flex: 1, borderRadius: 14, height: 68,
         background: isTarget ? '#0f0f0f' : '#0a0a0a',
-        border: isTarget ? '1px dashed #3B82F6' : '1px dashed #1a1a1a',
+        border: isTarget ? '1px dashed #3B82F6' : '1px dashed #3f3f46',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}>
-        <Search style={{ width: 12, height: 12, color: isTarget ? '#3B82F6' : '#222' }} />
-        <span style={{ fontSize: 10, color: isTarget ? '#3B82F6' : '#222', fontWeight: 600 }}>
+        <Search style={{ width: 12, height: 12, color: isTarget ? '#3B82F6' : '#6b7280' }} />
+        <span style={{ fontSize: 10, color: isTarget ? '#3B82F6' : '#6b7280', fontWeight: 600 }}>
           {isTarget ? 'Searching...' : 'No player'}
         </span>
       </div>
@@ -179,7 +172,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
             style={{ width: 38, height: 38, borderRadius: 9, objectFit: 'cover', border: `1.5px solid ${color}30`, flexShrink: 0 }}
           />
         ) : (
-          <div style={{ width: 38, height: 38, borderRadius: 9, background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#555', flexShrink: 0 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 9, background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#6b7280', flexShrink: 0 }}>
             {player.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
           </div>
         )}
@@ -189,7 +182,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
             <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${player.teamAbbr}.png`} alt="" style={{ width: 10, height: 10 }} />
-            <span style={{ fontSize: 10, color: '#444', fontWeight: 600 }}>{player.teamAbbr}</span>
+            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 600 }}>{player.teamAbbr}</span>
           </div>
           {allSeasons.length > 0 && (
             <select
@@ -198,7 +191,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
               style={{
                 marginTop: 4, fontSize: 10, fontWeight: 700, outline: 'none', cursor: 'pointer',
                 borderRadius: 6, paddingLeft: 6, paddingRight: 6, paddingTop: 2, paddingBottom: 2,
-                background: `${color}18`, border: `1px solid ${color}30`, color: color,
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: 'white',
                 appearance: 'none', fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.04em', maxWidth: '100%',
               }}
             >
@@ -210,7 +203,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
         </div>
         {onClear && (
           <button onClick={onClear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, flexShrink: 0, alignSelf: 'flex-start' }}>
-            <X style={{ width: 11, height: 11, color: '#333' }} />
+            <X style={{ width: 11, height: 11, color: '#6b7280' }} />
           </button>
         )}
       </div>
@@ -238,16 +231,11 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
   const leftColor = teamColors[leftPlayer?.teamAbbr] || '#3B82F6';
   const rightColor = teamColors[rightPlayer?.teamAbbr] || '#EF4444';
 
-  // Load base player on mount
   useEffect(() => {
     if (!basePlayer?.id) return;
     setLoadingLeft(true);
     fetchMLBPlayerStats(basePlayer.name, basePlayer.id)
-    .then(data => {
-        console.log('STATS DATA:', data);
-        setLeftStats(data);
-        setLeftSeason(data.allSeasons[0]?.year);
-      })
+      .then(data => { setLeftStats(data); setLeftSeason(data.allSeasons[0]?.year); })
       .catch(() => setLeftStats({ error: true }))
       .finally(() => setLoadingLeft(false));
   }, [basePlayer?.id]);
@@ -257,9 +245,7 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
     if (!q || q.trim().length < 2) { setSearchResults([]); return; }
     const lq = q.toLowerCase();
     setSearchResults(
-      Object.values(playerCache || {})
-        .filter(p => p.strPlayer?.toLowerCase().includes(lq))
-        .slice(0, 8)
+      Object.values(playerCache || {}).filter(p => p.strPlayer?.toLowerCase().includes(lq)).slice(0, 8)
     );
   };
 
@@ -267,8 +253,7 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
     const setter = side === 'left' ? setLeftStats : setRightStats;
     const loadSetter = side === 'left' ? setLoadingLeft : setLoadingRight;
     const seasonSetter = side === 'left' ? setLeftSeason : setRightSeason;
-    setter(null);
-    loadSetter(true);
+    setter(null); loadSetter(true);
     fetchMLBPlayerStats(p.name, p.id)
       .then(data => { setter(data); seasonSetter(data.allSeasons[0]?.year); })
       .catch(() => setter({ error: true }))
@@ -278,19 +263,14 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
   const selectPlayer = player => {
     setSearchQuery(''); setSearchResults([]);
     const p = {
-      id: player.idPlayer,
-      name: player.strPlayer,
-      headshot: player.strThumb,
-      teamAbbr: player.strTeamAbbr,
-      position: player.strPosition,
+      id: player.idPlayer, name: player.strPlayer,
+      headshot: player.strThumb, teamAbbr: player.strTeamAbbr, position: player.strPosition,
     };
     if (searchTarget === 'left') {
-      setLeftPlayer(p);
-      loadStats(p, 'left');
+      setLeftPlayer(p); loadStats(p, 'left');
       if (!rightPlayer) setSearchTarget('right');
     } else {
-      setRightPlayer(p);
-      loadStats(p, 'right');
+      setRightPlayer(p); loadStats(p, 'right');
     }
   };
 
@@ -324,7 +304,6 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
     }
   };
 
-  // ── Stat groups ──────────────────────────────────────────────────────────
   const LB = leftStats?.currentBatting || {};
   const RB = rightStats?.currentBatting || {};
   const LP = leftStats?.currentPitching || {};
@@ -334,75 +313,60 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
   const hasPitching = (LP['ERA'] && LP['ERA'] !== '-') || (RP['ERA'] && RP['ERA'] !== '-');
 
   const battingGroups = [
-    {
-      label: 'BATTING RATE', rows: [
-        { label: 'AVG', lv: LB['AVG'], rv: RB['AVG'] },
-        { label: 'OBP', lv: LB['OBP'], rv: RB['OBP'] },
-        { label: 'SLG', lv: LB['SLG'], rv: RB['SLG'] },
-        { label: 'OPS', lv: LB['OPS'], rv: RB['OPS'] },
-      ],
-    },
-    {
-      label: 'POWER & PRODUCTION', rows: [
-        { label: 'HR', lv: LB['HR'], rv: RB['HR'] },
-        { label: 'RBI', lv: LB['RBI'], rv: RB['RBI'] },
-        { label: 'R', lv: LB['R'], rv: RB['R'] },
-        { label: 'H', lv: LB['H'], rv: RB['H'] },
-        { label: '2B', lv: LB['2B'], rv: RB['2B'] },
-        { label: '3B', lv: LB['3B'], rv: RB['3B'] },
-      ],
-    },
-    {
-      label: 'PLATE DISCIPLINE', rows: [
-        { label: 'BB', lv: LB['BB'], rv: RB['BB'] },
-        { label: 'SO', lv: LB['SO'], rv: RB['SO'], inverse: true },
-        { label: 'SB', lv: LB['SB'], rv: RB['SB'] },
-      ],
-    },
-    {
-      label: 'AVAILABILITY', rows: [
-        { label: 'G', lv: LB['G'], rv: RB['G'] },
-        { label: 'GS', lv: LB['GS'], rv: RB['GS'] },
-        { label: 'AB', lv: LB['AB'], rv: RB['AB'] },
-      ],
-    },
+    { label: 'BATTING RATE', rows: [
+      { label: 'AVG', lv: LB['AVG'], rv: RB['AVG'] },
+      { label: 'OBP', lv: LB['OBP'], rv: RB['OBP'] },
+      { label: 'SLG', lv: LB['SLG'], rv: RB['SLG'] },
+      { label: 'OPS', lv: LB['OPS'], rv: RB['OPS'] },
+    ]},
+    { label: 'POWER & PRODUCTION', rows: [
+      { label: 'HR', lv: LB['HR'], rv: RB['HR'] },
+      { label: 'RBI', lv: LB['RBI'], rv: RB['RBI'] },
+      { label: 'R', lv: LB['R'], rv: RB['R'] },
+      { label: 'H', lv: LB['H'], rv: RB['H'] },
+      { label: '2B', lv: LB['2B'], rv: RB['2B'] },
+      { label: '3B', lv: LB['3B'], rv: RB['3B'] },
+    ]},
+    { label: 'PLATE DISCIPLINE', rows: [
+      { label: 'BB', lv: LB['BB'], rv: RB['BB'] },
+      { label: 'SO', lv: LB['SO'], rv: RB['SO'], inverse: true },
+      { label: 'SB', lv: LB['SB'], rv: RB['SB'] },
+    ]},
+    { label: 'AVAILABILITY', rows: [
+      { label: 'G', lv: LB['G'], rv: RB['G'] },
+      { label: 'GS', lv: LB['GS'], rv: RB['GS'] },
+      { label: 'AB', lv: LB['AB'], rv: RB['AB'] },
+    ]},
   ];
 
   const pitchingGroups = [
-    {
-      label: 'CORE PITCHING', rows: [
-        { label: 'ERA', lv: LP['ERA'], rv: RP['ERA'], inverse: true },
-        { label: 'WHIP', lv: LP['WHIP'], rv: RP['WHIP'], inverse: true },
-        { label: 'W', lv: LP['W'], rv: RP['W'] },
-        { label: 'L', lv: LP['L'], rv: RP['L'], inverse: true },
-        { label: 'SV', lv: LP['SV'], rv: RP['SV'] },
-      ],
-    },
-    {
-      label: 'STRIKEOUTS & WALKS', rows: [
-        { label: 'SO', lv: LP['SO'], rv: RP['SO'] },
-        { label: 'BB', lv: LP['BB'], rv: RP['BB'], inverse: true },
-        { label: 'IP', lv: LP['IP'], rv: RP['IP'] },
-      ],
-    },
-    {
-      label: 'HITS & HR ALLOWED', rows: [
-        { label: 'H', lv: LP['H'], rv: RP['H'], inverse: true },
-        { label: 'HR', lv: LP['HR'], rv: RP['HR'], inverse: true },
-        { label: 'GS', lv: LP['GS'], rv: RP['GS'] },
-        { label: 'G', lv: LP['G'], rv: RP['G'] },
-      ],
-    },
+    { label: 'CORE PITCHING', rows: [
+      { label: 'ERA', lv: LP['ERA'], rv: RP['ERA'], inverse: true },
+      { label: 'WHIP', lv: LP['WHIP'], rv: RP['WHIP'], inverse: true },
+      { label: 'W', lv: LP['W'], rv: RP['W'] },
+      { label: 'L', lv: LP['L'], rv: RP['L'], inverse: true },
+      { label: 'SV', lv: LP['SV'], rv: RP['SV'] },
+    ]},
+    { label: 'STRIKEOUTS & WALKS', rows: [
+      { label: 'SO', lv: LP['SO'], rv: RP['SO'] },
+      { label: 'BB', lv: LP['BB'], rv: RP['BB'], inverse: true },
+      { label: 'IP', lv: LP['IP'], rv: RP['IP'] },
+    ]},
+    { label: 'HITS & HR ALLOWED', rows: [
+      { label: 'H', lv: LP['H'], rv: RP['H'], inverse: true },
+      { label: 'HR', lv: LP['HR'], rv: RP['HR'], inverse: true },
+      { label: 'GS', lv: LP['GS'], rv: RP['GS'] },
+      { label: 'G', lv: LP['G'], rv: RP['G'] },
+    ]},
   ];
 
   const showStats =
-    leftPlayer && rightPlayer &&
-    !loadingLeft && !loadingRight &&
+    leftPlayer && rightPlayer && !loadingLeft && !loadingRight &&
     (leftStats?.currentBatting || leftStats?.currentPitching) &&
     (rightStats?.currentBatting || rightStats?.currentPitching);
 
   const Spinner = ({ c }) => (
-    <div style={{ width: 18, height: 18, border: `2px solid #1a1a1a`, borderTopColor: c, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <div style={{ width: 18, height: 18, border: `2px solid #3f3f46`, borderTopColor: c, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
   );
 
   const targetColor = searchTarget === 'left' ? leftColor : rightColor;
@@ -413,7 +377,7 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-          <button onClick={onClose} style={{ color: '#52525b', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
           <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
         </div>
 
@@ -424,16 +388,13 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
               <Spinner c={leftColor} />
             </div>
           ) : (
-            <PlayerHeader
-              player={leftPlayer} stats={leftStats} selectedSeason={leftSeason}
-              onSeasonChange={handleLeftSeasonChange} side="left"
-              onClear={clearLeft}
-              isTarget={searchTarget === 'left' && !leftPlayer}
-            />
+            <PlayerHeader player={leftPlayer} stats={leftStats} selectedSeason={leftSeason}
+              onSeasonChange={handleLeftSeasonChange} side="left" onClear={clearLeft}
+              isTarget={searchTarget === 'left' && !leftPlayer} />
           )}
 
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={{ fontSize: 10, fontWeight: 900, color: '#1c1c1c', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif' }}>VS</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: '#6b7280', letterSpacing: '0.08em', fontFamily: 'Rajdhani, sans-serif' }}>VS</span>
           </div>
 
           {loadingRight ? (
@@ -441,12 +402,9 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
               <Spinner c={rightColor} />
             </div>
           ) : (
-            <PlayerHeader
-              player={rightPlayer} stats={rightStats} selectedSeason={rightSeason}
-              onSeasonChange={handleRightSeasonChange} side="right"
-              onClear={clearRight}
-              isTarget={searchTarget === 'right' && !rightPlayer}
-            />
+            <PlayerHeader player={rightPlayer} stats={rightStats} selectedSeason={rightSeason}
+              onSeasonChange={handleRightSeasonChange} side="right" onClear={clearRight}
+              isTarget={searchTarget === 'right' && !rightPlayer} />
           )}
         </div>
 
@@ -465,31 +423,27 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
               onChange={e => handleSearch(e.target.value)}
               style={{ background: 'transparent', color: 'white', border: 'none', outline: 'none', flex: 1, fontSize: 13, fontFamily: 'inherit' }}
             />
-            {/* Slot toggles */}
             <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
               {['left', 'right'].map(slot => {
                 const c = slot === 'left' ? leftColor : rightColor;
                 const active = searchTarget === slot;
                 return (
-                  <button
-                    key={slot}
+                  <button key={slot}
                     onClick={() => { setSearchTarget(slot); setSearchQuery(''); setSearchResults([]); }}
                     style={{
                       fontSize: 9, fontWeight: 800, padding: '3px 7px', borderRadius: 6, cursor: 'pointer',
                       background: active ? c : 'transparent',
-                      border: `1px solid ${active ? c : '#222'}`,
-                      color: active ? 'white' : '#333',
+                      border: `1px solid ${active ? c : '#3f3f46'}`,
+                      color: active ? 'white' : '#6b7280',
                       fontFamily: 'Rajdhani, sans-serif', letterSpacing: '0.06em',
                     }}
-                  >
-                    {slot === 'left' ? 'L' : 'R'}
-                  </button>
+                  >{slot === 'left' ? 'L' : 'R'}</button>
                 );
               })}
             </div>
             {searchQuery && (
               <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                <X style={{ width: 13, height: 13, color: '#333' }} />
+                <X style={{ width: 13, height: 13, color: '#6b7280' }} />
               </button>
             )}
           </div>
@@ -497,28 +451,26 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4,
-              background: '#0a0a0a', borderRadius: 12, border: '1px solid #1a1a1a',
+              background: '#0a0a0a', borderRadius: 12, border: '1px solid #27272a',
               maxHeight: 260, overflowY: 'auto', zIndex: 50,
               boxShadow: '0 24px 60px rgba(0,0,0,0.9)',
             }}>
               {searchResults.map((player, i) => (
-                <div
-                  key={player.idPlayer}
-                  onClick={() => selectPlayer(player)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #0f0f0f' : 'none' }}
+                <div key={player.idPlayer} onClick={() => selectPlayer(player)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', cursor: 'pointer', borderBottom: i < searchResults.length - 1 ? '1px solid #18181b' : 'none' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#111'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
                   {player.strThumb ? (
                     <img src={player.strThumb} alt={player.strPlayer} style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
                   ) : (
-                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#444', flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#27272a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#6b7280', flexShrink: 0 }}>
                       {player.strPlayer?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
                   )}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: 'white', fontFamily: 'Rajdhani, sans-serif' }}>{player.strPlayer}</div>
-                    <div style={{ fontSize: 10, color: '#3f3f46' }}>{teamFullNames[player.strTeamAbbr] || player.strTeamAbbr} · {player.strPosition}</div>
+                    <div style={{ fontSize: 10, color: '#6b7280' }}>{teamFullNames[player.strTeamAbbr] || player.strTeamAbbr} · {player.strPosition}</div>
                   </div>
                   <div style={{
                     fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 5,
@@ -537,27 +489,27 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
 
         {/* Stats */}
         {showStats && (
-          <div style={{ background: '#0a0a0a', borderRadius: 18, border: '1px solid #111', overflow: 'hidden' }}>
+          <div style={{ background: '#0a0a0a', borderRadius: 18, border: '1px solid #27272a', overflow: 'hidden' }}>
             {/* Legend */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: '#080808', borderBottom: '1px solid #0f0f0f' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 20px', background: '#080808', borderBottom: '1px solid #18181b' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 3, height: 20, borderRadius: 2, background: leftColor }} />
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
                     {leftPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
-                  <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {leftStats?.currentBatting?.displayName || leftStats?.currentPitching?.displayName || ''}
                   </div>
                 </div>
               </div>
-              <span style={{ fontSize: 9, color: '#1a1a1a', fontWeight: 700, letterSpacing: '0.1em' }}>VS</span>
+              <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>VS</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', color: 'white', lineHeight: 1 }}>
                     {rightPlayer.name?.split(' ').slice(-1)[0]}
                   </div>
-                  <div style={{ fontSize: 9, color: '#252525', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
+                  <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 1 }}>
                     {rightStats?.currentBatting?.displayName || rightStats?.currentPitching?.displayName || ''}
                   </div>
                 </div>
@@ -571,32 +523,15 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
                 <div key={group.label}>
                   <SectionLabel label={group.label} />
                   {group.rows.map(row => (
-                    <StatRow
-                      key={row.label}
-                      label={row.label}
-                      leftVal={row.lv}
-                      rightVal={row.rv}
-                      inverse={row.inverse}
-                      leftColor={leftColor}
-                      rightColor={rightColor}
-                    />
+                    <StatRow key={row.label} label={row.label} leftVal={row.lv} rightVal={row.rv} inverse={row.inverse} />
                   ))}
                 </div>
               ))}
-
               {hasPitching && pitchingGroups.map(group => (
                 <div key={group.label}>
                   <SectionLabel label={group.label} />
                   {group.rows.map(row => (
-                    <StatRow
-                      key={row.label}
-                      label={row.label}
-                      leftVal={row.lv}
-                      rightVal={row.rv}
-                      inverse={row.inverse}
-                      leftColor={leftColor}
-                      rightColor={rightColor}
-                    />
+                    <StatRow key={row.label} label={row.label} leftVal={row.lv} rightVal={row.rv} inverse={row.inverse} />
                   ))}
                 </div>
               ))}
