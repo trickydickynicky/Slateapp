@@ -512,13 +512,10 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
     if (!selectedNBAPlayer || !nbaPlayerRef.current) return;
     const el = nbaPlayerRef.current;
     const onClose = () => {
-      setSlideDirection('left');
-      setTimeout(() => {
-        setSelectedNBAPlayer(null);
-        setNbaPlayerStats(null);
-        setSelectedStatSeason(null);
-        setAvailableSeasons([]);
-      }, 300);
+      setSelectedNBAPlayer(null);
+      setNbaPlayerStats(null);
+      setSelectedStatSeason(null);
+      setAvailableSeasons([]);
     };
     let startX = null, startY = null, dragging = false;
     const onTouchStart = (e) => {
