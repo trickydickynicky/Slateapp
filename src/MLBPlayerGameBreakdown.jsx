@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSwipeBack } from './useSwipeBack';
 
 const teamColors = {
   'ARI': '#A71930', 'ATL': '#CE1141', 'BAL': '#DF4601', 'BOS': '#BD3039',
@@ -73,7 +74,9 @@ function Tile({ value, label, accent, large }) {
 }
 
 export default function MLBPlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
-  const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
+    const screenRef = useSwipeBack(onClose); // ← add this
+
+    const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const color = teamColors[teamAbbr] || '#3B82F6';
 
   // Determine if this player is a batter or pitcher by checking which boxscore list they appear in
@@ -167,9 +170,10 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
 
   return (
     <div
-      className="fixed inset-0 bg-black z-[200] overflow-y-auto"
-      style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
-    >
+  ref={screenRef}
+  className="fixed inset-0 bg-black z-[200] overflow-y-auto"
+  style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
+>
       <div className="min-h-screen px-4 pt-12 pb-14 max-w-lg mx-auto">
 
        {/* Header */}
