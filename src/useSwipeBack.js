@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 
 export function useSwipeBack(onClose) {
+  const elRef = useRef(null);
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
   const isDragging = useRef(false);
 
   useEffect(() => {
-    const el = document.querySelector('.swipe-back-screen');
+    const el = elRef.current;
     if (!el) return;
 
     const onTouchStart = (e) => {
@@ -75,4 +76,6 @@ export function useSwipeBack(onClose) {
       el.removeEventListener('touchend', onTouchEnd);
     };
   }, [onClose]);
+
+  return elRef;
 }
