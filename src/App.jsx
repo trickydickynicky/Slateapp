@@ -349,7 +349,7 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
     };
-  }, [showFavorites]);
+  }, [showFavorites, favoritesRef.current]);
 
   useEffect(() => {
     fetchLiveScores();
