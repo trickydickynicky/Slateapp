@@ -86,6 +86,7 @@ const standingsRef = useRef(null);
 const gameDetailRef = useRef(null);
 const teamStatsRef = useRef(null);
 const nbaPlayerRef = useRef(null);
+const rosterRef = useRef(null);
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -563,6 +564,57 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
       el.removeEventListener('touchend', onTouchEnd);
     };
   }, [selectedNBAPlayer, nbaPlayerRef.current]);
+
+  useEffect(() => {
+    if (!showRoster || !rosterRef.current) return;
+    const el = rosterRef.current;
+    const onClose = () => { setShowRoster(false); setRosterData(null); };
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => {
+      if (e.touches[0].clientX > 30) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dragging = false;
+    };
+    const onTouchMove = (e) => {
+      if (startX === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; }
+        if (dx > 10) dragging = true;
+      }
+      if (dragging) {
+        e.preventDefault();
+        el.style.transform = `translateX(${dx}px)`;
+        el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`;
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (!dragging) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx / window.innerWidth > 0.35) {
+        el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease';
+        el.style.transform = 'translateX(100%)';
+        el.style.opacity = '0';
+        setTimeout(onClose, 250);
+      } else {
+        el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease';
+        el.style.transform = 'translateX(0)';
+        el.style.opacity = '1';
+      }
+      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320);
+      startX = null; dragging = false;
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [showRoster, rosterRef.current]);
 
   useEffect(() => {
     fetchLiveScores();
@@ -4542,7 +4594,7 @@ onClick={(e) => {
   </div>
 )}
 {showRoster && (
-  <div className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+  <div ref={rosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
