@@ -2071,7 +2071,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   >
   <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
-      <div className="flex items-center mb-6 sticky top-0 z-10 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="flex items-center mb-6 sticky top-0 z-10 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button 
             onClick={closeModal}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
