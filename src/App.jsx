@@ -1,5 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const useSwipeBack = (onSwipeBack) => {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+    const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
+    const startedFromEdge = touchStartX.current < 40;
+    const swipedFarEnough = deltaX > 80;
+    if (isHorizontal && startedFromEdge && swipedFarEnough) {
+      onSwipeBack();
+    }
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  return { onTouchStart, onTouchEnd };
+};
+
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
@@ -81,6 +107,7 @@ const scoreboardSwipeStart = useRef(null);
 const scoreboardRef = useRef(null);
 const [showPlayerComparison, setShowPlayerComparison] = useState(false);
 const [playerCache, setPlayerCache] = useState({});
+
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -1563,6 +1590,9 @@ console.log('🏀 FULL DATA:', data);
            date1.getFullYear() === date2.getFullYear();
   };
 
+  const swipeBackGame = useSwipeBack(closeModal);
+  const swipeBackTeam = useSwipeBack(closeTeamModal);
+  
   if (sport === 'MLB') return <MLBApp sport={sport} setSport={setSport} />;
 
   
@@ -2068,9 +2098,9 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
     }}
   >
-    <div className="min-h-screen px-4 pt-12 pb-8">
+  <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
+        <div className="flex items-center mb-6 sticky top-0 bg-black z-10 py-3">
           <button 
             onClick={closeModal}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
