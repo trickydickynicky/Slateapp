@@ -59,6 +59,10 @@ export default function MLBApp({ sport, setSport }) {
   const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
   const scoreboardSwipeStart = useRef(null);
   const mlbFavoritesRef = useRef(null);
+const mlbStandingsRef = useRef(null);
+const mlbGameDetailRef = useRef(null);
+const mlbTeamStatsRef = useRef(null);
+const mlbPlayerRef = useRef(null);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -237,6 +241,62 @@ export default function MLBApp({ sport, setSport }) {
       el.removeEventListener('touchend', onTouchEnd);
     };
   }, [showFavorites, mlbFavoritesRef.current]);
+
+  useEffect(() => {
+    if (!showStandings || !mlbStandingsRef.current) return;
+    const el = mlbStandingsRef.current;
+    const onClose = () => setShowStandings(false);
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => { if (e.touches[0].clientX > 30) return; startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false; };
+    const onTouchMove = (e) => { if (startX === null) return; const dx = e.touches[0].clientX - startX; const dy = e.touches[0].clientY - startY; if (!dragging) { if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; } if (dx > 10) dragging = true; } if (dragging) { e.preventDefault(); el.style.transform = `translateX(${dx}px)`; el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`; } };
+    const onTouchEnd = (e) => { if (!dragging) return; const dx = e.changedTouches[0].clientX - startX; if (dx / window.innerWidth > 0.35) { el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease'; el.style.transform = 'translateX(100%)'; el.style.opacity = '0'; setTimeout(onClose, 250); } else { el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease'; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; } setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320); startX = null; dragging = false; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
+  }, [showStandings, mlbStandingsRef.current]);
+  
+  useEffect(() => {
+    if (!selectedGame || !mlbGameDetailRef.current) return;
+    const el = mlbGameDetailRef.current;
+    const onClose = () => closeModal();
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => { if (e.touches[0].clientX > 30) return; startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false; };
+    const onTouchMove = (e) => { if (startX === null) return; const dx = e.touches[0].clientX - startX; const dy = e.touches[0].clientY - startY; if (!dragging) { if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; } if (dx > 10) dragging = true; } if (dragging) { e.preventDefault(); el.style.transform = `translateX(${dx}px)`; el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`; } };
+    const onTouchEnd = (e) => { if (!dragging) return; const dx = e.changedTouches[0].clientX - startX; if (dx / window.innerWidth > 0.35) { el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease'; el.style.transform = 'translateX(100%)'; el.style.opacity = '0'; setTimeout(onClose, 250); } else { el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease'; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; } setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320); startX = null; dragging = false; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
+  }, [selectedGame, mlbGameDetailRef.current]);
+  
+  useEffect(() => {
+    if (!selectedTeamInfo || !mlbTeamStatsRef.current) return;
+    const el = mlbTeamStatsRef.current;
+    const onClose = () => closeTeamModal();
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => { if (e.touches[0].clientX > 30) return; startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false; };
+    const onTouchMove = (e) => { if (startX === null) return; const dx = e.touches[0].clientX - startX; const dy = e.touches[0].clientY - startY; if (!dragging) { if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; } if (dx > 10) dragging = true; } if (dragging) { e.preventDefault(); el.style.transform = `translateX(${dx}px)`; el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`; } };
+    const onTouchEnd = (e) => { if (!dragging) return; const dx = e.changedTouches[0].clientX - startX; if (dx / window.innerWidth > 0.35) { el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease'; el.style.transform = 'translateX(100%)'; el.style.opacity = '0'; setTimeout(onClose, 250); } else { el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease'; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; } setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320); startX = null; dragging = false; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
+  }, [selectedTeamInfo, mlbTeamStatsRef.current]);
+  
+  useEffect(() => {
+    if (!selectedMLBPlayer || !mlbPlayerRef.current) return;
+    const el = mlbPlayerRef.current;
+    const onClose = () => { setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); };
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => { if (e.touches[0].clientX > 30) return; startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false; };
+    const onTouchMove = (e) => { if (startX === null) return; const dx = e.touches[0].clientX - startX; const dy = e.touches[0].clientY - startY; if (!dragging) { if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; } if (dx > 10) dragging = true; } if (dragging) { e.preventDefault(); el.style.transform = `translateX(${dx}px)`; el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`; } };
+    const onTouchEnd = (e) => { if (!dragging) return; const dx = e.changedTouches[0].clientX - startX; if (dx / window.innerWidth > 0.35) { el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease'; el.style.transform = 'translateX(100%)'; el.style.opacity = '0'; setTimeout(onClose, 250); } else { el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease'; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; } setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320); startX = null; dragging = false; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
+  }, [selectedMLBPlayer, mlbPlayerRef.current]);
 
   useEffect(() => {
     fetchLiveScores();
@@ -1245,7 +1305,7 @@ export default function MLBApp({ sport, setSport }) {
 
       {/* ── STANDINGS ── */}
       {showStandings && (
-        <div className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
+  <div ref={mlbStandingsRef} className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-6xl mx-auto">
@@ -1327,7 +1387,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── GAME DETAIL ── */}
       {selectedGame && (
         <div
-          ref={gameDetailScrollRef}
+          ref={(el) => { gameDetailScrollRef.current = el; mlbGameDetailRef.current = el; }}
           className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
           style={{
             animation: 'slideInRight 0.3s ease-out',
@@ -1977,6 +2037,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── TEAM STATS ── */}
       {selectedTeamInfo && (
         <div
+          ref={mlbTeamStatsRef}
           className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
           style={{ animation: 'slideInRight 0.3s ease-out' }}
         >
@@ -2354,7 +2415,7 @@ export default function MLBApp({ sport, setSport }) {
 
       {/* ── MLB PLAYER STATS ── */}
       {selectedMLBPlayer && (
-        <div className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
+        <div ref={mlbPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
