@@ -1146,20 +1146,18 @@ const mlbPlayerRef = useRef(null);
         )}
 
         {/* Sport selector */}
-        {!selectedGame && !showStandings && !selectedTeamInfo && !selectedNBAPlayer && !showFavorites && !showSearch && (
-          <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
-            <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
-              {['NBA', 'MLB'].map(s => (
-                <button key={s} onClick={() => setSport(s)}
-                  className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
-                    sport === s
-                      ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
-                      : 'text-gray-400'
-                  }`}>{s}</button>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
+  <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
+    {['NBA', 'MLB'].map(s => (
+      <button key={s} onClick={() => setSport(s)}
+        className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
+          sport === s
+            ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
+            : 'text-gray-400'
+        }`}>{s}</button>
+    ))}
+  </div>
+</div>
 
         <div className="mt-2 overflow-x-auto scrollbar-hide py-4"
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}>
