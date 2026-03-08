@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
+import { useSwipeBack } from './useSwipeBack';
 
 const teamColors = {
   'ARI': '#A71930', 'ATL': '#CE1141', 'BAL': '#DF4601', 'BOS': '#BD3039',
@@ -213,7 +214,8 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
 
 // ── Main ──────────────────────────────────────────────────────────────────
 export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }) {
-  const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
+    const screenRef = useSwipeBack(onClose);
+    const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
   const [rightPlayer, setRightPlayer] = useState(null);
 
   const [leftStats, setLeftStats] = useState(null);
@@ -372,8 +374,8 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
   const targetColor = searchTarget === 'left' ? leftColor : rightColor;
 
   return (
-    <div className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
-      <div style={{ minHeight: '100vh', padding: '48px 16px 56px', maxWidth: 500, margin: '0 auto' }}>
+    <div ref={screenRef} className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
+     <div style={{ minHeight: '100vh', padding: '0 16px 56px', maxWidth: 500, margin: '0 auto' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
