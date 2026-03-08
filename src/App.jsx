@@ -1,31 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const useSwipeBack = (onSwipeBack) => {
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-
-  const onTouchStart = (e) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  };
-
-  const onTouchEnd = (e) => {
-    if (touchStartX.current === null) return;
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-    const isHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
-    const startedFromEdge = touchStartX.current < 40;
-    const swipedFarEnough = deltaX > 80;
-    if (isHorizontal && startedFromEdge && swipedFarEnough) {
-      onSwipeBack();
-    }
-    touchStartX.current = null;
-    touchStartY.current = null;
-  };
-
-  return { onTouchStart, onTouchEnd };
-};
-
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
@@ -1590,9 +1564,6 @@ console.log('🏀 FULL DATA:', data);
            date1.getFullYear() === date2.getFullYear();
   };
 
-  const swipeBackGame = useSwipeBack(closeModal);
-  const swipeBackTeam = useSwipeBack(closeTeamModal);
-  
   if (sport === 'MLB') return <MLBApp sport={sport} setSport={setSport} />;
 
   
