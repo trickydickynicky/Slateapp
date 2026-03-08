@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
+import { useSwipeBack } from './useSwipeBack';
 
 const teamColors = {
   'ATL': '#E03A3E', 'BOS': '#007A33', 'BKN': '#000000', 'CHA': '#1D1160',
@@ -203,6 +204,8 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
 
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
+  const screenRef = useSwipeBack(onClose); // ← add this
+
   const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
   const [rightPlayer, setRightPlayer] = useState(null);
 
@@ -337,7 +340,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
   const targetColor = searchTarget === 'left' ? leftColor : rightColor;
 
   return (
-    <div className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
+    <div ref={screenRef} className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
      <div style={{ minHeight: '100vh', padding: '0 16px 56px', maxWidth: 500, margin: '0 auto' }}>
 
         {/* Header */}
