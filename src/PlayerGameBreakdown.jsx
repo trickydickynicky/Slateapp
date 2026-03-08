@@ -1,4 +1,5 @@
 import React from 'react';
+import { useSwipeBack } from './useSwipeBack'; // ← add this
 
 const teamColors = {
   ATL:'#E03A3E',BOS:'#007A33',BKN:'#000000',CHA:'#1D1160',CHI:'#CE1141',
@@ -80,6 +81,8 @@ function Tile({ value, label, accent, large }) {
 }
 
 export default function PlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
+  export default function PlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
+
   const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const color = teamColors[teamAbbr] || '#3B82F6';
 
@@ -139,9 +142,9 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
 
   return (
     <div
-      className="fixed inset-0 bg-black z-[200] overflow-y-auto"
-      style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
-    >
+  className="fixed inset-0 bg-black z-[200] overflow-y-auto swipe-back-screen"
+  style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
+>
       <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto">
 
        {/* Header */}
