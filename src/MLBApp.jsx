@@ -1205,7 +1205,7 @@ export default function MLBApp({ sport, setSport }) {
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-6xl mx-auto">
-              <div className="flex items-center mb-6">
+            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => setShowStandings(false)}
                   className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>MLB Standings</h2>
@@ -1286,13 +1286,12 @@ export default function MLBApp({ sport, setSport }) {
           ref={gameDetailScrollRef}
           className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
           style={{
-            transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)`,
-            animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none',
+            animation: 'slideInRight 0.3s ease-out',
           }}
         >
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-              <div className="flex items-center mb-6">
+            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={closeModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
               </div>
@@ -1935,11 +1934,11 @@ export default function MLBApp({ sport, setSport }) {
       {selectedTeamInfo && (
         <div
           className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
-          style={{ animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none' }}
+          style={{ animation: 'slideInRight 0.3s ease-out' }}
         >
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-              <div className="flex items-center mb-6">
+            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={closeTeamModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
               </div>
@@ -2266,7 +2265,7 @@ export default function MLBApp({ sport, setSport }) {
         <div className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-              <div className="flex items-center mb-6">
+            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold">Teams</h2>
               </div>
@@ -2316,7 +2315,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
 
-              <div className="flex items-center mb-6">
+            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button
                   onClick={() => {
                     setSelectedMLBPlayer(null);

@@ -1949,13 +1949,12 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       <div 
     className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto transition-transform duration-300 ease-out"
     style={{ 
-      transform: `translateX(${swipeOffset}px)`,
       animation: 'slideInRight 0.3s ease-out'
     }}
 >
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-6xl mx-auto">
-      <div className="flex items-center mb-6">
+      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
       <button 
   onClick={() => {
     setShowStandings(false);
@@ -1970,9 +1969,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
     }
   }}
   className="text-gray-400 hover:text-white text-2xl font-light mr-4"
->
-  ‹
-</button>
+>‹</button>
 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>NBA Standings</h2>
 </div>
 
@@ -3259,19 +3256,13 @@ onClick={(e) => {
   <div 
     className={`fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
-      transform: `translateX(${teamSwipeOffset}px)`,
       animation: 'slideInRight 0.3s ease-out'
     }}
   >
       <div className="min-h-screen px-4 pt-12 pb-8">
         <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
-  <button 
-    onClick={closeTeamModal}
-    className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-  >
-    ‹
-  </button>
+        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+  <button onClick={closeTeamModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
   <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
 </div>
   
@@ -3932,7 +3923,7 @@ onClick={(e) => {
       <div className="max-w-2xl mx-auto">
 
         {/* Back button */}
-        <div className="flex items-center mb-6">
+        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button
             onClick={() => {
               setSlideDirection('left');
@@ -3944,9 +3935,7 @@ onClick={(e) => {
               }, 300);
             }}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >
-            ‹
-          </button>
+          >‹</button>
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
         </div>
 
@@ -4227,13 +4216,8 @@ onClick={(e) => {
   <div className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
-          <button 
-            onClick={() => setShowFavorites(false)}
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >
-            ‹
-          </button>
+      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+          <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
           <h2 className="text-2xl font-bold">Teams</h2>
         </div>
 
@@ -4294,13 +4278,8 @@ onClick={(e) => {
   <div className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
-          <button
-            onClick={() => { setShowRoster(false); setRosterData(null); }}
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >
-            ‹
-          </button>
+      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+          <button onClick={() => { setShowRoster(false); setRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
             {teamFullNames[selectedTeamInfo?.abbr]} Roster
           </h2>

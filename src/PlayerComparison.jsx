@@ -338,13 +338,13 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
-      <div style={{ minHeight: '100vh', padding: '48px 16px 56px', maxWidth: 500, margin: '0 auto' }}>
+     <div style={{ minHeight: '100vh', padding: '0 16px 56px', maxWidth: 500, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
-          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
-        </div>
+<div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
+  <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+  <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
+</div>
 
         {/* Player Cards */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>

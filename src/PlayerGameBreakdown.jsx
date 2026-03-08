@@ -142,17 +142,13 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
       className="fixed inset-0 bg-black z-[200] overflow-y-auto"
       style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
     >
-      <div className="min-h-screen px-4 pt-12 pb-14 max-w-lg mx-auto">
+      <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center mb-5">
-          <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl font-light mr-4">
-            ‹
-          </button>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-            Game Breakdown
-          </h2>
-        </div>
+       {/* Header */}
+<div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
+  <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+  <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
+</div>
 
         {/* ── HERO ── */}
         <div
