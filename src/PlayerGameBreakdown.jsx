@@ -38,15 +38,15 @@ function Ring({ pct, made, att, label, color, size = 70 }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <span style={{
-            fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#3f3f46',
+            fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#6b7280',
             fontFamily: 'Rajdhani, sans-serif',
           }}>
             {att > 0 ? `${val}%` : '—'}
           </span>
         </div>
       </div>
-      <span style={{ fontSize: 10, color: '#52525b', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
-      <span style={{ fontSize: 9, color: '#2d2d2d', marginTop: 1 }}>{made}/{att}</span>
+      <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
+      <span style={{ fontSize: 9, color: '#6b7280', marginTop: 1 }}>{made}/{att}</span>
     </div>
   );
 }
@@ -73,7 +73,7 @@ function Tile({ value, label, accent, large }) {
       }}>
         {value}
       </span>
-      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
+      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
         {label}
       </span>
     </div>
@@ -103,9 +103,9 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     to:     s[7]  || '0',
     stl:    s[8]  || '0',
     blk:    s[9]  || '0',
-oreb:   s[10] || '0',
-dreb:   s[11] || '0',
-pf:     s[12] || '0',
+    oreb:   s[10] || '0',
+    dreb:   s[11] || '0',
+    pf:     s[12] || '0',
     pm:     s[13] || '0',
   };
 
@@ -128,31 +128,31 @@ pf:     s[12] || '0',
 
   const pm      = parseFloat(gs.pm) || 0;
   const pmStr   = pm > 0 ? `+${pm}` : `${pm}`;
-  const pmColor = pm > 0 ? '#22c55e' : pm < 0 ? '#ef4444' : '#52525b';
+  const pmColor = pm > 0 ? '#22c55e' : pm < 0 ? '#ef4444' : '#6b7280';
 
   const myScore  = selectedTeam === 'away' ? parseInt(game.awayScore) || 0 : parseInt(game.homeScore) || 0;
   const oppScore = selectedTeam === 'away' ? parseInt(game.homeScore) || 0 : parseInt(game.awayScore) || 0;
   const oppAbbr  = selectedTeam === 'away' ? game.homeTeam : game.awayTeam;
-const oppLogo  = selectedTeam === 'away' ? game.homeLogo : game.awayLogo;
-const myAbbr   = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
-const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
+  const oppLogo  = selectedTeam === 'away' ? game.homeLogo : game.awayLogo;
+  const myAbbr   = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
+  const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
   const won      = myScore > oppScore;
 
   const headshot = player.athlete?.headshot?.href || player.headshot;
 
   return (
     <div
-  ref={screenRef}
-  className="fixed inset-0 bg-black z-[200] overflow-y-auto"
-  style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
->
+      ref={screenRef}
+      className="fixed inset-0 bg-black z-[200] overflow-y-auto"
+      style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
+    >
       <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto">
 
-       {/* Header */}
-<div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
-  <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-  <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
-</div>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
+          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
+        </div>
 
         {/* ── HERO ── */}
         <div
@@ -199,13 +199,13 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
 
               {/* Matchup + result */}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-              <img src={myLogo} alt={myAbbr} style={{ width: 15, height: 15 }} />
-<span style={{ fontSize: 11, color: '#71717a', fontWeight: 600 }}>
-  vs {oppAbbr}
-</span>
+                <img src={myLogo} alt={myAbbr} style={{ width: 15, height: 15 }} />
+                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>
+                  vs {oppAbbr}
+                </span>
                 {(game.isFinal || game.isLive) && (
                   <>
-                    <span style={{ color: '#2d2d2d', fontSize: 11 }}>·</span>
+                    <span style={{ color: '#6b7280', fontSize: 11 }}>·</span>
                     {game.isFinal ? (
                       <>
                         <span style={{
@@ -226,62 +226,60 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
                   </>
                 )}
               </div>
-
-             
             </div>
 
-   {/* Big MIN */}
-<div className="flex flex-col items-end flex-shrink-0">
-  <span
-    style={{
-      fontSize: 58, fontWeight: 900, lineHeight: 0.88,
-      fontFamily: 'Rajdhani, sans-serif',
-      color: 'white',
-      textShadow: `0 0 28px ${color}44`,
-    }}
-  >
-    {gs.min}
-  </span>
-  <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
-    MIN
-  </span>
-</div>
+            {/* Big MIN */}
+            <div className="flex flex-col items-end flex-shrink-0">
+              <span
+                style={{
+                  fontSize: 58, fontWeight: 900, lineHeight: 0.88,
+                  fontFamily: 'Rajdhani, sans-serif',
+                  color: 'white',
+                  textShadow: `0 0 28px ${color}44`,
+                }}
+              >
+                {gs.min}
+              </span>
+              <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
+                MIN
+              </span>
+            </div>
           </div>
         </div>
 
         {/* ── BIG 3: PTS / REB / AST ── */}
         <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-        {[
-  { v: gs.pts, l: 'PTS', hi: parseInt(gs.pts) >= 20 },
-  { v: gs.reb, l: 'REB', hi: parseInt(gs.reb) >= 10 },
-  { v: gs.ast, l: 'AST', hi: parseInt(gs.ast) >= 10 },
-].map(({ v, l, hi }) => (
-  <Tile key={l} value={v} label={l} accent={hi ? '#22c55e' : null} large />
-))}
+          {[
+            { v: gs.pts, l: 'PTS', hi: parseInt(gs.pts) >= 20 },
+            { v: gs.reb, l: 'REB', hi: parseInt(gs.reb) >= 10 },
+            { v: gs.ast, l: 'AST', hi: parseInt(gs.ast) >= 10 },
+          ].map(({ v, l, hi }) => (
+            <Tile key={l} value={v} label={l} accent={hi ? '#22c55e' : null} large />
+          ))}
         </div>
 
-      {/* ── SECONDARY ROW 1 ── */}
-<div className="grid grid-cols-4 gap-1.5 mb-1.5">
-  {[
-    { v: gs.stl,  l: 'STL' },
-    { v: gs.blk,  l: 'BLK' },
-    { v: gs.to,   l: 'TO'  },
-    { v: pmStr,   l: '+/−', a: pmColor },
-  ].map(({ v, l, a }) => (
-    <Tile key={l} value={v} label={l} accent={a} />
-  ))}
-</div>
+        {/* ── SECONDARY ROW 1 ── */}
+        <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+          {[
+            { v: gs.stl,  l: 'STL' },
+            { v: gs.blk,  l: 'BLK' },
+            { v: gs.to,   l: 'TO'  },
+            { v: pmStr,   l: '+/−', a: pmColor },
+          ].map(({ v, l, a }) => (
+            <Tile key={l} value={v} label={l} accent={a} />
+          ))}
+        </div>
 
-{/* ── SECONDARY ROW 2 ── */}
-<div className="grid grid-cols-3 gap-1.5 mb-3">
-  {[
-    { v: gs.oreb, l: 'OREB' },
-    { v: gs.dreb, l: 'DREB' },
-    { v: gs.pf,   l: 'PF'   },
-  ].map(({ v, l }) => (
-    <Tile key={l} value={v} label={l} />
-  ))}
-</div>
+        {/* ── SECONDARY ROW 2 ── */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {[
+            { v: gs.oreb, l: 'OREB' },
+            { v: gs.dreb, l: 'DREB' },
+            { v: gs.pf,   l: 'PF'   },
+          ].map(({ v, l }) => (
+            <Tile key={l} value={v} label={l} />
+          ))}
+        </div>
 
         {/* ── SHOOTING ── */}
         <div
@@ -293,41 +291,41 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
             className="flex items-center justify-between mb-4"
             style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}
           >
-            <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>
+            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>
               SHOOTING
             </span>
             <div className="flex gap-3">
-  <span style={{ fontSize: 10, color: '#3f3f46' }}>
-    TS%&nbsp;
-    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-      {tsPct}%
-    </span>
-  </span>
-  <span style={{ fontSize: 10, color: '#3f3f46' }}>
-    eFG%&nbsp;
-    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-      {efgPct}%
-    </span>
-  </span>
-  <span style={{ fontSize: 10, color: '#3f3f46' }}>
-    FTr&nbsp;
-    <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-    {fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}
-    </span>
-  </span>
-</div>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>
+                TS%&nbsp;
+                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+                  {tsPct}%
+                </span>
+              </span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>
+                eFG%&nbsp;
+                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+                  {efgPct}%
+                </span>
+              </span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>
+                FTr&nbsp;
+                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
+                  {fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}
+                </span>
+              </span>
+            </div>
           </div>
 
-         {/* Rings only */}
-         <div className="flex justify-around">
+          {/* Rings only */}
+          <div className="flex justify-around">
             <Ring pct={fgPct}  made={fgm} att={fga} label="FG"  color={color} />
             <Ring pct={tpPct}  made={tpm} att={tpa} label="3PT" color={color} />
             <Ring pct={ftPct}  made={ftm} att={fta} label="FT"  color={color} />
           </div>
         </div>
 
-       {/* ── ADVANCED ANALYTICS ── */}
-       {parseFloat(gs.min) > 0 && (() => {
+        {/* ── ADVANCED ANALYTICS ── */}
+        {parseFloat(gs.min) > 0 && (() => {
           const min    = parseFloat(gs.min) || 0;
           const ast    = parseFloat(gs.ast) || 0;
           const to     = parseFloat(gs.to)  || 0;
@@ -361,7 +359,7 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
           return (
             <div className="rounded-2xl p-4 mt-3" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
               <div className="flex items-center justify-between mb-4" style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
+                <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
               </div>
 
               <div className="grid grid-cols-3 gap-1.5 mb-1.5">
@@ -373,7 +371,7 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
                   <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
                     style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
               </div>
@@ -389,12 +387,12 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
                   <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
                     style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 12, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
               </div>
 
-              <div style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 36 MIN</div>
+              <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 36 MIN</div>
               <div className="grid grid-cols-5 gap-1.5 mb-3">
                 {[
                   { v: per36.pts, l: 'PTS' },
@@ -406,12 +404,12 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
                   <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
                     style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 14, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
+                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
                   </div>
                 ))}
               </div>
 
-              <div style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 48 MIN</div>
+              <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 48 MIN</div>
               <div className="grid grid-cols-3 gap-1.5">
                 {[
                   { v: per48.pts, l: 'PTS' },
@@ -421,7 +419,7 @@ const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
                   <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
                     style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 18, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
               </div>

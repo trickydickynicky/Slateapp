@@ -3250,7 +3250,15 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     alt={player.displayName}
     className={`w-10 h-10 rounded-full object-cover ${!player.isInjuredOnly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
     loading="lazy"
-    onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(player.displayName, player.id)}
+    onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(
+      player.displayName,
+      player.id,
+      player.headshot?.href || player.headshot,
+      currentTeamAbbr,
+      null,
+      player.jersey,
+      player.position?.abbreviation
+    )}
     onError={(e) => {
       e.target.style.display = 'none';
       e.target.nextSibling.style.display = 'flex';
@@ -3260,7 +3268,15 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
 <div 
   className={`w-10 h-10 rounded-full bg-zinc-800 items-center justify-center text-gray-400 font-bold text-sm ${!player.isInjuredOnly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
   style={{ display: player.headshot?.href || player.headshot ? 'none' : 'flex' }}
-  onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(player.displayName, player.id)}
+  onClick={() => !player.isInjuredOnly && handlePlayerStatsClick(
+    player.displayName,
+    player.id,
+    player.headshot?.href || player.headshot,
+    currentTeamAbbr,
+    null,
+    player.jersey,
+    player.position?.abbreviation
+  )}
 >
   {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
 </div>

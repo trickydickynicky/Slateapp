@@ -33,13 +33,13 @@ function Ring({ pct, made, att, label, color, size = 70 }) {
           )}
         </svg>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#3f3f46', fontFamily: 'Rajdhani, sans-serif' }}>
-  {att > 0 ? `${(val / 100).toFixed(3)}` : '—'}
-</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#6b7280', fontFamily: 'Rajdhani, sans-serif' }}>
+            {att > 0 ? `${(val / 100).toFixed(3)}` : '—'}
+          </span>
         </div>
       </div>
-      <span style={{ fontSize: 10, color: '#52525b', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
-      <span style={{ fontSize: 9, color: '#2d2d2d', marginTop: 1 }}>{made}/{att}</span>
+      <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
+      <span style={{ fontSize: 9, color: '#6b7280', marginTop: 1 }}>{made}/{att}</span>
     </div>
   );
 }
@@ -66,7 +66,7 @@ function Tile({ value, label, accent, large }) {
       }}>
         {value}
       </span>
-      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
+      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
         {label}
       </span>
     </div>
@@ -74,12 +74,11 @@ function Tile({ value, label, accent, large }) {
 }
 
 export default function MLBPlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
-    const screenRef = useSwipeBack(onClose); // ← add this
+  const screenRef = useSwipeBack(onClose);
 
-    const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
+  const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const color = teamColors[teamAbbr] || '#3B82F6';
 
-  // Determine if this player is a batter or pitcher by checking which boxscore list they appear in
   const teamIdx = selectedTeam === 'away' ? 0 : 1;
   const batters = gameDetails?.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
   const pitchers = gameDetails?.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
@@ -91,9 +90,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
   const statsRow = isPitcher ? pitcherRow : batterRow;
   const s = statsRow?.stats || [];
 
-  // ── BATTING STATS ──
-  // ESPN MLB batter stats order (from MLBApp boxscore):
-  // [0]=H/AB, [1]=AB, [2]=R, [3]=H, [4]=RBI, [5]=HR, [6]=BB, [7]=K, [8]=P (pitches seen), [9]=AVG, [10]=OBP, [11]=SLG
   const bat = {
     hab:  s[0]  || '0-0',
     ab:   parseInt(s[1])  || 0,
@@ -109,9 +105,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
     slg:  s[11] || '.000',
   };
 
-  // ── PITCHING STATS ──
-  // ESPN MLB pitcher stats order (from MLBApp pitching boxscore):
-  // [0]=IP, [1]=H, [2]=R, [3]=ER, [4]=BB, [5]=SO, [6]=HR, [7]=PC-ST (e.g. "85-58"), [8]=ERA
   const pit = {
     ip:   s[0]  || '0',
     h:    parseInt(s[1])  || 0,
@@ -124,20 +117,17 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
     era:  s[8]  || '0.00',
   };
 
-  // Parse pitch count / strikes
   const pcParts = pit.pcSt.split('-');
   const pitchCount = parseInt(pcParts[0]) || 0;
   const strikes = parseInt(pcParts[1]) || 0;
   const balls = pitchCount - strikes;
 
-  // Batting derived stats
   const ops = bat.avg !== '.000' ? (parseFloat(bat.obp) + parseFloat(bat.slg)).toFixed(3) : '.000';
   const habParts = bat.hab.split('-');
   const habH = parseInt(habParts[0]) || 0;
   const habAB = parseInt(habParts[1]) || 0;
   const avgPct = habAB > 0 ? ((habH / habAB) * 100).toFixed(1) : '0';
 
-  // Pitching derived stats
   const ipNum = parseFloat(pit.ip) || 0;
   const k9 = ipNum > 0 ? ((pit.so / ipNum) * 9).toFixed(1) : '0.0';
   const bb9 = ipNum > 0 ? ((pit.bb / ipNum) * 9).toFixed(1) : '0.0';
@@ -156,10 +146,9 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
   const playerName = player.athlete?.displayName || player.athlete?.shortName || player.name;
   const position = player.athlete?.position?.abbreviation || player.position || '';
 
-  // Pitching decision badge
   const decision = pitcherRow?.notes?.find(n => n.type === 'pitchingDecision')?.text;
   let decisionLabel = null;
-  let decisionColor = '#3f3f46';
+  let decisionColor = '#6b7280';
   if (decision) {
     if (decision.startsWith('W')) { decisionLabel = 'WIN'; decisionColor = '#22c55e'; }
     else if (decision.startsWith('L')) { decisionLabel = 'LOSS'; decisionColor = '#ef4444'; }
@@ -170,17 +159,17 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
 
   return (
     <div
-  ref={screenRef}
-  className="fixed inset-0 bg-black z-[200] overflow-y-auto"
-  style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
->
+      ref={screenRef}
+      className="fixed inset-0 bg-black z-[200] overflow-y-auto"
+      style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
+    >
       <div className="min-h-screen px-4 pt-12 pb-14 max-w-lg mx-auto">
 
-       {/* Header */}
-<div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
-  <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-  <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
-</div>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
+          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
+        </div>
 
         {/* ── HERO ── */}
         <div
@@ -194,7 +183,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
             style={{ background: color, opacity: 0.08, filter: 'blur(40px)' }} />
 
           <div className="flex items-center gap-3 relative z-10">
-            {/* Headshot */}
             {headshot ? (
               <img src={headshot} alt={playerName}
                 className="rounded-xl object-cover flex-shrink-0"
@@ -206,23 +194,21 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               </div>
             )}
 
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="font-black truncate"
                 style={{ fontSize: 21, fontFamily: 'Rajdhani, sans-serif', letterSpacing: '-0.01em', lineHeight: 1.1 }}>
                 {playerName}
               </div>
-              <div style={{ fontSize: 10, color: '#52525b', fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 600, marginTop: 2 }}>
                 {position}{position ? ' · ' : ''}{teamAbbr}
               </div>
 
-              {/* Matchup + result */}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <img src={myLogo} alt={teamAbbr} style={{ width: 15, height: 15 }} />
-                <span style={{ fontSize: 11, color: '#71717a', fontWeight: 600 }}>vs {oppAbbr}</span>
+                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>vs {oppAbbr}</span>
                 {(game.isFinal || game.isLive) && (
                   <>
-                    <span style={{ color: '#2d2d2d', fontSize: 11 }}>·</span>
+                    <span style={{ color: '#6b7280', fontSize: 11 }}>·</span>
                     {game.isFinal ? (
                       <>
                         <span style={{ fontSize: 11, fontWeight: 800, color: won ? '#22c55e' : '#ef4444' }}>
@@ -239,7 +225,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                 )}
                 {decisionLabel && (
                   <>
-                    <span style={{ color: '#2d2d2d', fontSize: 11 }}>·</span>
+                    <span style={{ color: '#6b7280', fontSize: 11 }}>·</span>
                     <span style={{ fontSize: 10, fontWeight: 800, color: decisionColor, letterSpacing: '0.06em' }}>
                       {decisionLabel}
                     </span>
@@ -248,7 +234,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               </div>
             </div>
 
-            {/* Big stat on right: H/AB for batters, ERA for pitchers */}
             <div className="flex flex-col items-end flex-shrink-0">
               <span style={{
                 fontSize: isPitcher ? 42 : 50, fontWeight: 900, lineHeight: 0.88,
@@ -267,7 +252,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
         {/* ── BATTER STATS ── */}
         {!isPitcher && (
           <>
-            {/* Big 3: H / RBI / R */}
             <div className="grid grid-cols-3 gap-1.5 mb-1.5">
               {[
                 { v: bat.h,   l: 'H',   hi: bat.h >= 3 },
@@ -278,7 +262,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               ))}
             </div>
 
-            {/* Secondary row 1: HR / BB / K / AB */}
             <div className="grid grid-cols-4 gap-1.5 mb-1.5">
               {[
                 { v: bat.hr, l: 'HR', a: bat.hr >= 1 ? '#f59e0b' : null },
@@ -290,7 +273,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               ))}
             </div>
 
-            {/* Secondary row 2: OBP / SLG / OPS */}
             <div className="grid grid-cols-3 gap-1.5 mb-3">
               {[
                 { v: bat.obp, l: 'OBP' },
@@ -301,27 +283,26 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               ))}
             </div>
 
-            {/* Batting Average Ring + Context */}
             <div className="rounded-2xl p-4 mb-3"
               style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
               <div className="flex items-center justify-between mb-4"
                 style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>AT BAT</span>
+                <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>AT BAT</span>
                 <div className="flex gap-3">
-                  <span style={{ fontSize: 10, color: '#3f3f46' }}>
+                  <span style={{ fontSize: 10, color: '#6b7280' }}>
                     AVG&nbsp;
                     <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
                       {bat.avg}
                     </span>
                   </span>
-                  <span style={{ fontSize: 10, color: '#3f3f46' }}>
+                  <span style={{ fontSize: 10, color: '#6b7280' }}>
                     OBP&nbsp;
                     <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
                       {bat.obp}
                     </span>
                   </span>
                   {bat.p > 0 && (
-                    <span style={{ fontSize: 10, color: '#3f3f46' }}>
+                    <span style={{ fontSize: 10, color: '#6b7280' }}>
                       P&nbsp;
                       <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
                         {bat.p}
@@ -337,12 +318,11 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               </div>
             </div>
 
-            {/* Advanced Batting */}
             {bat.ab > 0 && (
               <div className="rounded-2xl p-4" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
                 <div className="flex items-center justify-between mb-4"
                   style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                  <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
+                  <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 mb-1.5">
                   {[
@@ -353,7 +333,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                     <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
                       style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                       <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                     </div>
                   ))}
                 </div>
@@ -366,7 +346,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                       <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
                         style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                         <span style={{ fontSize: 16, fontWeight: 900, color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                        <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
+                        <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
                       </div>
                     ))}
                   </div>
@@ -379,18 +359,16 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
         {/* ── PITCHER STATS ── */}
         {isPitcher && (
           <>
-            {/* Big 3: IP / SO / ER */}
             <div className="grid grid-cols-3 gap-1.5 mb-1.5">
               {[
-                { v: pit.ip, l: 'IP',   hi: parseFloat(pit.ip) >= 6 },
-                { v: pit.so, l: 'SO',   hi: pit.so >= 8 },
-                { v: pit.er, l: 'ER',   hi: pit.er === 0 },
+                { v: pit.ip, l: 'IP', hi: parseFloat(pit.ip) >= 6 },
+                { v: pit.so, l: 'SO', hi: pit.so >= 8 },
+                { v: pit.er, l: 'ER', hi: pit.er === 0 },
               ].map(({ v, l, hi }) => (
                 <Tile key={l} value={v} label={l} accent={hi ? '#22c55e' : null} large />
               ))}
             </div>
 
-            {/* Secondary row 1: H / R / BB / HR */}
             <div className="grid grid-cols-4 gap-1.5 mb-1.5">
               {[
                 { v: pit.h,  l: 'H',  a: pit.h <= 3 && parseFloat(pit.ip) >= 5 ? '#22c55e' : null },
@@ -402,7 +380,6 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               ))}
             </div>
 
-            {/* ERA / WHIP / PC */}
             <div className="grid grid-cols-3 gap-1.5 mb-3">
               {[
                 { v: pit.era,  l: 'ERA'  },
@@ -413,26 +390,24 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               ))}
             </div>
 
-            {/* Pitch breakdown */}
             {pitchCount > 0 && (
               <div className="rounded-2xl p-4 mb-3"
                 style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
                 <div className="flex items-center justify-between mb-4"
                   style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                  <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>PITCH COUNT</span>
+                  <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>PITCH COUNT</span>
                   <div className="flex gap-3">
-                    <span style={{ fontSize: 10, color: '#3f3f46' }}>
+                    <span style={{ fontSize: 10, color: '#6b7280' }}>
                       STR&nbsp;
                       <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>{strikes}</span>
                     </span>
-                    <span style={{ fontSize: 10, color: '#3f3f46' }}>
+                    <span style={{ fontSize: 10, color: '#6b7280' }}>
                       BALL&nbsp;
                       <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>{balls}</span>
                     </span>
                   </div>
                 </div>
 
-                {/* Strike % ring */}
                 <div className="flex justify-around">
                   <Ring pct={strikeRate} made={strikes} att={pitchCount} label="STR%" color={color} />
                   <div className="flex flex-col items-center justify-center">
@@ -449,12 +424,11 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
               </div>
             )}
 
-            {/* Advanced Pitching */}
             {ipNum > 0 && (
               <div className="rounded-2xl p-4" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
                 <div className="flex items-center justify-between mb-4"
                   style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                  <span style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
+                  <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 mb-1.5">
                   {[
@@ -465,7 +439,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                     <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
                       style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                       <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
+                      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                     </div>
                   ))}
                 </div>
@@ -478,13 +452,12 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                     <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
                       style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                       <span style={{ fontSize: 16, fontWeight: 900, color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
+                      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
                     </div>
                   ))}
                 </div>
 
-                {/* Per 9 Innings row */}
-                <div style={{ fontSize: 10, color: '#2d2d2d', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 9 INN</div>
+                <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 9 INN</div>
                 <div className="grid grid-cols-3 gap-1.5">
                   {[
                     { v: k9,  l: 'K'  },
@@ -494,7 +467,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
                     <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
                       style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                       <span style={{ fontSize: 18, fontWeight: 900, color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                      <span style={{ fontSize: 9, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
+                      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
                     </div>
                   ))}
                 </div>
@@ -507,7 +480,7 @@ export default function MLBPlayerGameBreakdown({ player, game, gameDetails, sele
         {!batterRow && !pitcherRow && (
           <div className="rounded-2xl p-8 text-center"
             style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
-            <span style={{ color: '#3f3f46', fontSize: 14 }}>No game stats available</span>
+            <span style={{ color: '#6b7280', fontSize: 14 }}>No game stats available</span>
           </div>
         )}
 
