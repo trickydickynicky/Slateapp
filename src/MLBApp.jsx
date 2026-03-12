@@ -66,6 +66,9 @@ const mlbPlayerRef = useRef(null);
 const [showMLBRoster, setShowMLBRoster] = useState(false);
 const [mlbRosterData, setMlbRosterData] = useState(null);
 const mlbRosterRef = useRef(null);
+const [compareTeam, setCompareTeam] = useState(null);
+const [isCompareMode, setIsCompareMode] = useState(false);
+const [compareTeamStats, setCompareTeamStats] = useState(null);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -556,16 +559,13 @@ const mlbRosterRef = useRef(null);
       const sortByWins = arr => [...arr].sort((a, b) =>
         parseInt(b.wins) - parseInt(a.wins)
       );
-
-      setStandings({ american: sortByWins(american), national: sortByWins(national) });
-    } catch (error) {
+} catch (error) {
       console.error('Error fetching MLB standings:', error);
     }
     setLoadingStandings(false);
   };
 
-  const fetchTeamStats = async (teamAbbr) => {
-    setLoadingTeamStats(true);
+  const getMLBTeamStatsData = async (teamAbbr) => {
     try {
       const [standingsRes, teamsRes] = await Promise.all([
         fetch('https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'),
@@ -573,13 +573,15 @@ const mlbRosterRef = useRef(null);
       ]);
       const standingsData = await standingsRes.json();
       const teamsData = await teamsRes.json();
-
+  
       const teamEntry = teamsData.sports?.[0]?.leagues?.[0]?.teams?.find(
         t => t.team.abbreviation === teamAbbr
       );
       let teamId = teamEntry?.team?.id || null;
       let teamRecord = null;
-
+      let divisionRank = null;
+      let leagueName = null;
+  
       const teamRecordsMap = {};
       standingsData.children?.forEach(league => {
         league.children?.forEach(division => {
@@ -591,10 +593,7 @@ const mlbRosterRef = useRef(null);
           });
         });
       });
-
-      let divisionRank = null;
-      let leagueName = null;
-      
+  
       standingsData.children?.forEach(league => {
         league.children?.forEach(division => {
           const entry = division.standings?.entries?.find(
@@ -618,8 +617,7 @@ const mlbRosterRef = useRef(null);
               ra: getStat('runsScoredAgainst') || getStat('runsAllowed'),
               division: division.name?.replace(' Division', '') || '',
             };
-      
-            // Calculate rank within division
+  
             const divEntries = division.standings?.entries || [];
             const sorted = [...divEntries].sort((a, b) => {
               const aW = parseInt(a.stats?.find(s => s.name === 'wins')?.displayValue || 0);
@@ -630,17 +628,17 @@ const mlbRosterRef = useRef(null);
           }
         });
       });
-
+  
       if (!teamId) throw new Error('Team not found');
-
+  
       const [statsRes, scheduleRes] = await Promise.all([
         fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${teamId}/statistics`),
         fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${teamId}/schedule`),
       ]);
-
+  
       const statsData = await statsRes.json();
       const scheduleData = await scheduleRes.json();
-
+  
       const recentGames = scheduleData.events
         ?.filter(e => e.competitions?.[0]?.status?.type?.completed)
         .slice(-10)
@@ -667,7 +665,7 @@ const mlbRosterRef = useRef(null);
           } catch { return null; }
         })
         .filter(Boolean) || [];
-
+  
       const upcomingGames = scheduleData.events
         ?.filter(e => !e.competitions?.[0]?.status?.type?.completed)
         .map(event => {
@@ -698,20 +696,31 @@ const mlbRosterRef = useRef(null);
           } catch { return null; }
         })
         .filter(Boolean) || [];
-
-      setTeamStats({
+  
+      return {
         record: teamRecord,
-        divisionRank,        
-        leagueName, 
+        divisionRank,
+        leagueName,
         stats: statsData.results?.stats?.categories || [],
         recentGames,
         upcomingGames,
-      });
+      };
     } catch (error) {
       console.error('Error fetching MLB team stats:', error);
-      setTeamStats(null);
+      return null;
     }
+  };
+  
+  const fetchTeamStats = async (teamAbbr) => {
+    setLoadingTeamStats(true);
+    const data = await getMLBTeamStatsData(teamAbbr);
+    setTeamStats(data);
     setLoadingTeamStats(false);
+  };
+  
+  const fetchTeamStatsForComparison = async (teamAbbr) => {
+    const data = await getMLBTeamStatsData(teamAbbr);
+    setCompareTeamStats(data);
   };
 
   const fetchLeagueRankings = async () => {
@@ -722,6 +731,8 @@ const mlbRosterRef = useRef(null);
     const allTeamStats = {};
     const teamAbbrs = Object.keys(espnTeamIds);
 
+      setStandings({ american: sortByWins(american), national: sortByWins(national) });
+    
     for (let i = 0; i < teamAbbrs.length; i += 5) {
       const batch = teamAbbrs.slice(i, i + 5);
       await Promise.all(batch.map(async (abbr) => {
@@ -2216,7 +2227,15 @@ const mlbRosterRef = useRef(null);
                       style={{ background: teamColors[selectedTeamInfo.abbr] }} />
 
 <div className="flex items-start gap-4 relative z-10 mb-4">
+<div className="flex flex-col items-center gap-2">
   <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
+  <button
+    onClick={() => setIsCompareMode(true)}
+    className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
+  >
+    Compare
+  </button>
+</div>
   <div className="flex-1 pt-1">
     <div className="flex items-start justify-between">
       <div>
@@ -2303,6 +2322,39 @@ const mlbRosterRef = useRef(null);
                       ))}
                     </div>
                   </div>
+
+                  {isCompareMode && !compareTeam && (
+  <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
+    <div className="min-h-screen px-4 pt-12 pb-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+          <button onClick={() => setIsCompareMode(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">✕</button>
+          <h2 className="text-2xl font-bold">Select Team to Compare</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {Object.entries(teamFullNames)
+            .filter(([abbr]) => abbr !== selectedTeamInfo.abbr)
+            .map(([abbr, fullName]) => (
+              <button
+                key={abbr}
+                onClick={() => {
+                  setCompareTeam({ abbr, logo: `https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png` });
+                  fetchTeamStatsForComparison(abbr);
+                }}
+                className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+              >
+                <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`} alt={abbr} className="w-12 h-12" />
+                <div className="text-left">
+                  <div className="font-semibold">{abbr}</div>
+                  <div className="text-xs text-gray-400">{fullName}</div>
+                </div>
+              </button>
+            ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
                   {/* Batting */}
                   <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
