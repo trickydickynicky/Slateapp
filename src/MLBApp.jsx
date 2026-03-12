@@ -63,7 +63,9 @@ const mlbStandingsRef = useRef(null);
 const mlbGameDetailRef = useRef(null);
 const mlbTeamStatsRef = useRef(null);
 const mlbPlayerRef = useRef(null);
-
+const [showMLBRoster, setShowMLBRoster] = useState(false);
+const [mlbRosterData, setMlbRosterData] = useState(null);
+const mlbRosterRef = useRef(null);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -322,6 +324,20 @@ const mlbPlayerRef = useRef(null);
     };
   }, [selectedGame, showStandings, standings.american.length]);
 
+  useEffect(() => {
+    if (!showMLBRoster || !mlbRosterRef.current) return;
+    const el = mlbRosterRef.current;
+    const onClose = () => { setShowMLBRoster(false); setMlbRosterData(null); };
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => { if (e.touches[0].clientX > 30) return; startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false; };
+    const onTouchMove = (e) => { if (startX === null) return; const dx = e.touches[0].clientX - startX; const dy = e.touches[0].clientY - startY; if (!dragging) { if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; } if (dx > 10) dragging = true; } if (dragging) { e.preventDefault(); el.style.transform = `translateX(${dx}px)`; el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`; } };
+    const onTouchEnd = (e) => { if (!dragging) return; const dx = e.changedTouches[0].clientX - startX; if (dx / window.innerWidth > 0.35) { el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease'; el.style.transform = 'translateX(100%)'; el.style.opacity = '0'; setTimeout(onClose, 250); } else { el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease'; el.style.transform = 'translateX(0)'; el.style.opacity = '1'; } setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320); startX = null; dragging = false; };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
+  }, [showMLBRoster, mlbRosterRef.current]);
+
   // ── Search functions (identical pattern to NBA) ──
   const searchPlayers = (query) => {
     if (!query || query.trim().length < 2) {
@@ -576,6 +592,9 @@ const mlbPlayerRef = useRef(null);
         });
       });
 
+      let divisionRank = null;
+      let leagueName = null;
+      
       standingsData.children?.forEach(league => {
         league.children?.forEach(division => {
           const entry = division.standings?.entries?.find(
@@ -583,6 +602,7 @@ const mlbPlayerRef = useRef(null);
           );
           if (entry) {
             if (!teamId) teamId = entry.team.id;
+            leagueName = league.name?.includes('American') ? 'AL' : 'NL';
             const getStat = (name) =>
               entry.stats?.find(s => s.name === name)?.displayValue || '-';
             teamRecord = {
@@ -598,6 +618,15 @@ const mlbPlayerRef = useRef(null);
               ra: getStat('runsScoredAgainst') || getStat('runsAllowed'),
               division: division.name?.replace(' Division', '') || '',
             };
+      
+            // Calculate rank within division
+            const divEntries = division.standings?.entries || [];
+            const sorted = [...divEntries].sort((a, b) => {
+              const aW = parseInt(a.stats?.find(s => s.name === 'wins')?.displayValue || 0);
+              const bW = parseInt(b.stats?.find(s => s.name === 'wins')?.displayValue || 0);
+              return bW - aW;
+            });
+            divisionRank = sorted.findIndex(e => e.team.abbreviation === teamAbbr) + 1;
           }
         });
       });
@@ -672,6 +701,8 @@ const mlbPlayerRef = useRef(null);
 
       setTeamStats({
         record: teamRecord,
+        divisionRank,        
+        leagueName, 
         stats: statsData.results?.stats?.categories || [],
         recentGames,
         upcomingGames,
@@ -1333,7 +1364,18 @@ const mlbPlayerRef = useRef(null);
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-6xl mx-auto">
             <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={() => setShowStandings(false)}
+            <button onClick={() => {
+  setShowStandings(false);
+  if (navigationStack.length > 0) {
+    const previous = navigationStack[navigationStack.length - 1];
+    setNavigationStack(prev => prev.slice(0, -1));
+    if (previous.type === 'teamStats') {
+      setSelectedTeamInfo(previous.teamInfo);
+      setTeamStats(null);
+      fetchTeamStats(previous.teamInfo.abbr);
+    }
+  }
+}}
                   className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>MLB Standings</h2>
               </div>
@@ -2173,29 +2215,65 @@ const mlbPlayerRef = useRef(null);
                     <div className="absolute -top-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
                       style={{ background: teamColors[selectedTeamInfo.abbr] }} />
 
-                    <div className="flex items-start gap-4 relative z-10 mb-4">
-                      <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
-                      <div className="flex-1 pt-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                              {teamFullNames[selectedTeamInfo.abbr]}
-                            </h3>
-                            <div className="text-gray-400 text-sm mt-0.5">{teamStats.record?.division}</div>
-                          </div>
-                          <button onClick={() => toggleFavorite(selectedTeamInfo.abbr)}>
-                            <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-2xl font-bold">{teamStats.record?.wins}-{teamStats.record?.losses}</span>
-                          <span className="text-gray-400 text-sm">{teamStats.record?.pct}</span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                            teamStats.record?.streak?.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-                          }`}>{teamStats.record?.streak}</span>
-                        </div>
-                      </div>
-                    </div>
+<div className="flex items-start gap-4 relative z-10 mb-4">
+  <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
+  <div className="flex-1 pt-1">
+    <div className="flex items-start justify-between">
+      <div>
+        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+          {teamFullNames[selectedTeamInfo.abbr]}
+        </h3>
+        <div className="flex items-center gap-2 mt-0.5">
+  <div
+    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+    onClick={() => {
+      setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
+      setSelectedLeague(teamStats.leagueName === 'AL' ? 'American' : 'National');
+      setSelectedTeamInfo(null);
+      setTeamStats(null);
+      setShowStandings(true);
+      if (standings.american.length === 0) fetchStandings();
+    }}
+  >
+    {teamStats.divisionRank
+      ? `${getOrdinalSuffix(teamStats.divisionRank)} ${teamStats.leagueName} ${teamStats.record?.division} ›`
+      : `${teamStats.record?.division || 'Standings'} ›`
+    }
+  </div>
+  <span className="text-gray-600">|</span>
+  <div
+    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+    onClick={async () => {
+      setShowMLBRoster(true);
+      if (!mlbRosterData) {
+        const id = espnTeamIds[selectedTeamInfo.abbr];
+        try {
+          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${id}/roster`);
+          const data = await res.json();
+          setMlbRosterData(data.athletes?.flatMap(g => g.items || [g]).filter(p => p.id) || []);
+        } catch (e) {
+          setMlbRosterData([]);
+        }
+      }
+    }}
+  >
+    Roster ›
+  </div>
+</div>
+      </div>
+      <button onClick={() => toggleFavorite(selectedTeamInfo.abbr)}>
+        <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
+      </button>
+    </div>
+    <div className="flex items-center gap-2 mt-2">
+      <span className="text-2xl font-bold">{teamStats.record?.wins}-{teamStats.record?.losses}</span>
+      <span className="text-gray-400 text-sm">{teamStats.record?.pct}</span>
+      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+        teamStats.record?.streak?.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+      }`}>{teamStats.record?.streak}</span>
+    </div>
+  </div>
+</div>
 
                     <div className="relative z-10 mb-3">
                       <div className="flex h-1.5 bg-zinc-700 rounded-full overflow-hidden">
@@ -2522,6 +2600,72 @@ const mlbPlayerRef = useRef(null);
           </div>
         </div>
       )}
+
+{showMLBRoster && (
+  <div ref={mlbRosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+    <div className="min-h-screen px-4 pt-12 pb-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+          <button onClick={() => { setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+            {teamFullNames[selectedTeamInfo?.abbr]} Roster
+          </h2>
+        </div>
+
+        {!mlbRosterData ? (
+          <div className="text-center py-12 text-gray-400">Loading roster...</div>
+        ) : mlbRosterData.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">No roster data available</div>
+        ) : (
+          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+            {mlbRosterData.map((player, idx) => (
+              <div
+                key={player.id}
+                className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
+                onClick={() => handleMLBPlayerClick(
+                  player.displayName,
+                  player.id,
+                  player.headshot?.href,
+                  selectedTeamInfo.abbr,
+                  selectedTeamInfo.logo,
+                  player.jersey,
+                  player.position?.abbreviation
+                )}
+              >
+                {player.headshot?.href ? (
+                  <img
+                    src={player.headshot.href}
+                    alt={player.displayName}
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null}
+                <div
+                  className="w-10 h-10 rounded-full bg-zinc-700 items-center justify-center text-gray-400 font-bold text-xs flex-shrink-0"
+                  style={{ display: player.headshot?.href ? 'none' : 'flex' }}
+                >
+                  {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </div>
+
+                <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
+
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate">{player.displayName}</div>
+                  <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
+                </div>
+
+                <div className="text-right text-xs text-gray-500 flex-shrink-0">
+                  <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
+                  <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── MLB PLAYER STATS ── */}
       {selectedMLBPlayer && (
