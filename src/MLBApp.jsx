@@ -64,6 +64,7 @@ const mlbGameDetailRef = useRef(null);
 const mlbTeamStatsRef = useRef(null);
 const mlbPlayerRef = useRef(null);
 
+
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
     'ATL': 'Atlanta Braves',
@@ -448,18 +449,42 @@ const mlbPlayerRef = useRef(null);
       );
       const data = await response.json();
 
-      const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
-      setGameDetails(prev => {
-        if (!prev) return data;
-        return {
-          ...prev,
-          boxscore: data.boxscore,
-          header: data.header,
-          plays: data.plays,
-          linescore: data.linescore,
-          rosters: data.rosters,
-        };
-      });
+     // Fetch full rosters (fallback for when ESPN doesn't provide lineup)
+     const homeTeamId = data.boxscore?.teams?.[1]?.team?.id;
+     const awayTeamId = data.boxscore?.teams?.[0]?.team?.id;
+
+     let homeRoster = null;
+     let awayRoster = null;
+
+     if (homeTeamId) {
+       try {
+         const homeRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${homeTeamId}/roster`);
+         const homeData = await homeRes.json();
+         homeRoster = homeData.athletes?.flatMap(g => g.items || [g]).filter(p => p.id) || [];
+       } catch (e) {}
+     }
+     if (awayTeamId) {
+       try {
+         const awayRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${awayTeamId}/roster`);
+         const awayData = await awayRes.json();
+         awayRoster = awayData.athletes?.flatMap(g => g.items || [g]).filter(p => p.id) || [];
+       } catch (e) {}
+     }
+
+     const scrollPos = gameDetailScrollRef.current?.scrollTop || 0;
+     setGameDetails(prev => {
+       if (!prev) return { ...data, homeRoster, awayRoster };
+       return {
+         ...prev,
+         boxscore: data.boxscore,
+         header: data.header,
+         plays: data.plays,
+         linescore: data.linescore,
+         rosters: data.rosters,
+         homeRoster: prev.homeRoster || homeRoster,
+         awayRoster: prev.awayRoster || awayRoster,
+       };
+     });
       setTimeout(() => {
         if (gameDetailScrollRef.current) gameDetailScrollRef.current.scrollTop = scrollPos;
       }, 100);
@@ -1992,33 +2017,120 @@ const mlbPlayerRef = useRef(null);
                         );
                       })()}
                       <div className="bg-zinc-900 rounded-2xl p-4">
-                        {(() => {
+                      {(() => {
                           const side = selectedTeamTab === 'away' ? 'away' : 'home';
-                          const roster = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
-                          if (roster.length === 0) return (
-                            <div className="text-gray-400 text-center py-4 text-sm">Lineup not yet available</div>
+                          const currentTeamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
+
+                          // ESPN lineup (set closer to game time)
+                          const espnLineup = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
+
+                          // Full roster fallback (always available)
+                          const fullRoster = side === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
+
+                          // Injury data for this team
+                          const teamInjuryData = gameDetails.injuries?.find(
+                            inj => inj.team?.abbreviation === currentTeamAbbr
                           );
-                          return (
-                            <div className="space-y-2">
-                              {roster.sort((a, b) => a.batOrder - b.batOrder).map((player) => (
-                                <div key={player.athlete?.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0">
-                                  <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
-                                  {player.athlete?.headshot?.href ? (
-                                    <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-                                      className="w-8 h-8 rounded-md object-cover" />
-                                  ) : (
-                                    <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
-                                      {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+
+                          if (espnLineup.length > 0) {
+                            // Official lineup is available — show batting order
+                            return (
+                              <div className="space-y-2">
+                                {espnLineup.sort((a, b) => a.batOrder - b.batOrder).map((player) => {
+                                  const injury = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === player.athlete?.id);
+                                  return (
+                                    <div
+                                      key={player.athlete?.id}
+                                      className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
+                                      onClick={() => handleMLBPlayerClick(
+                                        player.athlete?.displayName || player.athlete?.shortName,
+                                        player.athlete?.id,
+                                        player.athlete?.headshot?.href,
+                                        currentTeamAbbr,
+                                        side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+                                        player.athlete?.jersey,
+                                        player.position?.abbreviation
+                                      )}
+                                    >
+                                      <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
+                                      {player.athlete?.headshot?.href ? (
+                                        <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
+                                          className="w-8 h-8 rounded-md object-cover" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
+                                          {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                        </div>
+                                      )}
+                                      <div className="flex-1">
+                                        <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
+                                        <div className="text-xs text-gray-400">
+                                          {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
+                                        </div>
+                                        {injury && (
+                                          <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div>
+                                        )}
+                                      </div>
                                     </div>
-                                  )}
-                                  <div className="flex-1">
-                                    <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
-                                    <div className="text-xs text-gray-400">
-                                      {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
+                                  );
+                                })}
+                              </div>
+                            );
+                          }
+
+                          if (!fullRoster || fullRoster.length === 0) {
+                            return <div className="text-gray-400 text-center py-4 text-sm">Roster not available</div>;
+                          }
+
+                          // Full roster fallback — sort injured to bottom, same as NBA
+                          const sorted = [...fullRoster].sort((a, b) => {
+                            const aInj = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === a.id);
+                            const bInj = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === b.id);
+                            if (aInj && !bInj) return 1;
+                            if (!aInj && bInj) return -1;
+                            return 0;
+                          });
+
+                          return (
+                            <div className="space-y-1">
+                              {sorted.map((player, idx) => {
+                                const injury = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === player.id);
+                                return (
+                                  <div
+                                    key={player.id || idx}
+                                    className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
+                                    onClick={() => handleMLBPlayerClick(
+                                      player.displayName,
+                                      player.id,
+                                      player.headshot?.href,
+                                      currentTeamAbbr,
+                                      side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
+                                      player.jersey,
+                                      player.position?.abbreviation
+                                    )}
+                                  >
+                                    {player.headshot?.href ? (
+                                      <img src={player.headshot.href} alt={player.displayName}
+                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0">
+                                        {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                      </div>
+                                    )}
+                                    <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className={`font-semibold text-sm truncate ${injury ? 'text-gray-500' : ''}`}>
+                                        {player.displayName}
+                                      </div>
+                                      <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
+                                      {injury ? (
+                                        <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div>
+                                      ) : (
+                                        <div className="text-xs text-green-500">Active</div>
+                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           );
                         })()}
