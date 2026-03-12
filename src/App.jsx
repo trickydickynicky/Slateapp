@@ -3713,15 +3713,23 @@ onClick={(e) => {
 
   {/* Home/Away split */}
   <div className="relative z-10 flex gap-3">
-  <div className="flex-1 rounded-xl px-3 py-2 flex items-center justify-between bg-zinc-800 border border-zinc-700">
-  <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Home</span>
-  <span className="text-sm font-bold">{teamStats.record.home}</span>
-</div>
-<div className="flex-1 rounded-xl px-3 py-2 flex items-center justify-between bg-zinc-800 border border-zinc-700">
-  <span className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">Away</span>
-  <span className="text-sm font-bold">{teamStats.record.away}</span>
-</div>
+  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
+    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Home</span>
+    <span className="text-sm font-bold">{teamStats.record.home}</span>
   </div>
+  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
+    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Away</span>
+    <span className="text-sm font-bold">{teamStats.record.away}</span>
+  </div>
+  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
+    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">L10</span>
+    <span className="text-sm font-bold">{teamStats.record.l10}</span>
+  </div>
+  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
+    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">GB</span>
+    <span className="text-sm font-bold">{teamStats.record.gb}</span>
+  </div>
+</div>
 </div>
 
 
