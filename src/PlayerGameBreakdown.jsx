@@ -144,6 +144,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const handleShare = async () => {
     if (!shareCardRef.current) return;
     shareCardRef.current.style.display = 'block';
+    shareCardRef.current.style.visibility = 'visible';
     await new Promise(r => setTimeout(r, 150));
     try {
       const canvas = await html2canvas(shareCardRef.current, {
@@ -159,6 +160,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         y: 0,
       });
       shareCardRef.current.style.display = 'none';
+      shareCardRef.current.style.visibility = 'hidden';
       canvas.toBlob(async (blob) => {
         if (!blob) return;
         const file = new File([blob], 'breakdown.png', { type: 'image/png' });
@@ -173,6 +175,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       }, 'image/png');
     } catch (err) {
       shareCardRef.current.style.display = 'none';
+      shareCardRef.current.style.visibility = 'hidden';
       console.error('Share failed:', err);
     }
   };
@@ -333,13 +336,15 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         style={{
           display: 'none',
           position: 'fixed',
-          left: -9999,
+          left: 0,
           top: 0,
           width: 480,
           background: '#000000',
           padding: '24px 20px',
           fontFamily: 'Rajdhani, sans-serif',
           boxSizing: 'border-box',
+          zIndex: -9999,
+          visibility: 'hidden',
         }}
       >
       <div style={{ width: '100%', boxSizing: 'border-box' }}>
