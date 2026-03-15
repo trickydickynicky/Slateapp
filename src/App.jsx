@@ -3780,107 +3780,67 @@ onClick={(e) => {
   
      {/* Team Stats - Comparison or Single */}
 
-{compareTeam && (
-  <div className="flex items-center justify-end mb-4">
-    <button
-      onClick={() => {
-        setCompareTeam(null);
-        setCompareTeamStats(null);
-        setIsCompareMode(false);
-      }}
-      className="text-red-500 hover:text-red-400 text-sm font-semibold"
-    >
-      Clear Comparison
-    </button>
-  </div>
+     {compareTeam && (
+  <button
+    onClick={() => { setCompareTeam(null); setCompareTeamStats(null); setIsCompareMode(false); }}
+    className="w-full mb-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-semibold text-gray-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-2"
+  >
+    <span>✕</span> Clear Comparison
+  </button>
 )}
   
   {compareTeam && compareTeamStats ? (
     /* COMPARISON VIEW */
     <div>
-      {/* Team Headers */}
-      <div className="flex justify-between mb-6 pb-4 border-b border-zinc-800">
-        <div className="flex items-center gap-2">
-          <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-10 h-10" />
-          <div>
-            <div className="font-bold text-lg">{selectedTeamInfo.abbr}</div>
-            <div className="text-xs text-gray-400">
-              {teamStats.record.wins}-{teamStats.record.losses}
-            </div>
-          </div>
+      {/* VS header card */}
+      <div className="bg-zinc-900 rounded-2xl p-4 mb-4 flex items-center">
+        <div className="flex flex-col items-center flex-1">
+          <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-12 h-12 mb-1" />
+          <span className="font-bold text-sm" style={{ color: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }}>{selectedTeamInfo.abbr}</span>
+          <span className="text-xs text-gray-400">{teamStats.record.wins}-{teamStats.record.losses}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="text-right">
-            <div className="font-bold text-lg">{compareTeam.abbr}</div>
-            <div className="text-xs text-gray-400">
-              {compareTeamStats.record.wins}-{compareTeamStats.record.losses}
-            </div>
-          </div>
-          <img src={compareTeam.logo} alt={compareTeam.abbr} className="w-10 h-10" />
+        <div className="text-gray-500 text-xs font-bold uppercase tracking-widest px-3">VS</div>
+        <div className="flex flex-col items-center flex-1">
+          <img src={compareTeam.logo} alt={compareTeam.abbr} className="w-12 h-12 mb-1" />
+          <span className="font-bold text-sm" style={{ color: teamColors[compareTeam.abbr] || '#EF4444' }}>{compareTeam.abbr}</span>
+          <span className="text-xs text-gray-400">{compareTeamStats.record.wins}-{compareTeamStats.record.losses}</span>
         </div>
       </div>
-      
-      {/* Offensive Stats Comparison */}
-      <div className="mb-6">
-        <h5 className="text-sm font-semibold text-gray-400 mb-3 text-center">Offense</h5>
-        <div className="space-y-3">
+
+      {/* Offense card */}
+      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
+        <div className="space-y-4">
           {(() => {
             const team1Offense = teamStats.stats.find(cat => cat.name === 'offensive');
             const team2Offense = compareTeamStats.stats.find(cat => cat.name === 'offensive');
-            
-            if (!team1Offense || !team2Offense) {
-              return <div className="text-gray-400 text-center">No data available</div>;
-            }
-            
-            const getStat = (stats, name) => {
-              const stat = stats.find(s => s.name === name);
-              return stat ? parseFloat(stat.displayValue) : 0;
-            };
-            
-            const offenseStats = [
+            if (!team1Offense || !team2Offense) return <div className="text-gray-400 text-center">No data available</div>;
+            const getStat = (cat, name) => parseFloat(cat.stats.find(s => s.name === name)?.displayValue || '0') || 0;
+            return [
               { name: 'avgPoints', label: 'PPG' },
               { name: 'fieldGoalPct', label: 'FG%' },
               { name: 'threePointFieldGoalPct', label: '3P%' },
               { name: 'freeThrowPct', label: 'FT%' },
               { name: 'avgAssists', label: 'AST' },
-              { name: 'avgTurnovers', label: 'TO', inverse: true }
-            ];
-            
-            return offenseStats.map((statDef, idx) => {
-              const val1 = getStat(team1Offense.stats, statDef.name);
-              const val2 = getStat(team2Offense.stats, statDef.name);
-              
-              const team1Better = statDef.inverse ? val1 < val2 : val1 > val2;
-              const team2Better = statDef.inverse ? val2 < val1 : val2 > val1;
-              
-              const total = val1 + val2;
-              const val1Percent = total > 0 ? (val1 / total) * 100 : 50;
-              const val2Percent = total > 0 ? (val2 / total) * 100 : 50;
-              
+              { name: 'avgTurnovers', label: 'TO', inverse: true },
+            ].map(({ name, label, inverse }, idx) => {
+              const v1 = getStat(team1Offense, name);
+              const v2 = getStat(team2Offense, name);
+              const better1 = inverse ? v1 < v2 : v1 > v2;
+              const better2 = inverse ? v2 < v1 : v2 > v1;
+              const total = v1 + v2;
+              const p1 = total > 0 ? (v1 / total) * 100 : 50;
+              const p2 = total > 0 ? (v2 / total) * 100 : 50;
               return (
                 <div key={idx}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-semibold ${team1Better ? 'text-white' : 'text-gray-500'}`}>
-                      {val1.toFixed(1)}
-                    </span>
-                    <span className="text-xs text-gray-400 font-semibold">{statDef.label}</span>
-                    <span className={`text-sm font-semibold ${team2Better ? 'text-white' : 'text-gray-500'}`}>
-                      {val2.toFixed(1)}
-                    </span>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className={`text-base font-bold w-14 ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
+                    <span className="text-gray-400 text-xs font-semibold flex-1 text-center">{label}</span>
+                    <span className={`text-base font-bold w-14 text-right ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
                   </div>
-                  <div className="flex h-2 rounded-full overflow-hidden">
-                    <div 
-                      style={{ 
-                        width: `${val1Percent}%`,
-                        backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6'
-                      }}
-                    />
-                    <div 
-                      style={{ 
-                        width: `${val2Percent}%`,
-                        backgroundColor: teamColors[compareTeam.abbr] || '#EF4444'
-                      }}
-                    />
+                  <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
+                  <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }} />
+                  <div style={{ width: `${p2}%`, backgroundColor: teamColors[compareTeam.abbr] || '#EF4444' }} />
                   </div>
                 </div>
               );
@@ -3888,86 +3848,39 @@ onClick={(e) => {
           })()}
         </div>
       </div>
-      
-      {/* Defensive Stats Comparison */}
-      <div>
-        <h5 className="text-sm font-semibold text-gray-400 mb-3 text-center">Defense</h5>
-        <div className="space-y-3">
+
+      {/* Defense card */}
+      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
+        <div className="space-y-4">
           {(() => {
-            const team1Offense = teamStats.stats.find(cat => cat.name === 'offensive');
-            const team2Offense = compareTeamStats.stats.find(cat => cat.name === 'offensive');
             const team1Defense = teamStats.stats.find(cat => cat.name === 'defensive');
             const team2Defense = compareTeamStats.stats.find(cat => cat.name === 'defensive');
-            
-            const getStat = (stats, name, preferredCategory = 'defensive') => {
-              const primaryCat = preferredCategory === 'defensive' ? team1Defense : team1Offense;
-              const secondaryCat = preferredCategory === 'defensive' ? team1Offense : team1Defense;
-              
-              let stat = primaryCat?.stats?.find(s => s.name === name);
-              if (!stat && secondaryCat) {
-                stat = secondaryCat.stats?.find(s => s.name === name);
-              }
-              return stat ? parseFloat(stat.displayValue) : 0;
-            };
-            
-            const getStat2 = (stats, name, preferredCategory = 'defensive') => {
-              const primaryCat = preferredCategory === 'defensive' ? team2Defense : team2Offense;
-              const secondaryCat = preferredCategory === 'defensive' ? team2Offense : team2Defense;
-              
-              let stat = primaryCat?.stats?.find(s => s.name === name);
-              if (!stat && secondaryCat) {
-                stat = secondaryCat.stats?.find(s => s.name === name);
-              }
-              return stat ? parseFloat(stat.displayValue) : 0;
-            };
-            
-            const defenseStats = [
-              { name: 'avgPointsAgainst', label: 'OPPG', getValue: () => [parseFloat(teamStats.record.oppg), parseFloat(compareTeamStats.record.oppg)], inverse: true },
+            const getStat1 = (name) => parseFloat(team1Defense?.stats?.find(s => s.name === name)?.displayValue || '0') || 0;
+            const getStat2 = (name) => parseFloat(team2Defense?.stats?.find(s => s.name === name)?.displayValue || '0') || 0;
+            return [
+              { label: 'OPPG', getValue: () => [parseFloat(teamStats.record.oppg) || 0, parseFloat(compareTeamStats.record.oppg) || 0], inverse: true },
               { name: 'avgDefensiveRebounds', label: 'DREB' },
               { name: 'avgBlocks', label: 'BLK' },
-              { name: 'avgSteals', label: 'STL' }
-            ];
-            
-            return defenseStats.map((statDef, idx) => {
-              let val1, val2;
-              if (statDef.getValue) {
-                [val1, val2] = statDef.getValue();
-              } else {
-                val1 = getStat(team1Defense?.stats, statDef.name);
-                val2 = getStat2(team2Defense?.stats, statDef.name);
-              }
-              
-              const team1Better = statDef.inverse ? val1 < val2 : val1 > val2;
-              const team2Better = statDef.inverse ? val2 < val1 : val2 > val1;
-              
-              const total = val1 + val2;
-              const val1Percent = total > 0 ? (val1 / total) * 100 : 50;
-              const val2Percent = total > 0 ? (val2 / total) * 100 : 50;
-              
+              { name: 'avgSteals', label: 'STL' },
+            ].map(({ name, label, getValue, inverse }, idx) => {
+              const v1 = getValue ? getValue()[0] : getStat1(name);
+              const v2 = getValue ? getValue()[1] : getStat2(name);
+              const better1 = inverse ? v1 < v2 : v1 > v2;
+              const better2 = inverse ? v2 < v1 : v2 > v1;
+              const total = v1 + v2;
+              const p1 = total > 0 ? (v1 / total) * 100 : 50;
+              const p2 = total > 0 ? (v2 / total) * 100 : 50;
               return (
                 <div key={idx}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-semibold ${team1Better ? 'text-white' : 'text-gray-500'}`}>
-                      {val1.toFixed(1)}
-                    </span>
-                    <span className="text-xs text-gray-400 font-semibold">{statDef.label}</span>
-                    <span className={`text-sm font-semibold ${team2Better ? 'text-white' : 'text-gray-500'}`}>
-                      {val2.toFixed(1)}
-                    </span>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className={`text-base font-bold w-14 ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
+                    <span className="text-gray-400 text-xs font-semibold flex-1 text-center">{label}</span>
+                    <span className={`text-base font-bold w-14 text-right ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
                   </div>
-                  <div className="flex h-2 rounded-full overflow-hidden">
-                    <div 
-                      style={{ 
-                        width: `${val1Percent}%`,
-                        backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6'
-                      }}
-                    />
-                    <div 
-                      style={{ 
-                        width: `${val2Percent}%`,
-                        backgroundColor: teamColors[compareTeam.abbr] || '#EF4444'
-                      }}
-                    />
+                  <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
+                  <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }} />
+                  <div style={{ width: `${p2}%`, backgroundColor: teamColors[compareTeam.abbr] || '#EF4444' }} />
                   </div>
                 </div>
               );

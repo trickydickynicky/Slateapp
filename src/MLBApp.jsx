@@ -59,16 +59,17 @@ export default function MLBApp({ sport, setSport }) {
   const [isScoreboardSwiping, setIsScoreboardSwiping] = useState(false);
   const scoreboardSwipeStart = useRef(null);
   const mlbFavoritesRef = useRef(null);
-const mlbStandingsRef = useRef(null);
-const mlbGameDetailRef = useRef(null);
-const mlbTeamStatsRef = useRef(null);
-const mlbPlayerRef = useRef(null);
-const [showMLBRoster, setShowMLBRoster] = useState(false);
-const [mlbRosterData, setMlbRosterData] = useState(null);
-const mlbRosterRef = useRef(null);
-const [compareTeam, setCompareTeam] = useState(null);
-const [isCompareMode, setIsCompareMode] = useState(false);
-const [compareTeamStats, setCompareTeamStats] = useState(null);
+  const mlbStandingsRef = useRef(null);
+  const mlbGameDetailRef = useRef(null);
+  const mlbTeamStatsRef = useRef(null);
+  const mlbPlayerRef = useRef(null);
+  const [showMLBRoster, setShowMLBRoster] = useState(false);
+  const [mlbRosterData, setMlbRosterData] = useState(null);
+  const mlbRosterRef = useRef(null);
+  const [compareTeam, setCompareTeam] = useState(null);
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [compareTeamStats, setCompareTeamStats] = useState(null);
+  const [loadingCompare, setLoadingCompare] = useState(false);
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -177,7 +178,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
           try {
             const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${id}/roster`);
             const data = await res.json();
-            // ESPN MLB roster returns athletes in position groups
             (data.athletes || []).forEach(group => {
               const items = group.items || [group];
               items.forEach(p => {
@@ -341,7 +341,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
     return () => { el.removeEventListener('touchstart', onTouchStart); el.removeEventListener('touchmove', onTouchMove); el.removeEventListener('touchend', onTouchEnd); };
   }, [showMLBRoster, mlbRosterRef.current]);
 
-  // ── Search functions (identical pattern to NBA) ──
+  // ── Search functions ──
   const searchPlayers = (query) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
@@ -468,7 +468,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
       );
       const data = await response.json();
 
-     // Fetch full rosters (fallback for when ESPN doesn't provide lineup)
      const homeTeamId = data.boxscore?.teams?.[1]?.team?.id;
      const awayTeamId = data.boxscore?.teams?.[0]?.team?.id;
 
@@ -559,7 +558,9 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
       const sortByWins = arr => [...arr].sort((a, b) =>
         parseInt(b.wins) - parseInt(a.wins)
       );
-} catch (error) {
+
+      setStandings({ american: sortByWins(american), national: sortByWins(national) });
+    } catch (error) {
       console.error('Error fetching MLB standings:', error);
     }
     setLoadingStandings(false);
@@ -719,8 +720,10 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
   };
   
   const fetchTeamStatsForComparison = async (teamAbbr) => {
+    setLoadingCompare(true);
     const data = await getMLBTeamStatsData(teamAbbr);
     setCompareTeamStats(data);
+    setLoadingCompare(false);
   };
 
   const fetchLeagueRankings = async () => {
@@ -730,8 +733,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
 
     const allTeamStats = {};
     const teamAbbrs = Object.keys(espnTeamIds);
-
-      setStandings({ american: sortByWins(american), national: sortByWins(national) });
     
     for (let i = 0; i < teamAbbrs.length; i += 5) {
       const batch = teamAbbrs.slice(i, i + 5);
@@ -988,6 +989,9 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
     setSlideDirection('right');
     setSelectedTeamInfo({ abbr: teamAbbr, logo: teamLogo });
     setShowAllUpcoming(false);
+    setCompareTeam(null);
+    setCompareTeamStats(null);
+    setIsCompareMode(false);
     fetchTeamStats(teamAbbr);
   };
 
@@ -1008,6 +1012,9 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
       setSelectedTeamInfo(null);
       setTeamStats(null);
     }
+    setCompareTeam(null);
+    setCompareTeamStats(null);
+    setIsCompareMode(false);
   };
 
   const handleRecentGameClick = (recentGame) => {
@@ -1214,17 +1221,17 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
 
         {/* Sport selector */}
         <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
-  <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
-    {['NBA', 'MLB'].map(s => (
-      <button key={s} onClick={() => setSport(s)}
-        className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
-          sport === s
-            ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
-            : 'text-gray-400'
-        }`}>{s}</button>
-    ))}
-  </div>
-</div>
+          <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
+            {['NBA', 'MLB'].map(s => (
+              <button key={s} onClick={() => setSport(s)}
+                className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
+                  sport === s
+                    ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
+                    : 'text-gray-400'
+                }`}>{s}</button>
+            ))}
+          </div>
+        </div>
 
         <div className="mt-2 overflow-x-auto scrollbar-hide py-4"
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}>
@@ -1370,23 +1377,23 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
 
       {/* ── STANDINGS ── */}
       {showStandings && (
-  <div ref={mlbStandingsRef} className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
+        <div ref={mlbStandingsRef} className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-6xl mx-auto">
-            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-            <button onClick={() => {
-  setShowStandings(false);
-  if (navigationStack.length > 0) {
-    const previous = navigationStack[navigationStack.length - 1];
-    setNavigationStack(prev => prev.slice(0, -1));
-    if (previous.type === 'teamStats') {
-      setSelectedTeamInfo(previous.teamInfo);
-      setTeamStats(null);
-      fetchTeamStats(previous.teamInfo.abbr);
-    }
-  }
-}}
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+                <button onClick={() => {
+                  setShowStandings(false);
+                  if (navigationStack.length > 0) {
+                    const previous = navigationStack[navigationStack.length - 1];
+                    setNavigationStack(prev => prev.slice(0, -1));
+                    if (previous.type === 'teamStats') {
+                      setSelectedTeamInfo(previous.teamInfo);
+                      setTeamStats(null);
+                      fetchTeamStats(previous.teamInfo.abbr);
+                    }
+                  }
+                }}
                   className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>MLB Standings</h2>
               </div>
@@ -1465,13 +1472,11 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
         <div
           ref={(el) => { gameDetailScrollRef.current = el; mlbGameDetailRef.current = el; }}
           className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
-          style={{
-            animation: 'slideInRight 0.3s ease-out',
-          }}
+          style={{ animation: 'slideInRight 0.3s ease-out' }}
         >
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={closeModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
               </div>
@@ -1494,7 +1499,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                 onMouseLeave={onScoreboardMouseUp}
               >
                 <div className="flex items-start justify-between min-h-[120px]">
-                  {/* Away */}
                   <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}>
                     <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
@@ -1509,7 +1513,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     )}
                   </div>
 
-                  {/* Center */}
                   <div className="flex flex-col items-center px-4 pt-2 min-w-[90px]">
                     {selectedGame.isLive && (
                       <div className="text-center">
@@ -1550,7 +1553,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     )}
                   </div>
 
-                  {/* Home */}
                   <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}>
                     <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
@@ -1566,7 +1568,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                   </div>
                 </div>
 
-                {/* Inning-by-Inning linescore */}
                 {!selectedGame.isPreGame && gameDetails && (
                   <div className="mt-4 pt-4 border-t border-zinc-800 overflow-x-auto">
                     {(() => {
@@ -1644,21 +1645,17 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                 <div className="text-center py-12 text-gray-400">Loading details...</div>
               ) : gameDetails ? (
                 <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
-                  {/* GAME TAB — Team stat comparison bars */}
                   {selectedTeamTab === 'game' && !selectedGame.isPreGame && (
                     <div className="bg-zinc-900 rounded-2xl p-4">
                       <div className="space-y-4">
                         {(() => {
                           const awayStats = gameDetails.boxscore?.teams?.[0]?.statistics || [];
                           const homeStats = gameDetails.boxscore?.teams?.[1]?.statistics || [];
-
                           const awaybatting = awayStats.find(c => c.name === 'batting')?.stats || [];
                           const homebatting = homeStats.find(c => c.name === 'batting')?.stats || [];
                           const awaypitching = awayStats.find(c => c.name === 'pitching')?.stats || [];
                           const homepitching = homeStats.find(c => c.name === 'pitching')?.stats || [];
-
                           const findStat = (stats, name) => parseFloat(stats.find(s => s.name === name)?.displayValue || '0') || 0;
-
                           const statsToCompare = [
                             { name: 'hits', label: 'Hits', cat: 'batting' },
                             { name: 'runs', label: 'Runs', cat: 'batting' },
@@ -1676,7 +1673,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                             { name: 'ERA', label: 'ERA', inverse: true, cat: 'pitching' },
                             { name: 'WHIP', label: 'WHIP', inverse: true, cat: 'pitching' },
                           ];
-
                           return statsToCompare.map((statDef, idx) => {
                             const av = findStat(statDef.cat === 'pitching' ? awaypitching : awaybatting, statDef.name);
                             const hv = findStat(statDef.cat === 'pitching' ? homepitching : homebatting, statDef.name);
@@ -1686,7 +1682,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                             const awayBetter = statDef.inverse ? av < hv : av > hv;
                             const homeBetter = statDef.inverse ? hv < av : hv > av;
                             const fmt = v => statDef.format === 'avg' ? v.toFixed(3).replace(/^0/, '') : v;
-
                             return (
                               <div key={idx}>
                                 <div className="flex justify-between items-center mb-2">
@@ -1706,12 +1701,10 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     </div>
                   )}
 
-                  {/* GAME TAB — Pre-game */}
                   {selectedTeamTab === 'game' && selectedGame.isPreGame && (
                     <div className="space-y-3">
                       <div className="bg-zinc-900 rounded-2xl p-4">
-                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitchers</h4>
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitchers</h4>
                         {gameDetails.header?.competitions?.[0]?.competitors?.map(comp => {
                           const pitcher = comp.probables?.[0];
                           if (!pitcher) return null;
@@ -1719,8 +1712,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                             <div key={comp.id} className="flex items-center justify-between py-2 border-b border-zinc-800 last:border-0">
                               <div className="flex items-center gap-3">
                                 {pitcher.athlete?.headshot?.href && (
-                                  <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName}
-                                    className="w-10 h-10 rounded-full object-cover" />
+                                  <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName} className="w-10 h-10 rounded-full object-cover" />
                                 )}
                                 <div>
                                   <div className="font-semibold text-sm">{pitcher.athlete?.displayName}</div>
@@ -1738,15 +1730,13 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                           <div className="text-gray-400 text-xs">Probable pitchers not yet announced</div>
                         )}
                       </div>
-
                       {[selectedGame.awayTeam, selectedGame.homeTeam].map(teamAbbr => {
                         const isAway = teamAbbr === selectedGame.awayTeam;
                         const logo = isAway ? selectedGame.awayLogo : selectedGame.homeLogo;
                         const injuryData = gameDetails.injuries?.find(d => d.team?.abbreviation === teamAbbr);
                         return (
                           <div key={teamAbbr} className="bg-zinc-900 rounded-2xl p-3">
-                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2"
-                              style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
                               <img src={logo} alt={teamAbbr} className="w-5 h-5" />
                               {teamAbbr} Injuries
                             </h4>
@@ -1758,8 +1748,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                   <div key={i} className="flex justify-between items-center py-1.5 border-b border-zinc-800 last:border-0">
                                     <div className="flex items-center gap-2">
                                       {inj.athlete?.headshot?.href && (
-                                        <img src={inj.athlete.headshot.href} alt={inj.athlete.displayName}
-                                          className="w-8 h-8 rounded-full object-cover" />
+                                        <img src={inj.athlete.headshot.href} alt={inj.athlete.displayName} className="w-8 h-8 rounded-full object-cover" />
                                       )}
                                       <div>
                                         <div className="font-semibold text-xs">{inj.athlete?.displayName}</div>
@@ -1780,7 +1769,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     </div>
                   )}
 
-                  {/* TEAM TAB — Batting box score */}
                   {(selectedTeamTab === 'away' || selectedTeamTab === 'home') && !selectedGame.isPreGame && (
                     <div>
                       <div className="bg-zinc-900 rounded-2xl p-4 pr-0">
@@ -1793,7 +1781,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                     const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                     const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
                                     let ab=0, r=0, h=0, rbi=0, hr=0, bb=0, k=0, p=0;
-                                    let totalFgMade=0, totalFgAtt=0;
                                     players.forEach(pl => {
                                       if (pl.stats) {
                                         ab += parseInt(pl.stats[1]) || 0;
@@ -1814,19 +1801,11 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                     const slg = (slg_num / activeCount).toFixed(3).replace(/^0/, '');
                                     return (
                                       <div className="flex items-center gap-4">
-                                        <img src={selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo}
-                                          alt="" className="w-6 h-6 flex-shrink-0" />
+                                        <img src={selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo} alt="" className="w-6 h-6 flex-shrink-0" />
                                         {[
-                                          { label: 'AB', value: ab },
-                                          { label: 'R', value: r },
-                                          { label: 'H', value: h },
-                                          { label: 'RBI', value: rbi },
-                                          { label: 'HR', value: hr },
-                                          { label: 'BB', value: bb },
-                                          { label: 'K', value: k },
-                                          { label: 'AVG', value: avg },
-                                          { label: 'OBP', value: obp },
-                                          { label: 'SLG', value: slg },
+                                          { label: 'AB', value: ab }, { label: 'R', value: r }, { label: 'H', value: h },
+                                          { label: 'RBI', value: rbi }, { label: 'HR', value: hr }, { label: 'BB', value: bb },
+                                          { label: 'K', value: k }, { label: 'AVG', value: avg }, { label: 'OBP', value: obp }, { label: 'SLG', value: slg },
                                         ].map(({ label, value }) => (
                                           <div key={label} className="text-center flex-shrink-0">
                                             <div className="text-[16px] font-semibold text-white -mb-1.5">{value}</div>
@@ -1843,29 +1822,17 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                               {(() => {
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 const players = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes || [];
-
                                 const starters = players.filter(p => p.starter);
                                 const subs = players.filter(p => !p.starter);
-
                                 const rows = [];
                                 const usedSubs = new Set();
                                 starters.sort((a, b) => a.batOrder - b.batOrder).forEach((starter, idx) => {
                                   rows.push({ player: starter, idx: idx + 1, isSub: false });
-                                  const matchingSubs = subs.filter(s =>
-                                    s.position?.abbreviation === starter.position?.abbreviation &&
-                                    !usedSubs.has(s.athlete?.id)
-                                  );
-                                  matchingSubs.forEach(sub => {
-                                    usedSubs.add(sub.athlete?.id);
-                                    rows.push({ player: sub, idx: idx + 1, isSub: true });
-                                  });
+                                  const matchingSubs = subs.filter(s => s.position?.abbreviation === starter.position?.abbreviation && !usedSubs.has(s.athlete?.id));
+                                  matchingSubs.forEach(sub => { usedSubs.add(sub.athlete?.id); rows.push({ player: sub, idx: idx + 1, isSub: true }); });
                                 });
-
                                 const unmatchedSubs = subs.filter(s => !starters.some(st => st.position?.abbreviation === s.position?.abbreviation));
-                                unmatchedSubs.forEach(sub => {
-                                  rows.push({ player: sub, idx: null, isSub: true });
-                                });
-
+                                unmatchedSubs.forEach(sub => { rows.push({ player: sub, idx: null, isSub: true }); });
                                 return rows.map(({ player, idx, isSub }) => (
                                   <tr key={player.athlete?.id} className="border-b border-zinc-800 last:border-0 h-12">
                                     <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
@@ -1873,67 +1840,27 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                         {player.athlete?.headshot?.href ? (
                                           <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
                                             className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                                            onClick={() => handleMLBPlayerClick(
-                                              player.athlete.displayName || player.athlete.shortName,
-                                              player.athlete.id,
-                                              player.athlete.headshot?.href,
-                                              selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
-                                              selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-                                              player.athlete.jersey,
-                                              player.athlete.position?.abbreviation
-                                            )}
-                                          />
+                                            onClick={() => handleMLBPlayerClick(player.athlete.displayName || player.athlete.shortName, player.athlete.id, player.athlete.headshot?.href, selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam, selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo, player.athlete.jersey, player.athlete.position?.abbreviation)} />
                                         ) : (
                                           <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
                                             {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                           </div>
                                         )}
-                                        
-        <div className="absolute left-14 top-0 z-30">
-          <div className="text-xs text-gray-400 whitespace-nowrap">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedMLBGamePlayer({
-                  id: player.athlete?.id,
-                  name: player.athlete?.displayName || player.athlete?.shortName,
-                  headshot: player.athlete?.headshot?.href,
-                  athlete: player.athlete,
-                  position: player.athlete?.position?.abbreviation,
-                });
-              }}
-              className="text-blue-500 mr-1 cursor-pointer"
-              style={{ fontSize: 9 }}
-            >
-              📊
-           </span>
-            {!isSub && (
-              <span className="text-blue-500 mr-1">{idx}.</span>
-            )}
-            {player.athlete?.shortName}
-            {isSub ? (
-              <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span>
-            ) : (
-              player.athlete?.position?.abbreviation && (
-                <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>
-              )
-            )}
-          </div>
-       </div>
+                                        <div className="absolute left-14 top-0 z-30">
+                                          <div className="text-xs text-gray-400 whitespace-nowrap">
+                                            <span onClick={(e) => { e.stopPropagation(); setSelectedMLBGamePlayer({ id: player.athlete?.id, name: player.athlete?.displayName || player.athlete?.shortName, headshot: player.athlete?.headshot?.href, athlete: player.athlete, position: player.athlete?.position?.abbreviation }); }} className="text-blue-500 mr-1 cursor-pointer" style={{ fontSize: 9 }}>📊</span>
+                                            {!isSub && <span className="text-blue-500 mr-1">{idx}.</span>}
+                                            {player.athlete?.shortName}
+                                            {isSub ? <span className="text-yellow-600"> • SUB {player.position?.abbreviation}</span> : player.athlete?.position?.abbreviation && <span className="text-gray-500"> • {player.athlete.position.abbreviation}</span>}
+                                          </div>
+                                        </div>
                                       </div>
                                     </td>
                                     {[
-                                      { label: 'AB', val: player.stats?.[1] },
-                                      { label: 'R', val: player.stats?.[2] },
-                                      { label: 'H', val: player.stats?.[3] },
-                                      { label: 'RBI', val: player.stats?.[4] },
-                                      { label: 'HR', val: player.stats?.[5] },
-                                      { label: 'BB', val: player.stats?.[6] },
-                                      { label: 'K', val: player.stats?.[7] },
-                                      { label: 'H/AB', val: player.stats?.[0] },
-                                      { label: 'AVG', val: player.stats?.[9] },
-                                      { label: 'OBP', val: player.stats?.[10] },
-                                      { label: 'SLG', val: player.stats?.[11] },
+                                      { label: 'AB', val: player.stats?.[1] }, { label: 'R', val: player.stats?.[2] }, { label: 'H', val: player.stats?.[3] },
+                                      { label: 'RBI', val: player.stats?.[4] }, { label: 'HR', val: player.stats?.[5] }, { label: 'BB', val: player.stats?.[6] },
+                                      { label: 'K', val: player.stats?.[7] }, { label: 'H/AB', val: player.stats?.[0] }, { label: 'AVG', val: player.stats?.[9] },
+                                      { label: 'OBP', val: player.stats?.[10] }, { label: 'SLG', val: player.stats?.[11] },
                                     ].map(({ label, val }) => (
                                       <td key={label} className="text-center px-2 pt-2">
                                         <div className="text-[16px] font-semibold -mb-1.5">{val ?? '-'}</div>
@@ -1948,20 +1875,15 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                         </div>
                       </div>
 
-                      {/* Pitching box score */}
                       <div className="bg-zinc-900 rounded-2xl p-4 pr-0 mt-3">
-                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1"
-                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 px-1" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
                         <div className="overflow-x-auto -ml-4">
                           <table className="w-full text-sm">
                             <tbody>
                               {(() => {
                                 const teamIdx = selectedTeamTab === 'away' ? 0 : 1;
                                 const pitchers = gameDetails.boxscore?.players?.[teamIdx]?.statistics?.[1]?.athletes || [];
-
-                                if (pitchers.length === 0) return (
-                                  <tr><td className="text-gray-500 text-xs p-2">No pitching data</td></tr>
-                                );
+                                if (pitchers.length === 0) return (<tr><td className="text-gray-500 text-xs p-2">No pitching data</td></tr>);
                                 return pitchers.map((player, idx) => (
                                   <tr key={idx} className="border-b border-zinc-800 last:border-0 h-12">
                                     <td className="py-1 sticky left-0 bg-zinc-900 z-20 w-14 min-w-[56px]">
@@ -1969,56 +1891,24 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                         {player.athlete?.headshot?.href ? (
                                           <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
                                             className="w-10 h-10 rounded-md object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                                            onClick={() => handleMLBPlayerClick(
-                                              player.athlete.displayName || player.athlete.shortName,
-                                              player.athlete.id,
-                                              player.athlete.headshot?.href,
-                                              selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam,
-                                              selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-                                              player.athlete.jersey,
-                                              player.athlete.position?.abbreviation
-                                            )}
-                                          />
+                                            onClick={() => handleMLBPlayerClick(player.athlete.displayName || player.athlete.shortName, player.athlete.id, player.athlete.headshot?.href, selectedTeamTab === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam, selectedTeamTab === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo, player.athlete.jersey, player.athlete.position?.abbreviation)} />
                                         ) : (
                                           <div className="w-10 h-10 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
                                             {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                           </div>
                                         )}
-                                               <div className="absolute left-14 top-0 z-30">
-          <div className="text-xs text-gray-400 whitespace-nowrap">
-            <span
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedMLBGamePlayer({
-                  id: player.athlete?.id,
-                  name: player.athlete?.displayName || player.athlete?.shortName,
-                  headshot: player.athlete?.headshot?.href,
-                  athlete: player.athlete,
-                  position: player.athlete?.position?.abbreviation,
-                });
-              }}
-              className="text-blue-500 mr-1 cursor-pointer"
-              style={{ fontSize: 9 }}
-            >
-              📊
-            </span>
-            {player.athlete?.shortName}
-            {player.starter && (
-              <span className="ml-1 text-blue-500 text-xs font-bold">S</span>
-            )}
-            {/* ...existing decision badges (Win/Loss/Save/Hold/BlownSave) stay unchanged... */}
-          </div>
-        </div>
-
+                                        <div className="absolute left-14 top-0 z-30">
+                                          <div className="text-xs text-gray-400 whitespace-nowrap">
+                                            <span onClick={(e) => { e.stopPropagation(); setSelectedMLBGamePlayer({ id: player.athlete?.id, name: player.athlete?.displayName || player.athlete?.shortName, headshot: player.athlete?.headshot?.href, athlete: player.athlete, position: player.athlete?.position?.abbreviation }); }} className="text-blue-500 mr-1 cursor-pointer" style={{ fontSize: 9 }}>📊</span>
+                                            {player.athlete?.shortName}
+                                            {player.starter && <span className="ml-1 text-blue-500 text-xs font-bold">S</span>}
+                                          </div>
+                                        </div>
                                       </div>
                                     </td>
                                     {[
-                                      { label: 'IP', val: player.stats?.[0] },
-                                      { label: 'H', val: player.stats?.[1] },
-                                      { label: 'R', val: player.stats?.[2] },
-                                      { label: 'ER', val: player.stats?.[3] },
-                                      { label: 'BB', val: player.stats?.[4] },
-                                      { label: 'SO', val: player.stats?.[5] },
+                                      { label: 'IP', val: player.stats?.[0] }, { label: 'H', val: player.stats?.[1] }, { label: 'R', val: player.stats?.[2] },
+                                      { label: 'ER', val: player.stats?.[3] }, { label: 'BB', val: player.stats?.[4] }, { label: 'SO', val: player.stats?.[5] },
                                       { label: 'HR', val: player.stats?.[6] },
                                       { label: 'PC', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[0] : '-'; })() },
                                       { label: 'ST', val: (() => { const s = player.stats?.[7]; return s && s !== '-----' ? s.split('-')[1] : '-'; })() },
@@ -2040,7 +1930,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     </div>
                   )}
 
-                  {/* TEAM TAB — Pre-game roster */}
                   {(selectedTeamTab === 'away' || selectedTeamTab === 'home') && selectedGame.isPreGame && (
                     <div className="space-y-3">
                       {(() => {
@@ -2050,65 +1939,40 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                         if (!pitcher) return null;
                         return (
                           <div className="bg-zinc-900 rounded-2xl p-4">
-                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                              style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitcher</h4>
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Probable Pitcher</h4>
                             <div className="flex items-center gap-3">
                               {pitcher.athlete?.headshot?.href ? (
-                                <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName}
-                                  className="w-12 h-12 rounded-md object-cover" />
+                                <img src={pitcher.athlete.headshot.href} alt={pitcher.athlete.displayName} className="w-12 h-12 rounded-md object-cover" />
                               ) : (
                                 <div className="w-12 h-12 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">SP</div>
                               )}
                               <div className="flex-1">
                                 <div className="text-sm font-semibold">{pitcher.athlete?.displayName}</div>
-                                <div className="text-xs text-gray-400">
-                                  {pitcher.statistics?.[0]?.displayValue} • ERA: {pitcher.statistics?.[1]?.displayValue || '-'}
-                                </div>
+                                <div className="text-xs text-gray-400">{pitcher.statistics?.[0]?.displayValue} • ERA: {pitcher.statistics?.[1]?.displayValue || '-'}</div>
                               </div>
                             </div>
                           </div>
                         );
                       })()}
                       <div className="bg-zinc-900 rounded-2xl p-4">
-                      {(() => {
+                        {(() => {
                           const side = selectedTeamTab === 'away' ? 'away' : 'home';
                           const currentTeamAbbr = side === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam;
-
-                          // ESPN lineup (set closer to game time)
                           const espnLineup = gameDetails.rosters?.find(r => r.homeAway === side)?.roster || [];
-
-                          // Full roster fallback (always available)
                           const fullRoster = side === 'away' ? gameDetails.awayRoster : gameDetails.homeRoster;
-
-                          // Injury data for this team
-                          const teamInjuryData = gameDetails.injuries?.find(
-                            inj => inj.team?.abbreviation === currentTeamAbbr
-                          );
+                          const teamInjuryData = gameDetails.injuries?.find(inj => inj.team?.abbreviation === currentTeamAbbr);
 
                           if (espnLineup.length > 0) {
-                            // Official lineup is available — show batting order
                             return (
                               <div className="space-y-2">
                                 {espnLineup.sort((a, b) => a.batOrder - b.batOrder).map((player) => {
                                   const injury = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === player.athlete?.id);
                                   return (
-                                    <div
-                                      key={player.athlete?.id}
-                                      className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
-                                      onClick={() => handleMLBPlayerClick(
-                                        player.athlete?.displayName || player.athlete?.shortName,
-                                        player.athlete?.id,
-                                        player.athlete?.headshot?.href,
-                                        currentTeamAbbr,
-                                        side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-                                        player.athlete?.jersey,
-                                        player.position?.abbreviation
-                                      )}
-                                    >
+                                    <div key={player.athlete?.id} className="flex items-center gap-3 py-1.5 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
+                                      onClick={() => handleMLBPlayerClick(player.athlete?.displayName || player.athlete?.shortName, player.athlete?.id, player.athlete?.headshot?.href, currentTeamAbbr, side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo, player.athlete?.jersey, player.position?.abbreviation)}>
                                       <span className="text-blue-500 font-bold w-4 text-sm">{player.batOrder}</span>
                                       {player.athlete?.headshot?.href ? (
-                                        <img src={player.athlete.headshot.href} alt={player.athlete.shortName}
-                                          className="w-8 h-8 rounded-md object-cover" />
+                                        <img src={player.athlete.headshot.href} alt={player.athlete.shortName} className="w-8 h-8 rounded-md object-cover" />
                                       ) : (
                                         <div className="w-8 h-8 rounded-md bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-xs">
                                           {player.athlete?.shortName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -2116,12 +1980,8 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                       )}
                                       <div className="flex-1">
                                         <div className="text-sm font-semibold">{player.athlete?.displayName}</div>
-                                        <div className="text-xs text-gray-400">
-                                          {player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}
-                                        </div>
-                                        {injury && (
-                                          <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div>
-                                        )}
+                                        <div className="text-xs text-gray-400">{player.position?.abbreviation}{player.athlete?.bats?.abbreviation && ` • ${player.athlete.bats.abbreviation}HB`}</div>
+                                        {injury && <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div>}
                                       </div>
                                     </div>
                                   );
@@ -2134,7 +1994,6 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                             return <div className="text-gray-400 text-center py-4 text-sm">Roster not available</div>;
                           }
 
-                          // Full roster fallback — sort injured to bottom, same as NBA
                           const sorted = [...fullRoster].sort((a, b) => {
                             const aInj = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === a.id);
                             const bInj = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === b.id);
@@ -2148,22 +2007,10 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                               {sorted.map((player, idx) => {
                                 const injury = teamInjuryData?.injuries?.find(inj => inj.athlete?.id === player.id);
                                 return (
-                                  <div
-                                    key={player.id || idx}
-                                    className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
-                                    onClick={() => handleMLBPlayerClick(
-                                      player.displayName,
-                                      player.id,
-                                      player.headshot?.href,
-                                      currentTeamAbbr,
-                                      side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo,
-                                      player.jersey,
-                                      player.position?.abbreviation
-                                    )}
-                                  >
+                                  <div key={player.id || idx} className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors rounded-lg px-1"
+                                    onClick={() => handleMLBPlayerClick(player.displayName, player.id, player.headshot?.href, currentTeamAbbr, side === 'away' ? selectedGame.awayLogo : selectedGame.homeLogo, player.jersey, player.position?.abbreviation)}>
                                     {player.headshot?.href ? (
-                                      <img src={player.headshot.href} alt={player.displayName}
-                                        className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                                      <img src={player.headshot.href} alt={player.displayName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
                                     ) : (
                                       <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-gray-400 font-bold text-sm flex-shrink-0">
                                         {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -2171,15 +2018,9 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                                     )}
                                     <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
                                     <div className="flex-1 min-w-0">
-                                      <div className={`font-semibold text-sm truncate ${injury ? 'text-gray-500' : ''}`}>
-                                        {player.displayName}
-                                      </div>
+                                      <div className={`font-semibold text-sm truncate ${injury ? 'text-gray-500' : ''}`}>{player.displayName}</div>
                                       <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
-                                      {injury ? (
-                                        <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div>
-                                      ) : (
-                                        <div className="text-xs text-green-500">Active</div>
-                                      )}
+                                      {injury ? <div className="text-xs text-red-500">{injury.status} - {injury.details?.type || 'Injury'}</div> : <div className="text-xs text-green-500">Active</div>}
                                     </div>
                                   </div>
                                 );
@@ -2206,7 +2047,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
         >
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={closeTeamModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
               </div>
@@ -2226,73 +2067,66 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     <div className="absolute -top-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
                       style={{ background: teamColors[selectedTeamInfo.abbr] }} />
 
-<div className="flex items-start gap-4 relative z-10 mb-4">
-<div className="flex flex-col items-center gap-2">
-  <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
-  <button
-    onClick={() => setIsCompareMode(true)}
-    className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
-  >
-    Compare
-  </button>
-</div>
-  <div className="flex-1 pt-1">
-    <div className="flex items-start justify-between">
-      <div>
-        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-          {teamFullNames[selectedTeamInfo.abbr]}
-        </h3>
-        <div className="flex items-center gap-2 mt-0.5">
-  <div
-    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
-    onClick={() => {
-      setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
-      setSelectedLeague(teamStats.leagueName === 'AL' ? 'American' : 'National');
-      setSelectedTeamInfo(null);
-      setTeamStats(null);
-      setShowStandings(true);
-      if (standings.american.length === 0) fetchStandings();
-    }}
-  >
-    {teamStats.divisionRank
-      ? `${getOrdinalSuffix(teamStats.divisionRank)} ${teamStats.leagueName} ${teamStats.record?.division} ›`
-      : `${teamStats.record?.division || 'Standings'} ›`
-    }
-  </div>
-  <span className="text-gray-600">|</span>
-  <div
-    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
-    onClick={async () => {
-      setShowMLBRoster(true);
-      if (!mlbRosterData) {
-        const id = espnTeamIds[selectedTeamInfo.abbr];
-        try {
-          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${id}/roster`);
-          const data = await res.json();
-          setMlbRosterData(data.athletes?.flatMap(g => g.items || [g]).filter(p => p.id) || []);
-        } catch (e) {
-          setMlbRosterData([]);
-        }
-      }
-    }}
-  >
-    Roster ›
-  </div>
-</div>
-      </div>
-      <button onClick={() => toggleFavorite(selectedTeamInfo.abbr)}>
-        <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
-      </button>
-    </div>
-    <div className="flex items-center gap-2 mt-2">
-      <span className="text-2xl font-bold">{teamStats.record?.wins}-{teamStats.record?.losses}</span>
-      <span className="text-gray-400 text-sm">{teamStats.record?.pct}</span>
-      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-        teamStats.record?.streak?.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-      }`}>{teamStats.record?.streak}</span>
-    </div>
-  </div>
-</div>
+                    <div className="flex items-start gap-4 relative z-10 mb-4">
+                      <div className="flex flex-col items-center gap-2">
+                        <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
+                        <button
+                          onClick={() => { setIsCompareMode(true); }}
+                          className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
+                        >
+                          Compare
+                        </button>
+                      </div>
+                      <div className="flex-1 pt-1">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+                              {teamFullNames[selectedTeamInfo.abbr]}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <div className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+                                onClick={() => {
+                                  setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
+                                  setSelectedLeague(teamStats.leagueName === 'AL' ? 'American' : 'National');
+                                  setSelectedTeamInfo(null);
+                                  setTeamStats(null);
+                                  setShowStandings(true);
+                                  if (standings.american.length === 0) fetchStandings();
+                                }}>
+                                {teamStats.divisionRank
+                                  ? `${getOrdinalSuffix(teamStats.divisionRank)} ${teamStats.leagueName} ${teamStats.record?.division} ›`
+                                  : `${teamStats.record?.division || 'Standings'} ›`}
+                              </div>
+                              <span className="text-gray-600">|</span>
+                              <div className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
+                                onClick={async () => {
+                                  setShowMLBRoster(true);
+                                  if (!mlbRosterData) {
+                                    const id = espnTeamIds[selectedTeamInfo.abbr];
+                                    try {
+                                      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams/${id}/roster`);
+                                      const data = await res.json();
+                                      setMlbRosterData(data.athletes?.flatMap(g => g.items || [g]).filter(p => p.id) || []);
+                                    } catch (e) { setMlbRosterData([]); }
+                                  }
+                                }}>
+                                Roster ›
+                              </div>
+                            </div>
+                          </div>
+                          <button onClick={() => toggleFavorite(selectedTeamInfo.abbr)}>
+                            <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-2xl font-bold">{teamStats.record?.wins}-{teamStats.record?.losses}</span>
+                          <span className="text-gray-400 text-sm">{teamStats.record?.pct}</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                            teamStats.record?.streak?.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                          }`}>{teamStats.record?.streak}</span>
+                        </div>
+                      </div>
+                    </div>
 
                     <div className="relative z-10 mb-3">
                       <div className="flex h-1.5 bg-zinc-700 rounded-full overflow-hidden">
@@ -2323,279 +2157,326 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     </div>
                   </div>
 
-                  {isCompareMode && !compareTeam && (
-  <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
-    <div className="min-h-screen px-4 pt-12 pb-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
-          <button onClick={() => setIsCompareMode(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">✕</button>
-          <h2 className="text-2xl font-bold">Select Team to Compare</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {Object.entries(teamFullNames)
-            .filter(([abbr]) => abbr !== selectedTeamInfo.abbr)
-            .map(([abbr, fullName]) => (
-              <button
-                key={abbr}
-                onClick={() => {
-                  setCompareTeam({ abbr, logo: `https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png` });
-                  fetchTeamStatsForComparison(abbr);
-                }}
-                className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
-              >
-                <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`} alt={abbr} className="w-12 h-12" />
-                <div className="text-left">
-                  <div className="font-semibold">{abbr}</div>
-                  <div className="text-xs text-gray-400">{fullName}</div>
-                </div>
-              </button>
-            ))}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-                  {/* Batting */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      {(() => {
-                        const bat = teamStats.stats.find(c => c.name === 'batting');
-                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-                        return [
-                          { label: 'AVG', value: getStat('avg'), rank: teamRanks.avg },
-                          { label: 'OBP', value: getStat('onBasePct'), rank: teamRanks.obp },
-                          { label: 'SLG', value: getStat('slugAvg'), rank: teamRanks.slg },
-                          { label: 'OPS', value: getStat('OPS'), rank: teamRanks.ops },
-                        ].map(({ label, value, rank }) => (
-                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-                            'border-red-500/20 bg-red-500/5'
-                          }`}>
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                            {rank && (
-                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                                #{rank}
-                              </div>
-                            )}
+                  {/* ── TEAM PICKER OVERLAY (select opponent) ── */}
+                  {isCompareMode && (
+                    <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
+                      <div className="min-h-screen px-4 pt-12 pb-8">
+                        <div className="max-w-2xl mx-auto">
+                          <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+                            <button onClick={() => setIsCompareMode(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                            <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Select Team to Compare</h2>
                           </div>
-                        ));
-                      })()}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {(() => {
-                        const bat = teamStats.stats.find(c => c.name === 'batting');
-                        const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-                        return [
-                          { label: 'HR', value: getStat('homeRuns'), rank: teamRanks.hr },
-                          { label: 'RBI', value: getStat('RBIs'), rank: teamRanks.rbi },
-                          { label: 'SB', value: getStat('stolenBases'), rank: teamRanks.sb },
-                          { label: 'SO', value: getStat('strikeouts'), rank: teamRanks.so_bat },
-                        ].map(({ label, value, rank }) => (
-                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-                            'border-red-500/20 bg-red-500/5'
-                          }`}>
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                            {rank && (
-                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                                #{rank}
-                              </div>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Pitching */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
-                    <div className="grid grid-cols-4 gap-2 mb-2">
-                      {(() => {
-                        const pit = teamStats.stats.find(c => c.name === 'pitching');
-                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-                        return [
-                          { label: 'ERA', value: getStat('ERA'), rank: teamRanks.era },
-                          { label: 'WHIP', value: getStat('WHIP'), rank: teamRanks.whip },
-                          { label: 'K/9', value: getStat('strikeoutsPerNineInnings'), rank: teamRanks.k9 },
-                          { label: 'BB/9', value: getStat('walksPerNineInnings'), rank: teamRanks.bb9 },
-                        ].map(({ label, value, rank }) => (
-                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-                            'border-red-500/20 bg-red-500/5'
-                          }`}>
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                            {rank && (
-                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                                #{rank}
-                              </div>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {(() => {
-                        const pit = teamStats.stats.find(c => c.name === 'pitching');
-                        const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-                        return [
-                          { label: 'SV', value: getStat('saves'), rank: teamRanks.saves },
-                          { label: 'QS', value: getStat('qualityStarts'), rank: teamRanks.qs },
-                          { label: 'HR', value: getStat('homeRunsAllowed'), rank: null },
-                          { label: 'SO', value: getStat('strikeouts'), rank: null },
-                        ].map(({ label, value, rank }) => (
-                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-                            'border-red-500/20 bg-red-500/5'
-                          }`}>
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                            {rank && (
-                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                                #{rank}
-                              </div>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Fielding */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(() => {
-                        const fld = teamStats.stats.find(c => c.name === 'fielding');
-                        const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
-                        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-                        return [
-                          { label: 'FPCT', value: getStat('fieldingPct'), rank: teamRanks.fpct },
-                          { label: 'E', value: getStat('errors'), rank: teamRanks.errors },
-                          { label: 'DP', value: getStat('doublePlays'), rank: null },
-                        ].map(({ label, value, rank }) => (
-                          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-                            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-                            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-                            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-                            'border-red-500/20 bg-red-500/5'
-                          }`}>
-                            <div className="text-lg font-bold text-white">{value}</div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-                            {rank && (
-                              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                                #{rank}
-                              </div>
-                            )}
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* Recent Differentials */}
-                  <div className="bg-zinc-900 rounded-2xl p-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
-                    <div className="flex gap-2 justify-between">
-                      {teamStats.recentGames.map((game, idx) => {
-                        const barHeightPercent = Math.min((Math.abs(game.differential) / 15) * 50, 50);
-                        return (
-                          <div key={idx} className="flex flex-col items-center flex-1">
-                            <div className="relative h-24 w-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-                              onClick={() => handleRecentGameClick(game)}>
-                              <div className="absolute w-full h-0.5 bg-zinc-700" style={{ top: '50%' }} />
-                              <div className="absolute bg-zinc-700 w-0.5"
-                                style={{ bottom: '0', height: '50%', left: '50%', transform: 'translateX(-50%)' }} />
-                              {game.differential > 0 ? (
-                                <>
-                                  <div className="absolute"
-                                    style={{ bottom: '50%', height: `${barHeightPercent}%`, width: '100%', maxWidth: '32px',
-                                      backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6',
-                                      borderTopLeftRadius: '4px', borderTopRightRadius: '4px' }} />
-                                  <div className="absolute text-xs font-bold text-green-500 w-full text-center"
-                                    style={{ bottom: `${50 + barHeightPercent}%`, transform: 'translateY(-4px)' }}>
-                                    +{game.differential}
+                          <div className="grid grid-cols-2 gap-3">
+                            {Object.entries(teamFullNames)
+                              .filter(([abbr]) => abbr !== selectedTeamInfo.abbr)
+                              .map(([abbr, fullName]) => (
+                                <button
+                                  key={abbr}
+                                  onClick={() => {
+                                    setCompareTeam({ abbr, logo: `https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png` });
+                                    setIsCompareMode(false);
+                                    fetchTeamStatsForComparison(abbr);
+                                  }}
+                                  className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+                                >
+                                  <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`} alt={abbr} className="w-12 h-12" />
+                                  <div className="text-left">
+                                    <div className="font-semibold">{abbr}</div>
+                                    <div className="text-xs text-gray-400">{fullName}</div>
                                   </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="absolute"
-                                    style={{ top: '50%', height: `${barHeightPercent}%`, width: '100%', maxWidth: '32px',
-                                      backgroundColor: '#1e3a5f',
-                                      borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }} />
-                                  <div className="absolute text-xs font-bold text-red-500 w-full text-center"
-                                    style={{ top: '50%', transform: 'translateY(-18px)' }}>
-                                    {game.differential}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── COMPARISON INLINE VIEW ── */}
+                  {compareTeam && (
+                    loadingCompare ? (
+                      <div className="text-center py-12 text-gray-400">Loading comparison...</div>
+                    ) : compareTeamStats ? (
+                      <>
+                        {/* Clear comparison button */}
+                        <button
+                          onClick={() => { setCompareTeam(null); setCompareTeamStats(null); }}
+                          className="w-full mb-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-semibold text-gray-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <span>✕</span> Clear Comparison
+                        </button>
+
+                        {/* Two-team header */}
+                        <div className="bg-zinc-900 rounded-2xl p-4 mb-4 flex items-center">
+                          <div className="flex flex-col items-center flex-1">
+                            <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-12 h-12 mb-1" />
+                            <span className="font-bold text-sm" style={{ color: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }}>{selectedTeamInfo.abbr}</span>
+                            <span className="text-xs text-gray-400">{teamStats.record?.wins}-{teamStats.record?.losses}</span>
+                          </div>
+                          <div className="text-gray-500 text-xs font-bold uppercase tracking-widest px-3">VS</div>
+                          <div className="flex flex-col items-center flex-1">
+                            <img src={compareTeam.logo} alt={compareTeam.abbr} className="w-12 h-12 mb-1" />
+                            <span className="font-bold text-sm" style={{ color: teamColors[compareTeam.abbr] || '#EF4444' }}>{compareTeam.abbr}</span>
+                            <span className="text-xs text-gray-400">{compareTeamStats.record?.wins}-{compareTeamStats.record?.losses}</span>
+                          </div>
+                        </div>
+
+                        {/* Stat bar sections */}
+                        {[
+                          {
+                            title: 'Batting',
+                            stats: [
+                              { label: 'AVG', catName: 'batting', statName: 'avg', format: 'avg3' },
+                              { label: 'OBP', catName: 'batting', statName: 'onBasePct', format: 'avg3' },
+                              { label: 'SLG', catName: 'batting', statName: 'slugAvg', format: 'avg3' },
+                              { label: 'OPS', catName: 'batting', statName: 'OPS', format: 'avg3' },
+                              { label: 'HR', catName: 'batting', statName: 'homeRuns' },
+                              { label: 'RBI', catName: 'batting', statName: 'RBIs' },
+                              { label: 'SB', catName: 'batting', statName: 'stolenBases' },
+                              { label: 'SO', catName: 'batting', statName: 'strikeouts', inverse: true },
+                            ],
+                          },
+                          {
+                            title: 'Pitching',
+                            stats: [
+                              { label: 'ERA', catName: 'pitching', statName: 'ERA', inverse: true, format: 'dec2' },
+                              { label: 'WHIP', catName: 'pitching', statName: 'WHIP', inverse: true, format: 'dec2' },
+                              { label: 'K/9', catName: 'pitching', statName: 'strikeoutsPerNineInnings', format: 'dec1' },
+                              { label: 'BB/9', catName: 'pitching', statName: 'walksPerNineInnings', inverse: true, format: 'dec1' },
+                              { label: 'SV', catName: 'pitching', statName: 'saves' },
+                              { label: 'QS', catName: 'pitching', statName: 'qualityStarts' },
+                            ],
+                          },
+                          {
+                            title: 'Fielding',
+                            stats: [
+                              { label: 'FPCT', catName: 'fielding', statName: 'fieldingPct', format: 'avg3' },
+                              { label: 'Errors', catName: 'fielding', statName: 'errors', inverse: true },
+                            ],
+                          },
+                        ].map(section => (
+                          <div key={section.title} className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{section.title}</h4>
+                            <div className="space-y-4">
+                              {section.stats.map(({ label, catName, statName, inverse, format }) => {
+                                const getS = (statsArr) => {
+                                  const cat = statsArr?.find(c => c.name === catName);
+                                  return parseFloat(cat?.stats?.find(s => s.name === statName)?.displayValue || '0') || 0;
+                                };
+                                const bv = getS(teamStats.stats);
+                                const cv = getS(compareTeamStats.stats);
+                                const total = bv + cv;
+                                const bp = total > 0 ? (bv / total) * 100 : 50;
+                                const cp = total > 0 ? (cv / total) * 100 : 50;
+                                const baseBetter = inverse ? bv < cv : bv > cv;
+                                const cmpBetter = inverse ? cv < bv : cv > bv;
+                                const fmt = v => {
+                                  if (format === 'avg3') return v.toFixed(3).replace(/^0/, '');
+                                  if (format === 'dec2') return v.toFixed(2);
+                                  if (format === 'dec1') return v.toFixed(1);
+                                  return v % 1 === 0 ? String(v) : v.toFixed(2);
+                                };
+                                return (
+                                  <div key={label}>
+                                    <div className="flex justify-between items-center mb-1.5">
+                                      <span className={`text-base font-bold w-14 ${baseBetter ? 'text-white' : 'text-gray-500'}`}>{fmt(bv)}</span>
+                                      <span className="text-gray-400 text-xs font-semibold flex-1 text-center">{label}</span>
+                                      <span className={`text-base font-bold w-14 text-right ${cmpBetter ? 'text-white' : 'text-gray-500'}`}>{fmt(cv)}</span>
+                                    </div>
+                                    <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
+                                    <div style={{ width: `${bp}%`, backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }} />
+                                    <div style={{ width: `${cp}%`, backgroundColor: teamColors[compareTeam.abbr] || '#EF4444' }} />
+                                    </div>
                                   </div>
-                                </>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-center py-12 text-gray-400">Could not load comparison data</div>
+                    )
+                  )}
+
+                  {/* ── REGULAR STATS (hidden while comparing) ── */}
+                  {!compareTeam && (
+                    <>
+                      {/* Batting */}
+                      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h4>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {(() => {
+                            const bat = teamStats.stats.find(c => c.name === 'batting');
+                            const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+                            const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                            return [
+                              { label: 'AVG', value: getStat('avg'), rank: teamRanks.avg },
+                              { label: 'OBP', value: getStat('onBasePct'), rank: teamRanks.obp },
+                              { label: 'SLG', value: getStat('slugAvg'), rank: teamRanks.slg },
+                              { label: 'OPS', value: getStat('OPS'), rank: teamRanks.ops },
+                            ].map(({ label, value, rank }) => (
+                              <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${!rank ? 'border-zinc-700 bg-zinc-800/50' : rank <= 10 ? 'border-green-500/30 bg-green-500/5' : rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' : 'border-red-500/20 bg-red-500/5'}`}>
+                                <div className="text-lg font-bold text-white">{value}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                                {rank && <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>#{rank}</div>}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {(() => {
+                            const bat = teamStats.stats.find(c => c.name === 'batting');
+                            const getStat = name => bat?.stats?.find(s => s.name === name)?.displayValue || '-';
+                            const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                            return [
+                              { label: 'HR', value: getStat('homeRuns'), rank: teamRanks.hr },
+                              { label: 'RBI', value: getStat('RBIs'), rank: teamRanks.rbi },
+                              { label: 'SB', value: getStat('stolenBases'), rank: teamRanks.sb },
+                              { label: 'SO', value: getStat('strikeouts'), rank: teamRanks.so_bat },
+                            ].map(({ label, value, rank }) => (
+                              <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${!rank ? 'border-zinc-700 bg-zinc-800/50' : rank <= 10 ? 'border-green-500/30 bg-green-500/5' : rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' : 'border-red-500/20 bg-red-500/5'}`}>
+                                <div className="text-lg font-bold text-white">{value}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                                {rank && <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>#{rank}</div>}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Pitching */}
+                      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h4>
+                        <div className="grid grid-cols-4 gap-2 mb-2">
+                          {(() => {
+                            const pit = teamStats.stats.find(c => c.name === 'pitching');
+                            const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+                            const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                            return [
+                              { label: 'ERA', value: getStat('ERA'), rank: teamRanks.era },
+                              { label: 'WHIP', value: getStat('WHIP'), rank: teamRanks.whip },
+                              { label: 'K/9', value: getStat('strikeoutsPerNineInnings'), rank: teamRanks.k9 },
+                              { label: 'BB/9', value: getStat('walksPerNineInnings'), rank: teamRanks.bb9 },
+                            ].map(({ label, value, rank }) => (
+                              <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${!rank ? 'border-zinc-700 bg-zinc-800/50' : rank <= 10 ? 'border-green-500/30 bg-green-500/5' : rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' : 'border-red-500/20 bg-red-500/5'}`}>
+                                <div className="text-lg font-bold text-white">{value}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                                {rank && <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>#{rank}</div>}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {(() => {
+                            const pit = teamStats.stats.find(c => c.name === 'pitching');
+                            const getStat = name => pit?.stats?.find(s => s.name === name)?.displayValue || '-';
+                            const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                            return [
+                              { label: 'SV', value: getStat('saves'), rank: teamRanks.saves },
+                              { label: 'QS', value: getStat('qualityStarts'), rank: teamRanks.qs },
+                              { label: 'HR', value: getStat('homeRunsAllowed'), rank: null },
+                              { label: 'SO', value: getStat('strikeouts'), rank: null },
+                            ].map(({ label, value, rank }) => (
+                              <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${!rank ? 'border-zinc-700 bg-zinc-800/50' : rank <= 10 ? 'border-green-500/30 bg-green-500/5' : rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' : 'border-red-500/20 bg-red-500/5'}`}>
+                                <div className="text-lg font-bold text-white">{value}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                                {rank && <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>#{rank}</div>}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Fielding */}
+                      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Fielding</h4>
+                        <div className="grid grid-cols-3 gap-2">
+                          {(() => {
+                            const fld = teamStats.stats.find(c => c.name === 'fielding');
+                            const getStat = name => fld?.stats?.find(s => s.name === name)?.displayValue || '-';
+                            const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
+                            return [
+                              { label: 'FPCT', value: getStat('fieldingPct'), rank: teamRanks.fpct },
+                              { label: 'E', value: getStat('errors'), rank: teamRanks.errors },
+                              { label: 'DP', value: getStat('doublePlays'), rank: null },
+                            ].map(({ label, value, rank }) => (
+                              <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${!rank ? 'border-zinc-700 bg-zinc-800/50' : rank <= 10 ? 'border-green-500/30 bg-green-500/5' : rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' : 'border-red-500/20 bg-red-500/5'}`}>
+                                <div className="text-lg font-bold text-white">{value}</div>
+                                <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
+                                {rank && <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>#{rank}</div>}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Recent Differentials */}
+                      <div className="bg-zinc-900 rounded-2xl p-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
+                        <div className="flex gap-2 justify-between">
+                          {teamStats.recentGames.map((game, idx) => {
+                            const barHeightPercent = Math.min((Math.abs(game.differential) / 15) * 50, 50);
+                            return (
+                              <div key={idx} className="flex flex-col items-center flex-1">
+                                <div className="relative h-24 w-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => handleRecentGameClick(game)}>
+                                  <div className="absolute w-full h-0.5 bg-zinc-700" style={{ top: '50%' }} />
+                                  <div className="absolute bg-zinc-700 w-0.5" style={{ bottom: '0', height: '50%', left: '50%', transform: 'translateX(-50%)' }} />
+                                  {game.differential > 0 ? (
+                                    <>
+                                      <div className="absolute" style={{ bottom: '50%', height: `${barHeightPercent}%`, width: '100%', maxWidth: '32px', backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6', borderTopLeftRadius: '4px', borderTopRightRadius: '4px' }} />
+                                      <div className="absolute text-xs font-bold text-green-500 w-full text-center" style={{ bottom: `${50 + barHeightPercent}%`, transform: 'translateY(-4px)' }}>+{game.differential}</div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="absolute" style={{ top: '50%', height: `${barHeightPercent}%`, width: '100%', maxWidth: '32px', backgroundColor: '#1e3a5f', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }} />
+                                      <div className="absolute text-xs font-bold text-red-500 w-full text-center" style={{ top: '50%', transform: 'translateY(-18px)' }}>{game.differential}</div>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-1">{game.isHome ? 'vs' : '@'} {game.opponent}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Upcoming Schedule */}
+                      <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+                        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
+                        <div className="space-y-2">
+                          {teamStats.upcomingGames?.length > 0 ? (
+                            <>
+                              {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
+                                <div key={idx} className="flex items-center justify-between py-1.5 border-b border-zinc-800 last:border-0">
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-xs text-gray-400 w-16">
+                                      <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })},</div>
+                                      <div>{new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
+                                      <img src={game.opponentLogo} alt={game.opponent} className="w-6 h-6 cursor-pointer hover:opacity-80" onClick={e => { e.stopPropagation(); handleTeamClick(game.opponent, game.opponentLogo); }} />
+                                      <span className="font-semibold cursor-pointer hover:text-blue-500 transition-colors" onClick={e => { e.stopPropagation(); handleTeamClick(game.opponent, game.opponentLogo); }}>{game.opponent}</span>
+                                      {game.opponentRecord && <span className="text-sm text-gray-400">({game.opponentRecord})</span>}
+                                    </div>
+                                  </div>
+                                  <div className="text-sm">{game.time}</div>
+                                </div>
+                              ))}
+                              {teamStats.upcomingGames.length > 5 && (
+                                <button onClick={() => setShowAllUpcoming(!showAllUpcoming)} className="w-full py-0 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
+                                  <span className="text-2xl font-light" style={{ transform: showAllUpcoming ? 'rotate(90deg)' : 'rotate(-90deg)' }}>‹</span>
+                                </button>
                               )}
-                            </div>
-                            <div className="text-xs text-gray-400 mt-1">
-                              {game.isHome ? 'vs' : '@'} {game.opponent}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Upcoming Schedule */}
-                  <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
-                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
-                    <div className="space-y-2">
-                      {teamStats.upcomingGames?.length > 0 ? (
-                        <>
-                          {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
-                            <div key={idx} className="flex items-center justify-between py-1.5 border-b border-zinc-800 last:border-0">
-                              <div className="flex items-center gap-3">
-                                <div className="text-xs text-gray-400 w-16">
-                                  <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })},</div>
-                                  <div>{new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
-                                  <img src={game.opponentLogo} alt={game.opponent} className="w-6 h-6 cursor-pointer hover:opacity-80"
-                                    onClick={e => { e.stopPropagation(); handleTeamClick(game.opponent, game.opponentLogo); }} />
-                                  <span className="font-semibold cursor-pointer hover:text-blue-500 transition-colors"
-                                    onClick={e => { e.stopPropagation(); handleTeamClick(game.opponent, game.opponentLogo); }}>
-                                    {game.opponent}
-                                  </span>
-                                  {game.opponentRecord && <span className="text-sm text-gray-400">({game.opponentRecord})</span>}
-                                </div>
-                              </div>
-                              <div className="text-sm">{game.time}</div>
-                            </div>
-                          ))}
-                          {teamStats.upcomingGames.length > 5 && (
-                            <button onClick={() => setShowAllUpcoming(!showAllUpcoming)}
-                              className="w-full py-0 flex items-center justify-center text-gray-400 hover:text-white transition-colors">
-                              <span className="text-2xl font-light"
-                                style={{ transform: showAllUpcoming ? 'rotate(90deg)' : 'rotate(-90deg)' }}>‹</span>
-                            </button>
+                            </>
+                          ) : (
+                            <div className="text-gray-400 text-sm">No upcoming games</div>
                           )}
-                        </>
-                      ) : (
-                        <div className="text-gray-400 text-sm">No upcoming games</div>
-                      )}
-                    </div>
-                  </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-400">Could not load team stats</div>
@@ -2607,21 +2488,19 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
 
       {/* ── FAVORITES ── */}
       {showFavorites && (
-  <div ref={mlbFavoritesRef} className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
+        <div ref={mlbFavoritesRef} className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold">Teams</h2>
               </div>
-
               {favoriteTeams.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">Your Favorites</h3>
                   <div className="grid grid-cols-2 gap-3">
                     {Object.entries(teamFullNames).filter(([abbr]) => favoriteTeams.includes(abbr)).map(([abbr, fullName]) => (
-                      <button key={abbr} onClick={() => toggleFavorite(abbr)}
-                        className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors">
+                      <button key={abbr} onClick={() => toggleFavorite(abbr)} className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors">
                         <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`} alt={abbr} className="w-12 h-12" />
                         <div className="text-left flex-1">
                           <div className="font-semibold">{abbr}</div>
@@ -2633,12 +2512,10 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                   </div>
                 </div>
               )}
-
               <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">All Teams</h3>
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(teamFullNames).map(([abbr, fullName]) => (
-                  <button key={abbr} onClick={() => toggleFavorite(abbr)}
-                    className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors">
+                  <button key={abbr} onClick={() => toggleFavorite(abbr)} className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors">
                     <img src={`https://a.espncdn.com/i/teamlogos/mlb/500/${abbr}.png`} alt={abbr} className="w-12 h-12" />
                     <div className="text-left flex-1">
                       <div className="font-semibold">{abbr}</div>
@@ -2653,152 +2530,90 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
         </div>
       )}
 
-{showMLBRoster && (
-  <div ref={mlbRosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
-    <div className="min-h-screen px-4 pt-12 pb-8">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button onClick={() => { setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-            {teamFullNames[selectedTeamInfo?.abbr]} Roster
-          </h2>
-        </div>
-
-        {!mlbRosterData ? (
-          <div className="text-center py-12 text-gray-400">Loading roster...</div>
-        ) : mlbRosterData.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">No roster data available</div>
-        ) : (
-          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
-            {mlbRosterData.map((player, idx) => (
-              <div
-                key={player.id}
-                className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
-                onClick={() => handleMLBPlayerClick(
-                  player.displayName,
-                  player.id,
-                  player.headshot?.href,
-                  selectedTeamInfo.abbr,
-                  selectedTeamInfo.logo,
-                  player.jersey,
-                  player.position?.abbreviation
-                )}
-              >
-                {player.headshot?.href ? (
-                  <img
-                    src={player.headshot.href}
-                    alt={player.displayName}
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                  />
-                ) : null}
-                <div
-                  className="w-10 h-10 rounded-full bg-zinc-700 items-center justify-center text-gray-400 font-bold text-xs flex-shrink-0"
-                  style={{ display: player.headshot?.href ? 'none' : 'flex' }}
-                >
-                  {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </div>
-
-                <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
-
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{player.displayName}</div>
-                  <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
-                </div>
-
-                <div className="text-right text-xs text-gray-500 flex-shrink-0">
-                  <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
-                  <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
-                </div>
+      {/* ── ROSTER ── */}
+      {showMLBRoster && (
+        <div ref={mlbRosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+          <div className="min-h-screen px-4 pt-12 pb-8">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+                <button onClick={() => { setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamFullNames[selectedTeamInfo?.abbr]} Roster</h2>
               </div>
-            ))}
+              {!mlbRosterData ? (
+                <div className="text-center py-12 text-gray-400">Loading roster...</div>
+              ) : mlbRosterData.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">No roster data available</div>
+              ) : (
+                <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+                  {mlbRosterData.map((player, idx) => (
+                    <div key={player.id} className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 cursor-pointer hover:bg-zinc-800 transition-colors"
+                      onClick={() => handleMLBPlayerClick(player.displayName, player.id, player.headshot?.href, selectedTeamInfo.abbr, selectedTeamInfo.logo, player.jersey, player.position?.abbreviation)}>
+                      {player.headshot?.href ? (
+                        <img src={player.headshot.href} alt={player.displayName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+                      ) : null}
+                      <div className="w-10 h-10 rounded-full bg-zinc-700 items-center justify-center text-gray-400 font-bold text-xs flex-shrink-0" style={{ display: player.headshot?.href ? 'none' : 'flex' }}>
+                        {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </div>
+                      <span className="text-gray-500 text-sm w-6 flex-shrink-0">#{player.jersey}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm truncate">{player.displayName}</div>
+                        <div className="text-xs text-gray-400">{player.position?.displayName || player.position?.abbreviation || '—'}</div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500 flex-shrink-0">
+                        <div>{player.weight ? `${player.weight} lbs` : '—'}</div>
+                        <div>{player.height ? `${Math.floor(player.height / 12)}'${player.height % 12}"` : '—'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
 
       {/* ── MLB PLAYER STATS ── */}
       {selectedMLBPlayer && (
-        <div ref={mlbPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto"
-          style={{ animation: 'slideInRight 0.3s ease-out' }}>
+        <div ref={mlbPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
-
-            <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button
-                  onClick={() => {
-                    setSelectedMLBPlayer(null);
-                    setMlbPlayerStats(null);
-                    setSelectedMLBSeason(null);
-                    setMlbAvailableSeasons([]);
-                  }}
-                  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-                >‹</button>
+              <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+                <button onClick={() => { setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
               </div>
 
-              {/* Hero Header */}
               {(() => {
                 const color = teamColors[selectedMLBPlayer.teamAbbr] || '#3B82F6';
                 return (
-                  <div className="rounded-2xl p-5 mb-4 relative overflow-hidden"
-                    style={{
-                      background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`,
-                      border: `1px solid ${color}44`,
-                    }}>
-                    <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
-                      style={{ background: color }} />
+                  <div className="rounded-2xl p-5 mb-4 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`, border: `1px solid ${color}44` }}>
+                    <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none" style={{ background: color }} />
                     <div className="flex items-center gap-4 relative z-10 mb-4">
                       {selectedMLBPlayer.headshot ? (
-                        <img src={selectedMLBPlayer.headshot} alt={selectedMLBPlayer.name}
-                          className="w-20 h-20 rounded-2xl object-cover"
-                          style={{ border: `2px solid ${color}66` }} />
+                        <img src={selectedMLBPlayer.headshot} alt={selectedMLBPlayer.name} className="w-20 h-20 rounded-2xl object-cover" style={{ border: `2px solid ${color}66` }} />
                       ) : (
                         <div className="w-20 h-20 rounded-2xl bg-zinc-800 flex items-center justify-center text-2xl font-bold text-gray-400">
                           {selectedMLBPlayer.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
                         </div>
                       )}
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-                          {selectedMLBPlayer.name}
-                        </h3>
+                        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedMLBPlayer.name}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          {selectedMLBPlayer.teamLogo && (
-                            <img src={selectedMLBPlayer.teamLogo} alt={selectedMLBPlayer.teamAbbr} className="w-4 h-4" />
-                          )}
-                          <span className="text-gray-400 text-xs">
-                            {teamFullNames[selectedMLBPlayer.teamAbbr] || selectedMLBPlayer.teamAbbr}
-                          </span>
+                          {selectedMLBPlayer.teamLogo && <img src={selectedMLBPlayer.teamLogo} alt={selectedMLBPlayer.teamAbbr} className="w-4 h-4" />}
+                          <span className="text-gray-400 text-xs">{teamFullNames[selectedMLBPlayer.teamAbbr] || selectedMLBPlayer.teamAbbr}</span>
                         </div>
-                        <div className="text-gray-500 text-xs mt-0.5">
-                          #{selectedMLBPlayer.jersey || '-'} • {selectedMLBPlayer.position || 'N/A'}
-                        </div>
+                        <div className="text-gray-500 text-xs mt-0.5">#{selectedMLBPlayer.jersey || '-'} • {selectedMLBPlayer.position || 'N/A'}</div>
                       </div>
                     </div>
-
                     {mlbPlayerStats?.currentSeason && (
                       <div className="relative z-10 grid grid-cols-3 gap-2">
                         {(() => {
                           const s = mlbPlayerStats.currentSeason;
                           const isPitcher = mlbPlayerStats.currentPitching && s['AVG'] === '-';
                           const p = mlbPlayerStats.currentPitching;
-                          if (isPitcher && p) {
-                            return [
-                              { label: 'ERA', value: p['ERA'] },
-                              { label: 'W-L', value: `${p['W'] ?? '-'}-${p['L'] ?? '-'}` },
-                              { label: 'SO', value: p['SO'] },
-                            ];
-                          }
-                          return [
-                            { label: 'AVG', value: s['AVG'] },
-                            { label: 'HR', value: s['HR'] },
-                            { label: 'RBI', value: s['RBI'] },
-                          ];
+                          if (isPitcher && p) return [{ label: 'ERA', value: p['ERA'] }, { label: 'W-L', value: `${p['W'] ?? '-'}-${p['L'] ?? '-'}` }, { label: 'SO', value: p['SO'] }];
+                          return [{ label: 'AVG', value: s['AVG'] }, { label: 'HR', value: s['HR'] }, { label: 'RBI', value: s['RBI'] }];
                         })().map(({ label, value }) => (
-                          <div key={label} className="flex flex-col items-center py-2 rounded-xl"
-                            style={{ background: `${color}22`, border: `1px solid ${color}33` }}>
+                          <div key={label} className="flex flex-col items-center py-2 rounded-xl" style={{ background: `${color}22`, border: `1px solid ${color}33` }}>
                             <span className="text-2xl font-bold">{value ?? '-'}</span>
                             <span className="text-[11px] text-gray-400 mt-0.5">{label}</span>
                           </div>
@@ -2808,13 +2623,11 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                   </div>
                 );
               })()}
-<button
-  onClick={() => setShowMLBPlayerComparison(true)}
-  className="w-full bg-zinc-900 hover:bg-zinc-800 rounded-xl py-2.5 text-sm font-semibold text-blue-400 transition-colors mb-4"
->
-  Compare Player
-</button>
-              {/* Season Selector */}
+
+              <button onClick={() => setShowMLBPlayerComparison(true)} className="w-full bg-zinc-900 hover:bg-zinc-800 rounded-xl py-2.5 text-sm font-semibold text-blue-400 transition-colors mb-4">
+                Compare Player
+              </button>
+
               {mlbAvailableSeasons.length > 0 && (
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
@@ -2824,26 +2637,16 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                       const newSeason = parseInt(e.target.value);
                       setSelectedMLBSeason(newSeason);
                       if (mlbPlayerStats?.allSeasonsData?.[newSeason]) {
-                        setMlbPlayerStats(prev => ({
-                          ...prev,
-                          currentSeason: prev.allSeasonsData[newSeason],
-                          currentPitching: prev.pitchingByYear?.[newSeason] || null,
-                        }));
+                        setMlbPlayerStats(prev => ({ ...prev, currentSeason: prev.allSeasonsData[newSeason], currentPitching: prev.pitchingByYear?.[newSeason] || null }));
                       } else {
                         fetchMLBPlayerStats(selectedMLBPlayer.name, selectedMLBPlayer.id, newSeason);
                       }
                     }}
                     className="bg-transparent text-blue-400 text-sm font-semibold outline-none appearance-none cursor-pointer pr-4"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundPosition: 'right center',
-                    }}
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right center' }}
                   >
                     {mlbAvailableSeasons.map(season => (
-                      <option key={season.year} value={season.year} className="bg-zinc-900">
-                        {season.displayName}
-                      </option>
+                      <option key={season.year} value={season.year} className="bg-zinc-900">{season.displayName}</option>
                     ))}
                   </select>
                 </div>
@@ -2855,22 +2658,15 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                 <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">{mlbPlayerStats.error}</div>
               ) : mlbPlayerStats?.currentSeason ? (
                 <div>
-                  {/* Batting Stats */}
                   {(() => {
                     const s = mlbPlayerStats.currentSeason;
                     const hasBatting = s['AVG'] && s['AVG'] !== '-';
                     if (!hasBatting) return null;
                     return (
                       <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h5>
+                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Batting</h5>
                         <div className="grid grid-cols-4 gap-2 mb-2">
-                          {[
-                            { label: 'AVG', value: s['AVG'] },
-                            { label: 'OBP', value: s['OBP'] },
-                            { label: 'SLG', value: s['SLG'] },
-                            { label: 'OPS', value: s['OPS'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'AVG', value: s['AVG'] }, { label: 'OBP', value: s['OBP'] }, { label: 'SLG', value: s['SLG'] }, { label: 'OPS', value: s['OPS'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2878,12 +2674,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                           ))}
                         </div>
                         <div className="grid grid-cols-4 gap-2 mb-2">
-                          {[
-                            { label: 'HR', value: s['HR'] },
-                            { label: 'RBI', value: s['RBI'] },
-                            { label: 'R', value: s['R'] },
-                            { label: 'H', value: s['H'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'HR', value: s['HR'] }, { label: 'RBI', value: s['RBI'] }, { label: 'R', value: s['R'] }, { label: 'H', value: s['H'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2891,12 +2682,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                           ))}
                         </div>
                         <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { label: 'SB', value: s['SB'] },
-                            { label: 'BB', value: s['BB'] },
-                            { label: 'SO', value: s['SO'] },
-                            { label: '2B', value: s['2B'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'SB', value: s['SB'] }, { label: 'BB', value: s['BB'] }, { label: 'SO', value: s['SO'] }, { label: '2B', value: s['2B'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2907,21 +2693,14 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     );
                   })()}
 
-                  {/* Pitching Stats */}
                   {(() => {
                     const p = mlbPlayerStats.currentPitching;
                     if (!p) return null;
                     return (
                       <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                          style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h5>
+                        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Pitching</h5>
                         <div className="grid grid-cols-4 gap-2 mb-2">
-                          {[
-                            { label: 'ERA', value: p['ERA'] },
-                            { label: 'WHIP', value: p['WHIP'] },
-                            { label: 'W', value: p['W'] },
-                            { label: 'L', value: p['L'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'ERA', value: p['ERA'] }, { label: 'WHIP', value: p['WHIP'] }, { label: 'W', value: p['W'] }, { label: 'L', value: p['L'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2929,12 +2708,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                           ))}
                         </div>
                         <div className="grid grid-cols-4 gap-2 mb-2">
-                          {[
-                            { label: 'SO', value: p['SO'] },
-                            { label: 'BB', value: p['BB'] },
-                            { label: 'IP', value: p['IP'] },
-                            { label: 'SV', value: p['SV'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'SO', value: p['SO'] }, { label: 'BB', value: p['BB'] }, { label: 'IP', value: p['IP'] }, { label: 'SV', value: p['SV'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2942,12 +2716,7 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                           ))}
                         </div>
                         <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { label: 'H', value: p['H'] },
-                            { label: 'HR', value: p['HR'] },
-                            { label: 'GS', value: p['GS'] },
-                            { label: 'G', value: p['G'] },
-                          ].map(({ label, value }) => (
+                          {[{ label: 'H', value: p['H'] }, { label: 'HR', value: p['HR'] }, { label: 'GS', value: p['GS'] }, { label: 'G', value: p['G'] }].map(({ label, value }) => (
                             <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                               <span className="text-lg font-bold">{value ?? '-'}</span>
                               <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2958,16 +2727,10 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
                     );
                   })()}
 
-                  {/* Availability */}
                   <div className="bg-zinc-900 rounded-2xl p-4">
-                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-                      style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
+                    <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
                     <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { label: 'G', value: mlbPlayerStats.currentSeason['G'] },
-                        { label: 'GS', value: mlbPlayerStats.currentSeason['GS'] },
-                        { label: 'AB', value: mlbPlayerStats.currentSeason['AB'] },
-                      ].map(({ label, value }) => (
+                      {[{ label: 'G', value: mlbPlayerStats.currentSeason['G'] }, { label: 'GS', value: mlbPlayerStats.currentSeason['GS'] }, { label: 'AB', value: mlbPlayerStats.currentSeason['AB'] }].map(({ label, value }) => (
                         <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
                           <span className="text-lg font-bold">{value ?? '-'}</span>
                           <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
@@ -2983,22 +2746,24 @@ const [compareTeamStats, setCompareTeamStats] = useState(null);
           </div>
         </div>
       )}
-   {showMLBPlayerComparison && selectedMLBPlayer && (
+
+      {showMLBPlayerComparison && selectedMLBPlayer && (
         <MLBPlayerComparison
           basePlayer={selectedMLBPlayer}
           playerCache={playerCache}
           onClose={() => setShowMLBPlayerComparison(false)}
         />
       )}
-   {selectedMLBGamePlayer && selectedGame && gameDetails && (
-      <MLBPlayerGameBreakdown
-       player={selectedMLBGamePlayer}
-       game={selectedGame}
-        gameDetails={gameDetails}
-        selectedTeam={selectedTeamTab}
-        onClose={() => setSelectedMLBGamePlayer(null)}
-      />
-    )}
+
+      {selectedMLBGamePlayer && selectedGame && gameDetails && (
+        <MLBPlayerGameBreakdown
+          player={selectedMLBGamePlayer}
+          game={selectedGame}
+          gameDetails={gameDetails}
+          selectedTeam={selectedTeamTab}
+          onClose={() => setSelectedMLBGamePlayer(null)}
+        />
+      )}
     </div>
   );
 }
