@@ -325,16 +325,18 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           HIDDEN SHARE CARD
           520px wide — rendered off-screen
       ══════════════════════════════════ */}
-      <div
+    <div
         ref={shareCardRef}
         style={{
           display: 'none',
           position: 'fixed',
           left: -9999,
           top: 0,
-          width: 520,
+          width: 390,
+          maxWidth: 390,
+          overflow: 'hidden',
           background: '#000000',
-          padding: '28px 24px 24px',
+          padding: '24px 20px 20px',
           fontFamily: 'Rajdhani, sans-serif',
           boxSizing: 'border-box',
         }}
