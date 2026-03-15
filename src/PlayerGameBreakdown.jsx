@@ -51,11 +51,11 @@ function Tile({ value, label, accent, large }) {
 }
 
 // Share card stat box
-function SBox({ v, l, large, color }) {
+function SBox({ v, l, large }) {
   return (
     <div style={{ background: '#ffffff0d', borderRadius: 10, padding: large ? '12px 0' : '9px 0', textAlign: 'center' }}>
-      <div style={{ fontSize: large ? 34 : 18, fontWeight: 900, color: color || 'white', lineHeight: 1, fontFamily: 'Rajdhani, sans-serif' }}>{v}</div>
-      <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: large ? 10 : 5 }}>{l}</div>
+      <div style={{ fontSize: large ? 30 : 18, fontWeight: 900, color: 'white', lineHeight: 1, fontFamily: 'Rajdhani, sans-serif' }}>{v}</div>
+      <div style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</div>
     </div>
   );
 }
@@ -188,13 +188,14 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         <div style={{ display:'flex', alignItems:'center', marginBottom:18, position:'sticky', top:0, zIndex:50, padding:'12px 0', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)', background:'linear-gradient(to bottom,rgba(0,0,0,1) 0%,rgba(0,0,0,0.7) 100%)', borderBottom:'1px solid rgba(255,255,255,0.05)', marginLeft:-16, marginRight:-16, paddingLeft:16, paddingRight:16 }}>
           <button onClick={onClose} style={{ color:'#6b7280', fontSize:26, fontWeight:300, marginRight:12, background:'none', border:'none', cursor:'pointer', lineHeight:1 }}>‹</button>
           <h2 style={{ fontSize:24, fontWeight:900, fontFamily:'Rajdhani, sans-serif', margin:0, color:'white', flex:1 }}>Game Breakdown</h2>
-          <button onClick={handleShare} style={{ background:'none', border:'none', cursor:'pointer', color:'#6b7280', display:'flex', alignItems:'center', padding:4 }}>
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
-    <polyline points="16 6 12 2 8 6"/>
-    <line x1="12" y1="2" x2="12" y2="15"/>
-  </svg>
-</button>
+          <button onClick={handleShare} style={{ background:'none', border:'1px solid #3f3f46', borderRadius:10, color:'#a1a1aa', fontSize:12, fontWeight:700, padding:'6px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:5, letterSpacing:'0.03em' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            Share
+          </button>
         </div>
 
         {/* ── HERO ── */}
@@ -325,7 +326,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           HIDDEN SHARE CARD
           520px wide — rendered off-screen
       ══════════════════════════════════ */}
- <div
+      <div
         ref={shareCardRef}
         style={{
           display: 'none',
@@ -334,19 +335,17 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           top: 0,
           width: 520,
           background: '#000000',
-          padding: '28px 24px 24px',
           fontFamily: 'Rajdhani, sans-serif',
           boxSizing: 'border-box',
         }}
       >
-       {/* Hero */}
-       <div style={{ background:`linear-gradient(135deg,${color}40 0%,#0d0d0d 60%)`, border:`1px solid ${color}60`, borderRadius:18, padding:20, marginBottom:8 }}>
+      <div style={{ padding: '28px 24px 24px', width: '100%', boxSizing: 'border-box' }}>
+        {/* Hero */}
+        <div style={{ background:`linear-gradient(135deg,${color}2a 0%,#0d0d0d 55%)`, border:`1px solid ${color}40`, borderRadius:18, padding:20, marginBottom:12 }}>
           <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
             {headshot && (
-              <div style={{ width:72, height:55, borderRadius:14, flexShrink:0, overflow:'hidden', border:`2px solid ${color}55` }}>
-                <img src={headshot} alt={player.name} crossOrigin="anonymous"
-                  style={{ width:'100%', height:'100%', objectFit:'cover', objectPosition:'center top', display:'block' }} />
-              </div>
+              <img src={headshot} alt={player.name} crossOrigin="anonymous"
+                style={{ width:72, height:72, borderRadius:14, objectFit:'cover', border:`2px solid ${color}55`, flexShrink:0 }} />
             )}
             <div style={{ flex:1 }}>
               <div style={{ fontSize:30, fontWeight:900, color:'white', lineHeight:1.05, letterSpacing:'-0.01em' }}>{player.name}</div>
@@ -363,18 +362,22 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           </div>
           {/* Big 3 */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
-          {[{v:gs.pts,l:'PTS'},{v:gs.reb,l:'REB'},{v:gs.ast,l:'AST'}].map(({v,l})=>(
+            {[{v:gs.pts,l:'PTS'},{v:gs.reb,l:'REB'},{v:gs.ast,l:'AST'}].map(({v,l})=>(
               <SBox key={l} v={v} l={l} large />
             ))}
           </div>
-        {/* Secondary row 1 */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:8, marginBottom:8 }}>
-            {[{v:gs.stl,l:'STL'},{v:gs.blk,l:'BLK'},{v:gs.to,l:'TO'},{v:pmStr,l:'+/−',c:pmColor}].map(({v,l,c})=>(
-              <SBox key={l} v={v} l={l} color={c} />
+          {/* Secondary */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:10 }}>
+            {[{v:gs.stl,l:'STL'},{v:gs.blk,l:'BLK'},{v:gs.to,l:'TO'},{v:pmStr,l:'+/−'}].map(({v,l})=>(
+              <SBox key={l} v={v} l={l} />
             ))}
           </div>
-          {/* Secondary row 2 */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+        </div>
+
+        {/* Rebounds & Fouls */}
+        <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:12 }}>
+          {sectionLabel('REBOUNDS & FOULS')}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10 }}>
             {[{v:gs.oreb,l:'OREB'},{v:gs.dreb,l:'DREB'},{v:gs.pf,l:'PF'}].map(({v,l})=>(
               <SBox key={l} v={v} l={l} />
             ))}
@@ -382,7 +385,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         </div>
 
         {/* Shooting */}
-        <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:8 }}>
+        <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:12 }}>
           {sectionLabel('SHOOTING')}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
             {[{l:'FG',pct:fgPct,ma:`${fgm}/${fga}`},{l:'3PT',pct:tpPct,ma:`${tpm}/${tpa}`},{l:'FT',pct:ftPct,ma:`${ftm}/${fta}`}].map(({l,pct,ma})=>(
@@ -402,7 +405,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
 
         {/* Advanced */}
         {min > 0 && (
-          <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:8 }}>
+          <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:12 }}>
             {sectionLabel('ADVANCED')}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:10 }}>
               {[{v:atr,l:'AST/TO'},{v:stocks,l:'STOCKS'},{v:pps,l:'PTS/FGA'}].map(({v,l})=>(
@@ -422,7 +425,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
 
         {/* Per 36 & Per 48 */}
         {per36 && (
-          <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:8 }}>
+          <div style={{ background:'#0d0d0d', border:'1px solid #1e1e1e', borderRadius:14, padding:16, marginBottom:12 }}>
             {sectionLabel('PER 36 MIN')}
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr 1fr', gap:8, marginBottom:14 }}>
               {[{v:per36.pts,l:'PTS'},{v:per36.reb,l:'REB'},{v:per36.ast,l:'AST'},{v:per36.stl,l:'STL'},{v:per36.blk,l:'BLK'}].map(({v,l})=>(
@@ -448,6 +451,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         <div style={{ textAlign:'center', paddingTop:6 }}>
           <span style={{ fontSize:14, color:'#3f3f46', fontWeight:800, letterSpacing:'0.15em' }}>SLATE</span>
         </div>
+      </div>
       </div>
     </div>
   );
