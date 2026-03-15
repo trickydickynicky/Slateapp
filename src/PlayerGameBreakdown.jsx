@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { useSwipeBack } from './useSwipeBack';
 
 const teamColors = {
@@ -81,7 +82,8 @@ function Tile({ value, label, accent, large }) {
 }
 
 export default function PlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
-  const screenRef = useSwipeBack(onClose); // ← add this
+  const screenRef = useSwipeBack(onClose);
+  const shareCardRef = useRef(null);
 
   const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const color = teamColors[teamAbbr] || '#3B82F6';
@@ -133,12 +135,59 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const myScore  = selectedTeam === 'away' ? parseInt(game.awayScore) || 0 : parseInt(game.homeScore) || 0;
   const oppScore = selectedTeam === 'away' ? parseInt(game.homeScore) || 0 : parseInt(game.awayScore) || 0;
   const oppAbbr  = selectedTeam === 'away' ? game.homeTeam : game.awayTeam;
-  const oppLogo  = selectedTeam === 'away' ? game.homeLogo : game.awayLogo;
   const myAbbr   = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
   const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
   const won      = myScore > oppScore;
 
   const headshot = player.athlete?.headshot?.href || player.headshot;
+
+  const min = parseFloat(gs.min) || 0;
+  const ast = parseFloat(gs.ast) || 0;
+  const to  = parseFloat(gs.to)  || 0;
+  const stl = parseFloat(gs.stl) || 0;
+  const blk = parseFloat(gs.blk) || 0;
+
+  const handleShare = async () => {
+    if (!shareCardRef.current) return;
+
+    // Make the card visible briefly for rendering
+    shareCardRef.current.style.display = 'block';
+
+    try {
+      const canvas = await html2canvas(shareCardRef.current, {
+        backgroundColor: '#000000',
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      });
+
+      shareCardRef.current.style.display = 'none';
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], 'breakdown.png', { type: 'image/png' });
+
+        if (navigator.share && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `${player.name} — Game Breakdown`,
+          });
+        } else {
+          // Fallback: just download the image
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${player.name}-breakdown.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      }, 'image/png');
+    } catch (err) {
+      shareCardRef.current.style.display = 'none';
+      console.error('Share failed:', err);
+    }
+  };
 
   return (
     <div
@@ -151,7 +200,31 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
           <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
+          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white', flex: 1 }}>Game Breakdown</h2>
+          <button
+            onClick={handleShare}
+            style={{
+              background: 'none',
+              border: '1px solid #3f3f46',
+              borderRadius: 10,
+              color: '#a1a1aa',
+              fontSize: 12,
+              fontWeight: 700,
+              padding: '6px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              letterSpacing: '0.03em',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            Share
+          </button>
         </div>
 
         {/* ── HERO ── */}
@@ -167,8 +240,6 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
             style={{ background: color, opacity: 0.08, filter: 'blur(40px)' }}
           />
           <div className="flex items-center gap-3 relative z-10">
-
-            {/* Headshot */}
             {headshot ? (
               <img
                 src={headshot}
@@ -184,70 +255,41 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
                 {player.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </div>
             )}
-
-            {/* Info */}
             <div className="flex-1 min-w-0">
               <div
                 className="font-black truncate"
-                style={{
-                  fontSize: 21, fontFamily: 'Rajdhani, sans-serif',
-                  letterSpacing: '-0.01em', lineHeight: 1.1,
-                }}
+                style={{ fontSize: 21, fontFamily: 'Rajdhani, sans-serif', letterSpacing: '-0.01em', lineHeight: 1.1 }}
               >
                 {player.name}
               </div>
-
-              {/* Matchup + result */}
               <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                 <img src={myLogo} alt={myAbbr} style={{ width: 15, height: 15 }} />
-                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>
-                  vs {oppAbbr}
-                </span>
+                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>vs {oppAbbr}</span>
                 {(game.isFinal || game.isLive) && (
                   <>
                     <span style={{ color: '#6b7280', fontSize: 11 }}>·</span>
                     {game.isFinal ? (
                       <>
-                        <span style={{
-                          fontSize: 11, fontWeight: 800,
-                          color: won ? '#22c55e' : '#ef4444',
-                        }}>
-                          {won ? 'W' : 'L'}
-                        </span>
-                        <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 700 }}>
-                          {myScore}–{oppScore}
-                        </span>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: won ? '#22c55e' : '#ef4444' }}>{won ? 'W' : 'L'}</span>
+                        <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 700 }}>{myScore}–{oppScore}</span>
                       </>
                     ) : (
-                      <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, letterSpacing: '0.08em' }}>
-                        ● LIVE
-                      </span>
+                      <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, letterSpacing: '0.08em' }}>● LIVE</span>
                     )}
                   </>
                 )}
               </div>
             </div>
-
-            {/* Big MIN */}
             <div className="flex flex-col items-end flex-shrink-0">
-              <span
-                style={{
-                  fontSize: 58, fontWeight: 900, lineHeight: 0.88,
-                  fontFamily: 'Rajdhani, sans-serif',
-                  color: 'white',
-                  textShadow: `0 0 28px ${color}44`,
-                }}
-              >
+              <span style={{ fontSize: 58, fontWeight: 900, lineHeight: 0.88, fontFamily: 'Rajdhani, sans-serif', color: 'white', textShadow: `0 0 28px ${color}44` }}>
                 {gs.min}
               </span>
-              <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
-                MIN
-              </span>
+              <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>MIN</span>
             </div>
           </div>
         </div>
 
-        {/* ── BIG 3: PTS / REB / AST ── */}
+        {/* ── BIG 3 ── */}
         <div className="grid grid-cols-3 gap-1.5 mb-1.5">
           {[
             { v: gs.pts, l: 'PTS', hi: parseInt(gs.pts) >= 20 },
@@ -261,10 +303,10 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         {/* ── SECONDARY ROW 1 ── */}
         <div className="grid grid-cols-4 gap-1.5 mb-1.5">
           {[
-            { v: gs.stl,  l: 'STL' },
-            { v: gs.blk,  l: 'BLK' },
-            { v: gs.to,   l: 'TO'  },
-            { v: pmStr,   l: '+/−', a: pmColor },
+            { v: gs.stl, l: 'STL' },
+            { v: gs.blk, l: 'BLK' },
+            { v: gs.to,  l: 'TO'  },
+            { v: pmStr,  l: '+/−', a: pmColor },
           ].map(({ v, l, a }) => (
             <Tile key={l} value={v} label={l} accent={a} />
           ))}
@@ -282,65 +324,32 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         </div>
 
         {/* ── SHOOTING ── */}
-        <div
-          className="rounded-2xl p-4"
-          style={{ background: '#0a0a0a', border: '1px solid #171717' }}
-        >
-          {/* Header with TS% / eFG% */}
-          <div
-            className="flex items-center justify-between mb-4"
-            style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}
-          >
-            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>
-              SHOOTING
-            </span>
+        <div className="rounded-2xl p-4" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
+          <div className="flex items-center justify-between mb-4" style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
+            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>SHOOTING</span>
             <div className="flex gap-3">
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                TS%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {tsPct}%
-                </span>
-              </span>
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                eFG%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {efgPct}%
-                </span>
-              </span>
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                FTr&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}
-                </span>
-              </span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>TS%&nbsp;<span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>{tsPct}%</span></span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>eFG%&nbsp;<span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>{efgPct}%</span></span>
+              <span style={{ fontSize: 10, color: '#6b7280' }}>FTr&nbsp;<span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>{fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}</span></span>
             </div>
           </div>
-
-          {/* Rings only */}
           <div className="flex justify-around">
-            <Ring pct={fgPct}  made={fgm} att={fga} label="FG"  color={color} />
-            <Ring pct={tpPct}  made={tpm} att={tpa} label="3PT" color={color} />
-            <Ring pct={ftPct}  made={ftm} att={fta} label="FT"  color={color} />
+            <Ring pct={fgPct} made={fgm} att={fga} label="FG"  color={color} />
+            <Ring pct={tpPct} made={tpm} att={tpa} label="3PT" color={color} />
+            <Ring pct={ftPct} made={ftm} att={fta} label="FT"  color={color} />
           </div>
         </div>
 
-        {/* ── ADVANCED ANALYTICS ── */}
-        {parseFloat(gs.min) > 0 && (() => {
-          const min    = parseFloat(gs.min) || 0;
-          const ast    = parseFloat(gs.ast) || 0;
-          const to     = parseFloat(gs.to)  || 0;
-          const stl    = parseFloat(gs.stl) || 0;
-          const blk    = parseFloat(gs.blk) || 0;
-          const pf     = parseFloat(gs.pf)  || 0;
-          const oreb   = parseFloat(gs.oreb)|| 0;
-          const dreb   = parseFloat(gs.dreb)|| 0;
-
+        {/* ── ADVANCED ── */}
+        {min > 0 && (() => {
           const atr    = to > 0 ? (ast / to).toFixed(1) : ast > 0 ? '∞' : '—';
           const stocks = stl + blk;
           const pps    = fga > 0 ? (pts / fga).toFixed(2) : '—';
           const ppr    = ((ast - to) / min).toFixed(2);
           const sbRate = ((stl + blk) / min).toFixed(2);
-          const foulR  = (pf / min).toFixed(2);
+          const foulR  = (parseFloat(gs.pf) / min).toFixed(2);
+          const oreb   = parseFloat(gs.oreb) || 0;
+          const dreb   = parseFloat(gs.dreb) || 0;
           const orbPct = (oreb + dreb) > 0 ? ((oreb / (oreb + dreb)) * 100).toFixed(1) + '%' : '—';
           const usage  = ((fga + 0.44 * fta + to) / min).toFixed(2);
           const per36  = {
@@ -354,6 +363,8 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
             pts: ((pts / min) * 48).toFixed(1),
             reb: (((oreb + dreb) / min) * 48).toFixed(1),
             ast: ((ast / min) * 48).toFixed(1),
+            stl: ((stl / min) * 48).toFixed(1),
+            blk: ((blk / min) * 48).toFixed(1),
           };
 
           return (
@@ -361,64 +372,36 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
               <div className="flex items-center justify-between mb-4" style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
                 <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
               </div>
-
               <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-                {[
-                  { v: atr,    l: 'AST/TO'  },
-                  { v: stocks, l: 'STOCKS'  },
-                  { v: pps,    l: 'PTS/FGA' },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                {[{ v: atr, l: 'AST/TO' }, { v: stocks, l: 'STOCKS' }, { v: pps, l: 'PTS/FGA' }].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
                     <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
               </div>
-
               <div className="grid grid-cols-5 gap-1.5 mb-1.5">
-                {[
-                  { v: ppr,    l: 'PPR/MIN' },
-                  { v: sbRate, l: 'S+B/MIN' },
-                  { v: foulR,  l: 'PF/MIN'  },
-                  { v: usage,  l: 'USG/MIN' },
-                  { v: orbPct, l: 'OREB%'   },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                {[{ v: ppr, l: 'PPR/MIN' }, { v: sbRate, l: 'S+B/MIN' }, { v: foulR, l: 'PF/MIN' }, { v: usage, l: 'USG/MIN' }, { v: orbPct, l: 'OREB%' }].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
                     <span style={{ fontSize: 12, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
                     <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
               </div>
-
               <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 36 MIN</div>
               <div className="grid grid-cols-5 gap-1.5 mb-3">
-                {[
-                  { v: per36.pts, l: 'PTS' },
-                  { v: per36.reb, l: 'REB' },
-                  { v: per36.ast, l: 'AST' },
-                  { v: per36.stl, l: 'STL' },
-                  { v: per36.blk, l: 'BLK' },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+                {[{ v: per36.pts, l: 'PTS' }, { v: per36.reb, l: 'REB' }, { v: per36.ast, l: 'AST' }, { v: per36.stl, l: 'STL' }, { v: per36.blk, l: 'BLK' }].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
                     <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
                   </div>
                 ))}
               </div>
-
               <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 48 MIN</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { v: per48.pts, l: 'PTS' },
-                  { v: per48.reb, l: 'REB' },
-                  { v: per48.ast, l: 'AST' },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: color, fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
+              <div className="grid grid-cols-5 gap-1.5">
+                {[{ v: per48.pts, l: 'PTS' }, { v: per48.reb, l: 'REB' }, { v: per48.ast, l: 'AST' }, { v: per48.stl, l: 'STL' }, { v: per48.blk, l: 'BLK' }].map(({ v, l }) => (
+                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
+                    <span style={{ fontSize: 18, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
                     <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
                   </div>
                 ))}
@@ -426,7 +409,94 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
             </div>
           );
         })()}
+      </div>
 
+      {/* ── HIDDEN SHARE CARD ── */}
+      <div
+        ref={shareCardRef}
+        style={{
+          display: 'none',
+          position: 'fixed',
+          left: -9999,
+          top: 0,
+          width: 400,
+          background: '#000000',
+          padding: 24,
+          fontFamily: 'Rajdhani, sans-serif',
+        }}
+      >
+        {/* Card header */}
+        <div style={{ background: `linear-gradient(135deg, ${color}33 0%, #111 60%)`, border: `1px solid ${color}44`, borderRadius: 16, padding: 20, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            {headshot && (
+              <img src={headshot} alt={player.name} crossOrigin="anonymous"
+                style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', border: `2px solid ${color}55` }} />
+            )}
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: 'white', lineHeight: 1.1 }}>{player.name}</div>
+              <div style={{ fontSize: 13, color: '#a1a1aa', marginTop: 4 }}>
+                {myAbbr} vs {oppAbbr}
+                {game.isFinal && (
+                  <span style={{ marginLeft: 8, color: won ? '#22c55e' : '#ef4444', fontWeight: 800 }}>
+                    {won ? 'W' : 'L'} {myScore}–{oppScore}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{gs.min} MIN</div>
+            </div>
+          </div>
+
+          {/* Big 3 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            {[{ v: gs.pts, l: 'PTS' }, { v: gs.reb, l: 'REB' }, { v: gs.ast, l: 'AST' }].map(({ v, l }) => (
+              <div key={l} style={{ background: '#ffffff0d', borderRadius: 10, padding: '10px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: 32, fontWeight: 900, color: 'white', lineHeight: 1 }}>{v}</div>
+                <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Secondary stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
+            {[{ v: gs.stl, l: 'STL' }, { v: gs.blk, l: 'BLK' }, { v: gs.to, l: 'TO' }, { v: pmStr, l: '+/−' }].map(({ v, l }) => (
+              <div key={l} style={{ background: '#ffffff0d', borderRadius: 10, padding: '8px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: 'white', lineHeight: 1 }}>{v}</div>
+                <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Shooting */}
+        <div style={{ background: '#111', border: '1px solid #222', borderRadius: 16, padding: 16, marginBottom: 12 }}>
+          <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 12 }}>SHOOTING</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+            {[
+              { l: 'FG', made: fgm, att: fga, pct: fgPct },
+              { l: '3PT', made: tpm, att: tpa, pct: tpPct },
+              { l: 'FT', made: ftm, att: fta, pct: ftPct },
+            ].map(({ l, made, att, pct }) => (
+              <div key={l} style={{ background: '#ffffff0a', borderRadius: 10, padding: '10px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: color, lineHeight: 1 }}>{pct}%</div>
+                <div style={{ fontSize: 11, color: '#a1a1aa', marginTop: 2 }}>{made}/{att}</div>
+                <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 10 }}>
+            {[{ l: 'TS%', v: `${tsPct}%` }, { l: 'eFG%', v: `${efgPct}%` }].map(({ l, v }) => (
+              <div key={l} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 900, color: 'white' }}>{v}</div>
+                <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em' }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Branding */}
+        <div style={{ textAlign: 'center', marginTop: 8 }}>
+          <span style={{ fontSize: 13, color: '#3f3f46', fontWeight: 700, letterSpacing: '0.1em' }}>SLATE</span>
+        </div>
       </div>
     </div>
   );
