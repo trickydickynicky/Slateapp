@@ -325,19 +325,18 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           HIDDEN SHARE CARD
           520px wide — rendered off-screen
       ══════════════════════════════════ */}
-  <div
+ <div
         ref={shareCardRef}
         style={{
           display: 'none',
-          position: 'absolute',
-          left: 0,
+          position: 'fixed',
+          left: -9999,
           top: 0,
           width: 520,
           background: '#000000',
           padding: '28px 24px 24px',
           fontFamily: 'Rajdhani, sans-serif',
           boxSizing: 'border-box',
-          zIndex: -1,
         }}
       >
        {/* Hero */}
