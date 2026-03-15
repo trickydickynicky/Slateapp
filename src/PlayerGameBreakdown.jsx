@@ -152,9 +152,11 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         useCORS: true,
         allowTaint: true,
         logging: false,
-        width: shareCardRef.current.offsetWidth,
-        height: shareCardRef.current.offsetHeight,
-        windowWidth: shareCardRef.current.offsetWidth,
+        width: 480,
+        height: shareCardRef.current.scrollHeight,
+        windowWidth: 480,
+        x: 0,
+        y: 0,
       });
       shareCardRef.current.style.display = 'none';
       canvas.toBlob(async (blob) => {
@@ -326,21 +328,21 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
           HIDDEN SHARE CARD
           520px wide — rendered off-screen
       ══════════════════════════════════ */}
-<div
+      <div
         ref={shareCardRef}
         style={{
           display: 'none',
           position: 'fixed',
           left: -9999,
           top: 0,
-          width: 520,
+          width: 480,
           background: '#000000',
-          padding: '28px 24px 24px',
+          padding: '24px 20px',
           fontFamily: 'Rajdhani, sans-serif',
           boxSizing: 'border-box',
         }}
       >
-      <div>
+      <div style={{ width: '100%', boxSizing: 'border-box' }}>
         {/* Hero */}
         <div style={{ background:`linear-gradient(135deg,${color}2a 0%,#0d0d0d 55%)`, border:`1px solid ${color}40`, borderRadius:18, padding:20, marginBottom:12 }}>
           <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:16 }}>
