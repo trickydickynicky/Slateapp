@@ -2636,9 +2636,11 @@ export default function MLBApp({ sport, setSport }) {
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
                   <select
-                    value={selectedMLBSeason || ''}
-                    onChange={(e) => {
-                      const newSeason = parseInt(e.target.value);
+  value={selectedMLBSeason || ''}
+  onFocus={() => trigger('selection')}
+  onChange={(e) => {
+    trigger('selection');
+    const newSeason = parseInt(e.target.value);
                       setSelectedMLBSeason(newSeason);
                       if (mlbPlayerStats?.allSeasonsData?.[newSeason]) {
                         setMlbPlayerStats(prev => ({ ...prev, currentSeason: prev.allSeasonsData[newSeason], currentPitching: prev.pitchingByYear?.[newSeason] || null }));
