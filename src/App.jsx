@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { haptic } from './haptics';
 
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
@@ -2006,7 +2007,7 @@ console.log('🏀 FULL DATA:', data);
       return (
         <button
           key={idx}
-          onClick={() => setSelectedDate(date)}
+          onClick={() => { setSelectedDate(date); haptic('selection'); }}
           className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-all ${
             isSelected 
               ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.7)]' 
