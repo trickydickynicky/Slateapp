@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, Star } from 'lucide-react';
 import MLBPlayerComparison from './MLBPlayerComparison';
 import MLBPlayerGameBreakdown from './MLBPlayerGameBreakdown';
+import { useWebHaptics } from 'web-haptics/react';
 
 export default function MLBApp({ sport, setSport }) {
   const [activeFilter, setActiveFilter] = useState('All');
@@ -70,6 +71,7 @@ export default function MLBApp({ sport, setSport }) {
   const [isCompareMode, setIsCompareMode] = useState(false);
   const [compareTeamStats, setCompareTeamStats] = useState(null);
   const [loadingCompare, setLoadingCompare] = useState(false);
+  const { trigger } = useWebHaptics();
 
   const teamFullNames = {
     'ARI': 'Arizona Diamondbacks',
@@ -1223,7 +1225,7 @@ export default function MLBApp({ sport, setSport }) {
         <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
           <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
             {['NBA', 'MLB'].map(s => (
-              <button key={s} onClick={() => setSport(s)}
+              <button key={s} onClick={() => { trigger('light'); setSport(s); }}
                 className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
                   sport === s
                     ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
@@ -1242,7 +1244,7 @@ export default function MLBApp({ sport, setSport }) {
               return (
                 <button
                   key={idx}
-                  onClick={() => setSelectedDate(date)}
+                  onClick={() => { setSelectedDate(date); trigger('selection'); }}
                   className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-all ${
                     isSelected ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.7)]' : 'bg-zinc-900'
                   }`}
