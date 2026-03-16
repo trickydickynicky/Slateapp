@@ -933,6 +933,7 @@ export default function MLBApp({ sport, setSport }) {
   };
 
   const handleScoreboardSwipe = (direction) => {
+    trigger('selection');
     const newIndex = direction === 'next'
       ? Math.min(currentGameIndex + 1, liveGames.length - 1)
       : Math.max(currentGameIndex - 1, 0);
@@ -1145,14 +1146,14 @@ export default function MLBApp({ sport, setSport }) {
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both' }}>
           <p className="text-gray-400 text-sm">{formatDate()}</p>
           <div className="flex items-center gap-3">
-            <button onClick={() => setShowSearch(true)} className="text-gray-400 hover:text-white">
+            <button onClick={() => { trigger('light'); setShowSearch(true); }} className="text-gray-400 hover:text-white">
               <Search className="w-5 h-5" />
             </button>
-            <button onClick={() => setShowFavorites(true)} className="text-gray-400 hover:text-white">
+            <button onClick={() => { trigger('light'); setShowFavorites(true); }} className="text-gray-400 hover:text-white">
               <Star className="w-5 h-5" />
             </button>
             <button
-              onClick={() => { setShowStandings(true); if (standings.american.length === 0) fetchStandings(); }}
+              onClick={() => { trigger('light'); setShowStandings(true); if (standings.american.length === 0) fetchStandings(); }}
               className="text-blue-500 font-semibold text-sm hover:text-blue-400"
             >
               Standings
@@ -1292,7 +1293,7 @@ export default function MLBApp({ sport, setSport }) {
                 className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer ${
                   game.isLive ? 'border-2 border-blue-500' : ''
                 }`}
-                onClick={() => handleGameClick(game)}
+                onClick={() => { trigger('light'); handleGameClick(game); }}
                 style={{ animation: `fadeIn 0.5s ease-out ${0.1 + index * 0.07}s both`, opacity: 0 }}
               >
                 <div className="flex flex-col">
@@ -1385,8 +1386,9 @@ export default function MLBApp({ sport, setSport }) {
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => {
-                  setShowStandings(false);
-                  if (navigationStack.length > 0) {
+  trigger('light');
+  setShowStandings(false);
+  if (navigationStack.length > 0) {
                     const previous = navigationStack[navigationStack.length - 1];
                     setNavigationStack(prev => prev.slice(0, -1));
                     if (previous.type === 'teamStats') {
@@ -1402,7 +1404,7 @@ export default function MLBApp({ sport, setSport }) {
 
               <div className="flex gap-2 mb-6">
                 {['American', 'National'].map(lg => (
-                  <button key={lg} onClick={() => setSelectedLeague(lg)}
+                  <button key={lg} onClick={() => { trigger('selection'); setSelectedLeague(lg); }}
                     className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
                       selectedLeague === lg ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
                     }`}>{lg} League</button>
@@ -1434,7 +1436,7 @@ export default function MLBApp({ sport, setSport }) {
                       <tbody>
                         {(selectedLeague === 'American' ? standings.american : standings.national).map((team, idx) => (
                           <tr key={idx}
-                            onClick={() => handleTeamClick(team.team, team.logo)}
+                          onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
                             className="border-t border-zinc-800 hover:bg-zinc-800 cursor-pointer transition-colors">
                             <td className="py-3 px-3 sticky left-0 bg-zinc-900 font-semibold text-blue-500">{idx + 1}</td>
                             <td className="py-3 px-3 sticky left-[40px] bg-zinc-900">
@@ -1479,7 +1481,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={closeModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <button onClick={() => { trigger('light'); closeModal(); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
               </div>
 
@@ -1633,7 +1635,7 @@ export default function MLBApp({ sport, setSport }) {
                   { key: 'home', label: selectedGame.homeTeam },
                 ].map(tab => (
                   <button key={tab.key}
-                    onClick={() => setSelectedTeamTab(tab.key)}
+                  onClick={() => { trigger('selection'); setSelectedTeamTab(tab.key); }}
                     className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
                       selectedTeamTab === tab.key ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
                     }`}
@@ -2050,7 +2052,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={closeTeamModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <button onClick={() => { trigger('light'); closeTeamModal(); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
               </div>
 
@@ -2073,7 +2075,7 @@ export default function MLBApp({ sport, setSport }) {
                       <div className="flex flex-col items-center gap-2">
                         <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-20 h-20 drop-shadow-lg" />
                         <button
-                          onClick={() => { setIsCompareMode(true); }}
+                          onClick={() => { trigger('light'); setIsCompareMode(true); }}
                           className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
                         >
                           Compare
@@ -2116,7 +2118,7 @@ export default function MLBApp({ sport, setSport }) {
                               </div>
                             </div>
                           </div>
-                          <button onClick={() => toggleFavorite(selectedTeamInfo.abbr)}>
+                          <button onClick={() => { trigger('success'); toggleFavorite(selectedTeamInfo.abbr); }}>
                             <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
                           </button>
                         </div>
@@ -2494,7 +2496,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <button onClick={() => { trigger('light'); setShowFavorites(false); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold">Teams</h2>
               </div>
               {favoriteTeams.length > 0 && (
@@ -2538,7 +2540,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={() => { setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <button onClick={() => { trigger('light'); setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamFullNames[selectedTeamInfo?.abbr]} Roster</h2>
               </div>
               {!mlbRosterData ? (
@@ -2580,7 +2582,7 @@ export default function MLBApp({ sport, setSport }) {
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-                <button onClick={() => { setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+                <button onClick={() => { trigger('light'); setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
                 <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
               </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { useSwipeBack } from './useSwipeBack';
+import { useWebHaptics } from 'web-haptics/react';
 
 const teamColors = {
   'ARI': '#A71930', 'ATL': '#CE1141', 'BAL': '#DF4601', 'BOS': '#BD3039',
@@ -215,6 +216,7 @@ const PlayerHeader = ({ player, stats, selectedSeason, onSeasonChange, side, onC
 // ── Main ──────────────────────────────────────────────────────────────────
 export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }) {
     const screenRef = useSwipeBack(onClose);
+    const { trigger } = useWebHaptics();
     const [leftPlayer, setLeftPlayer] = useState(basePlayer || null);
   const [rightPlayer, setRightPlayer] = useState(null);
 
@@ -379,7 +381,7 @@ export default function MLBPlayerComparison({ basePlayer, playerCache, onClose }
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
-          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
+        <button onClick={() => { trigger('light'); onClose(); }} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
           <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
         </div>
 
