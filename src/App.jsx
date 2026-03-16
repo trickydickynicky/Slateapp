@@ -1455,6 +1455,7 @@ console.log('🏀 FULL DATA:', data);
   };
 
   const handleScoreboardSwipe = (direction) => {
+    trigger('selection');
     const newIndex = direction === 'next'
       ? Math.min(currentGameIndex + 1, liveGames.length - 1)
       : Math.max(currentGameIndex - 1, 0);
@@ -1907,19 +1908,19 @@ console.log('🏀 FULL DATA:', data);
   <p className="text-gray-400 text-sm">{formatDate()}</p>
   <div className="flex items-center gap-3">
     <button
-      onClick={() => setShowSearch(true)}
+      onClick={() => { trigger('light'); setShowSearch(true); }}
       className="text-gray-400 hover:text-white"
     >
       <Search className="w-5 h-5" />
     </button>
     <button
-      onClick={() => setShowFavorites(true)}
+      onClick={() => { trigger('light'); setShowFavorites(true); }}
       className="text-gray-400 hover:text-white"
     >
       <Star className="w-5 h-5" />
     </button>
     <button
-      onClick={openStandings}
+      onClick={() => { trigger('light'); openStandings(); }}
       className="text-blue-500 font-semibold text-sm hover:text-blue-400"
     >
       Standings
@@ -2071,7 +2072,7 @@ console.log('🏀 FULL DATA:', data);
   className={`bg-zinc-900 rounded-2xl p-3 cursor-pointer ${
     game.isLive ? 'border-2 border-blue-500' : ''
   }`}
-  onClick={() => handleGameClick(game)}
+  onClick={() => { trigger('light'); handleGameClick(game); }}
   style={{ 
     animation: `fadeIn 0.5s ease-out ${0.1 + index * 0.07}s both`,
     opacity: 0
@@ -2275,6 +2276,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
       <button 
   onClick={() => {
+    trigger('light');
     setShowStandings(false);
     if (navigationStack.length > 0) {
       const previous = navigationStack[navigationStack.length - 1];
@@ -2293,7 +2295,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 
         <div className="flex gap-2 mb-6">
           <button
-            onClick={() => setSelectedConference('Eastern')}
+          onClick={() => { trigger('selection'); setSelectedConference('Eastern'); }}
             className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
               selectedConference === 'Eastern' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
             }`}
@@ -2301,7 +2303,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
             Eastern
           </button>
           <button
-            onClick={() => setSelectedConference('Western')}
+            onClick={() => { trigger('selection'); setSelectedConference('Western'); }}
             className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
               selectedConference === 'Western' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
             }`}
@@ -2335,7 +2337,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   {(selectedConference === 'Eastern' ? standings.eastern : standings.western).map((team, idx) => (
   <tr 
     key={idx} 
-    onClick={() => handleTeamClick(team.team, team.logo)}
+    onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
     className={`border-t hover:bg-zinc-800 cursor-pointer transition-colors ${
       idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
    : 'border-zinc-800'
@@ -2388,7 +2390,8 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-10 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button 
-            onClick={closeModal}
+            onClick={() => { trigger('light'); closeModal(); }}
+
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
           >
             ‹
@@ -2654,7 +2657,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 {/* Team Selection Tabs */}
 <div className="flex gap-2 mb-3">
 <button
-onClick={() => setSelectedTeam('away')}
+onClick={() => { trigger('selection'); setSelectedTeam('away'); }}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'away' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
@@ -2663,7 +2666,7 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
 {selectedGame.awayTeam}
 </button>
 <button
-onClick={() => setSelectedTeam('game')}
+onClick={() => { trigger('selection'); setSelectedTeam('game'); }}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'game' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
@@ -2672,7 +2675,7 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
     Game
 </button>
 <button
-onClick={() => setSelectedTeam('home')}
+onClick={() => { trigger('selection'); setSelectedTeam('home'); }}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
 selectedTeam === 'home' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
 }`}
@@ -3597,7 +3600,8 @@ onClick={(e) => {
       <div className="min-h-screen px-4 pt-12 pb-8">
         <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-  <button onClick={closeTeamModal} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+  <button onClick={() => { trigger('light'); closeTeamModal(); }}
+ className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
   <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
 </div>
   
@@ -3628,7 +3632,7 @@ onClick={(e) => {
     className="w-20 h-20 drop-shadow-lg"
   />
   <button
-    onClick={() => setIsCompareMode(true)}
+   onClick={() => { trigger('light'); setIsCompareMode(true); }}
     className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
   >
     Compare
@@ -3677,7 +3681,7 @@ onClick={(e) => {
 </div>
         </div>
         <button
-          onClick={() => toggleFavorite(selectedTeamInfo.abbr)}
+         onClick={() => { trigger('success'); toggleFavorite(selectedTeamInfo.abbr); }}
           className="mt-0.5"
         >
           <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
@@ -4182,6 +4186,7 @@ onClick={(e) => {
         <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button
             onClick={() => {
+              trigger('light');
               setSlideDirection('left');
               setTimeout(() => {
                 setSelectedNBAPlayer(null);
@@ -4278,6 +4283,7 @@ onClick={(e) => {
             <select
               value={selectedStatSeason || ''}
               onChange={(e) => {
+                trigger('selection');
                 const newSeason = parseInt(e.target.value);
                 setSelectedStatSeason(newSeason);
                 if (nbaPlayerStats?.allSeasonsData?.[newSeason]) {
@@ -4473,7 +4479,7 @@ onClick={(e) => {
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button onClick={() => setShowFavorites(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+          <button onClick={() => { trigger('light'); setShowFavorites(false); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
           <h2 className="text-2xl font-bold">Teams</h2>
         </div>
 
@@ -4535,7 +4541,8 @@ onClick={(e) => {
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button onClick={() => { setShowRoster(false); setRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+          <button onClick={() => { trigger('light'); setShowRoster(false); setRosterData(null); }}
+ className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
             {teamFullNames[selectedTeamInfo?.abbr]} Roster
           </h2>
