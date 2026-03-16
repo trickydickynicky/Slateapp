@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { haptic } from './haptics';
+import { useWebHaptics } from 'web-haptics/react';
 
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
@@ -88,6 +88,7 @@ const gameDetailRef = useRef(null);
 const teamStatsRef = useRef(null);
 const nbaPlayerRef = useRef(null);
 const rosterRef = useRef(null);
+const { trigger } = useWebHaptics();
 
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
@@ -2007,7 +2008,7 @@ console.log('🏀 FULL DATA:', data);
       return (
         <button
           key={idx}
-          onClick={() => { setSelectedDate(date); haptic('selection'); }}
+          onClick={() => { setSelectedDate(date); trigger('selection'); }}
           className={`flex flex-col items-center px-4 py-2 rounded-xl min-w-[70px] transition-all ${
             isSelected 
               ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.7)]' 
