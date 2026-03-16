@@ -4282,6 +4282,7 @@ onClick={(e) => {
             <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
             <select
               value={selectedStatSeason || ''}
+              onFocus={() => trigger('selection')}
               onChange={(e) => {
                 trigger('selection');
                 const newSeason = parseInt(e.target.value);
