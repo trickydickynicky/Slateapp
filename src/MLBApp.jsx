@@ -54,6 +54,18 @@ export default function MLBApp({ sport, setSport }) {
   const [mlbAvailableSeasons, setMlbAvailableSeasons] = useState([]);
   const [playerCache, setPlayerCache] = useState({});
   const [showMLBPlayerComparison, setShowMLBPlayerComparison] = useState(false);
+  const [bettingOdds, setBettingOdds] = useState(() => {
+    const cached = localStorage.getItem('mlbBettingOdds');
+    return cached ? JSON.parse(cached) : {};
+  });
+  const [openingOdds, setOpeningOdds] = useState(() => {
+    const cached = localStorage.getItem('mlbOpeningOdds');
+    return cached ? JSON.parse(cached) : {};
+  });
+  const [winProbabilities, setWinProbabilities] = useState(() => {
+    const cached = localStorage.getItem('mlbWinProbabilities');
+    return cached ? JSON.parse(cached) : {};
+  });
   
   const [currentGameIndex, setCurrentGameIndex] = useState(0);
   const [scoreboardSwipeX, setScoreboardSwipeX] = useState(0);
@@ -309,8 +321,10 @@ export default function MLBApp({ sport, setSport }) {
   useEffect(() => {
     fetchLiveScores();
     fetchLeagueRankings();
+    fetchBettingOdds();
     const interval = setInterval(fetchLiveScores, 30000);
-    return () => clearInterval(interval);
+    const oddsInterval = setInterval(fetchBettingOdds, 300000);
+    return () => { clearInterval(interval); clearInterval(oddsInterval); };
   }, [selectedDate]);
 
   useEffect(() => {
@@ -774,6 +788,7 @@ export default function MLBApp({ sport, setSport }) {
       }));
     }
 
+
     const rankings = {};
     const statKeys = {
       avg: false, obp: false, slg: false, ops: false,
@@ -796,6 +811,136 @@ export default function MLBApp({ sport, setSport }) {
     localStorage.setItem('mlbLeagueRankings', JSON.stringify(rankings));
     localStorage.setItem('mlbLeagueRankings_time', now.toString());
     setLeagueRankings(rankings);
+  };
+
+  const fetchBettingOdds = async () => {
+    try {
+      const lastFetch = localStorage.getItem('mlbLastOddsFetch');
+      const now = Date.now();
+      if (lastFetch && (now - parseInt(lastFetch)) < 30000) return;
+  
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}${month}${day}`;
+  
+      const scoreboardRes = await fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard?dates=${dateStr}`
+      );
+      const scoreboardData = await scoreboardRes.json();
+      const events = scoreboardData.events || [];
+      if (events.length === 0) return;
+  
+      const results = await Promise.all(
+        events.map(async (event) => {
+          const gameId = event.id;
+          const competition = event.competitions[0];
+          const homeTeam = competition.competitors.find(c => c.homeAway === 'home');
+          const awayTeam = competition.competitors.find(c => c.homeAway === 'away');
+          const homeAbbr = homeTeam.team.abbreviation;
+          const awayAbbr = awayTeam.team.abbreviation;
+          const gameKey = `${awayAbbr}-${homeAbbr}`;
+  
+          try {
+            const [oddsRes, probRes] = await Promise.all([
+              fetch(`https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/${gameId}/competitions/${gameId}/odds`),
+              fetch(`https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/${gameId}/competitions/${gameId}/probabilities`)
+            ]);
+  
+            const oddsData = await oddsRes.json();
+            const probData = await probRes.json();
+  
+            const provider = Array.isArray(oddsData) ? oddsData[0] : oddsData.items?.[0];
+            let oddsEntry = null;
+  
+            if (provider) {
+              const homeSpread = parseFloat(provider.spread ?? 0);
+              const spread = Math.abs(homeSpread);
+              const favoriteTeam = homeSpread < 0 ? homeAbbr : homeSpread > 0 ? awayAbbr : null;
+              const total = provider.overUnder ? parseFloat(provider.overUnder) : null;
+              const openingHomeSpread = parseFloat(
+                provider.homeTeamOdds?.open?.pointSpread?.american ?? provider.spread ?? 0
+              );
+  
+              oddsEntry = {
+                favoriteTeam,
+                spread,
+                homeSpread,
+                awaySpread: -homeSpread,
+                total,
+                openingSpread: Math.abs(openingHomeSpread),
+                openingFavoriteTeam: openingHomeSpread < 0 ? homeAbbr : openingHomeSpread > 0 ? awayAbbr : null,
+              };
+            }
+  
+            let probEntry = null;
+            const probItems = probData.items || [];
+            if (probItems.length > 0) {
+              const latest = probItems[probItems.length - 1];
+              probEntry = {
+                awayWinPct: Math.round((latest.awayWinPercentage || 0) * 100),
+                homeWinPct: Math.round((latest.homeWinPercentage || 0) * 100),
+              };
+            }
+  
+            return { gameKey, oddsEntry, probEntry };
+          } catch {
+            return { gameKey, oddsEntry: null, probEntry: null };
+          }
+        })
+      );
+  
+      const oddsMap = {};
+      const probMap = {};
+  
+      results.forEach(({ gameKey, oddsEntry, probEntry }) => {
+        if (oddsEntry) {
+          oddsMap[gameKey] = oddsEntry;
+          setOpeningOdds(prev => {
+            if (prev[gameKey]) return prev;
+            const newOpening = {
+              ...prev,
+              [gameKey]: {
+                ...oddsEntry,
+                spread: oddsEntry.openingSpread,
+                favoriteTeam: oddsEntry.openingFavoriteTeam,
+              },
+            };
+            localStorage.setItem('mlbOpeningOdds', JSON.stringify(newOpening));
+            return newOpening;
+          });
+        }
+        if (probEntry) probMap[gameKey] = probEntry;
+      });
+  
+      setBettingOdds(oddsMap);
+      setWinProbabilities(probMap);
+      localStorage.setItem('mlbBettingOdds', JSON.stringify(oddsMap));
+      localStorage.setItem('mlbWinProbabilities', JSON.stringify(probMap));
+      localStorage.setItem('mlbLastOddsFetch', now.toString());
+    } catch (error) {
+      console.error('Error fetching MLB odds:', error);
+    }
+  };
+  
+  const calculateWinProbability = (spread, favoriteTeam, team, game) => {
+    const gameKey = game ? `${game.awayTeam}-${game.homeTeam}` : null;
+    const espnProb = gameKey ? winProbabilities[gameKey] : null;
+  
+    if (espnProb) {
+      return team === game.awayTeam ? espnProb.awayWinPct : espnProb.homeWinPct;
+    }
+  
+    // Fallback from spread (MLB: smaller spread range than NBA)
+    if (spread === null || spread === undefined) return null;
+    if (spread === 0) return 50;
+  
+    const isFavorite = favoriteTeam === team;
+    let base = isFavorite
+      ? Math.min(50 + Math.pow(spread, 0.75) * 8, 85)
+      : Math.max(50 - Math.pow(spread, 0.75) * 8, 15);
+  
+    return Math.round(base);
   };
 
   const fetchMLBPlayerStats = async (playerName, playerId, specificSeason = null) => {
@@ -1060,11 +1205,55 @@ export default function MLBApp({ sport, setSport }) {
   const abbreviateChannel = (ch) => {
     if (!ch) return null;
     const map = {
-      'ESPN': 'ESPN', 'ESPN2': 'ESPN2', 'FOX': 'FOX', 'FS1': 'FS1', 'FS2': 'FS2',
-      'TBS': 'TBS', 'MLB Network': 'MLBN', 'Apple TV+': 'ATVP', 'Peacock': 'PEA',
-      'Amazon Prime': 'AMZN', 'NBC Sports': 'NBCS', 'CBS Sports': 'CBSS',
+      // National
+      'ESPN': 'ESPN', 'ESPN2': 'ESPN2', 'ESPN Unlmtd': 'ESPN+',
+      'FOX': 'FOX', 'FS1': 'FS1', 'FS2': 'FS2',
+      'TBS': 'TBS', 'truTV': 'truTV',
+      'MLB Network': 'MLBN', 'MLB Net': 'MLBN',
+      'Apple TV+': 'ATVP', 'Apple TV': 'ATVP',
+      'Peacock': 'PEA', 'NBC': 'NBC',
+      'Amazon Prime': 'AMZN',
+  
+      // Regional / RSN
+      'SNY': 'SNY', 'YES': 'YES', 'NESN': 'NESN',
+      'MASN': 'MASN', 'CHSN': 'CHSN',
+      'Marquee Sports Net': 'MARQ',
+      'Space City Home Network': 'SCHN',
+      'FanDuel SN West': 'FDSW',
+      'Sportsnet LA': 'SNLA',
+      'NBC Sports CA': 'NBSCA', 'NBC Sports BA': 'NBSBA',
+      'NBC Sports Phil +': 'NBSP',
+      'Rangers Sports Network': 'RSN',
+      'Sportsnet': 'SN', 'TVA': 'TVA',
+      'Gray Media': 'GRAY',
+      'MLB.TV': 'MLBTV',
+      'Rockies.TV': 'COLR',
+      'Marlins.TV': 'MIAM',
+      'Tigers.TV': 'DSN',
+      'Padres.TV': 'SDPA',
+      'Brewers.TV': 'BREW',
+      'DBACKS.TV': 'ARID',
+      'Royals.TV': 'ROYL',
+      'BravesVision': 'BVSN',
+      'Rays.TV': 'RAYS',
+      'Cardinals.TV': 'CARD',
+      'Nationals.TV': 'NATS',
+      'Twins.TV': 'MNNT', 
+      'Reds.TV': 'CINR',
+      'CLEGuardians.TV': 'CLEG',
+      'Mariners.TV': 'SEAM',
+
+
+
+
+
+
+
+      // Team streaming (filter these out — show nothing)
+      
     };
-    if (map[ch]) return map[ch];
+  
+    if (ch in map) return map[ch];
     if (ch.length <= 5) return ch;
     return ch.split(' ').map(w => w[0].toUpperCase()).join('');
   };
@@ -1313,10 +1502,11 @@ export default function MLBApp({ sport, setSport }) {
                       </div>
                     )}
                     {game.isPreGame && (
-                      <div className="text-gray-400 text-xs">
-                        {formatGameTime(game.gameTime)}{game.broadcast && ` • ${abbreviateChannel(game.broadcast)}`}
-                      </div>
-                    )}
+  <div className="text-gray-400 text-xs">
+    {formatGameTime(game.gameTime)}{game.broadcast && ` • ${abbreviateChannel(game.broadcast)}`}
+    {game.allBroadcasts?.length > 0 && console.log('RAW broadcasts for', game.awayTeam, '@', game.homeTeam, ':', game.allBroadcasts)}
+  </div>
+)}
                     {game.isFinal && (
                       <div className="text-gray-300 text-xs font-semibold">FINAL</div>
                     )}
@@ -1368,9 +1558,34 @@ export default function MLBApp({ sport, setSport }) {
                     </div>
                   </div>
 
-                  {game.isPreGame && (
-                    <div className="text-xs text-gray-600 border-t border-zinc-800 pt-2">⚾ MLB</div>
-                  )}
+                  {(() => {
+  const gameKey = `${game.awayTeam}-${game.homeTeam}`;
+  const odds = bettingOdds[gameKey] || openingOdds[gameKey];
+  if (odds && odds.spread !== undefined && odds.spread !== null) {
+    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.awayTeam, game);
+    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, game.homeTeam, game);
+    return (
+      <div className="flex items-start justify-between text-xs pt-2 border-t border-zinc-800">
+        <div className="flex flex-col text-orange-400">
+          <span>{odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} by ${odds.spread}`}</span>
+          {odds.total && <span>o{odds.total}</span>}
+        </div>
+        <div className="flex flex-col items-end">
+          <span className={awayProb > homeProb ? 'text-green-500' : 'text-red-500'}>
+            {game.awayTeam} {awayProb}%
+          </span>
+          <span className={homeProb > awayProb ? 'text-green-500' : 'text-red-500'}>
+            {game.homeTeam} {homeProb}%
+          </span>
+        </div>
+      </div>
+    );
+  }
+  // Fallback if no odds yet
+  return (
+    <div className="text-xs text-gray-600 border-t border-zinc-800 pt-2">⚾ MLB</div>
+  );
+})()}
                 </div>
               </div>
             ))
@@ -1549,13 +1764,42 @@ export default function MLBApp({ sport, setSport }) {
                           </div>
                         )}
                       </div>
-                    )}
-                    {selectedGame.isFinal && (
-                      <div className="text-center">
-                        <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
-                      </div>
-                    )}
-                  </div>
+   )}
+   {selectedGame.isFinal && (
+     <div className="text-center">
+       <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
+       {(() => {
+         const awayScore = parseInt(selectedGame.awayScore) || 0;
+         const homeScore = parseInt(selectedGame.homeScore) || 0;
+         const margin = Math.abs(homeScore - awayScore);
+         const winner = homeScore > awayScore ? selectedGame.homeTeam : selectedGame.awayTeam;
+         const loser = homeScore > awayScore ? selectedGame.awayTeam : selectedGame.homeTeam;
+
+         const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+         const odds = openingOdds[gameKey] || bettingOdds[gameKey];
+         const favorite = odds?.favoriteTeam || winner;
+
+         const runLine = 1.5;
+         const favoriteCovered = favorite === winner && margin > runLine;
+         const coveredTeam = favoriteCovered ? favorite : loser;
+         const totalDisplay = odds?.total ? `o${odds.total}` : null;
+         const totalResult = odds?.total
+           ? (awayScore + homeScore) > odds.total ? 'Over' : 'Under'
+           : null;
+
+         return (
+           <div className="mt-2">
+             <div className="text-xs text-orange-400">{favorite} -1.5 RL</div>
+             <div className="text-xs text-orange-400 font-semibold">{coveredTeam} Covered</div>
+             {totalDisplay && (
+               <div className="text-xs text-orange-400 mt-0.5">{totalDisplay} → {totalResult}</div>
+             )}
+           </div>
+         );
+       })()}
+     </div>
+   )}
+   </div>
 
                   <div className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}>
@@ -1623,8 +1867,39 @@ export default function MLBApp({ sport, setSport }) {
                         </table>
                       );
                     })()}
-                  </div>
+               </div>
                 )}
+
+                {/* Win Probability Bar */}
+                {(selectedGame.isLive || selectedGame.isPreGame) && (() => {
+                  const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+                  const odds = bettingOdds[gameKey];
+                  if (!odds) return null;
+                  const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame);
+                  const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame);
+                  if (!awayProb || !homeProb) return null;
+                  return (
+                    <div className="mt-4 pt-4 border-t border-zinc-800">
+                      <div className="flex h-1.5 rounded-full overflow-hidden mb-2">
+                        <div className="h-full transition-all duration-500"
+                          style={{ width: `${awayProb}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', opacity: 0.6 }} />
+                        <div className="h-full transition-all duration-500"
+                          style={{ width: `${homeProb}%`, backgroundColor: teamColors[selectedGame.homeTeam] || '#EF4444' }} />
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`text-xs font-semibold ${awayProb > homeProb ? 'text-white' : 'text-gray-500'}`}>
+                          {selectedGame.awayTeam} {awayProb}%
+                        </span>
+                        <span className="text-xs text-orange-400">
+                          {odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} -${odds.spread}`}{odds.total ? ` • o${odds.total}` : ''}
+                        </span>
+                        <span className={`text-xs font-semibold ${homeProb > awayProb ? 'text-white' : 'text-gray-500'}`}>
+                          {homeProb}% {selectedGame.homeTeam}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Team Tabs */}
