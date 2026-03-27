@@ -1659,7 +1659,7 @@ export default function MLBApp({ sport, setSport }) {
                               <thead className="bg-zinc-800/50">
                                 <tr className="text-gray-400 text-xs">
                                 <th className="text-left py-2 px-3 sticky left-0 bg-zinc-800/50 z-10 min-w-[80px]">Team</th>
-                                  <th className="text-center py-2 px-2">W-L</th>
+                                <th className="text-center py-2 px-2 whitespace-nowrap">W-L</th>
                                   <th className="text-center py-2 px-2">PCT</th>
                                   <th className="text-center py-2 px-2">GB</th>
                                   
