@@ -531,57 +531,66 @@ export default function MLBApp({ sport, setSport }) {
   const fetchStandings = async () => {
     setLoadingStandings(true);
     try {
-      const response = await fetch(
-        'https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings'
-      );
+      const response = await fetch('https://site.api.espn.com/apis/v2/sports/baseball/mlb/standings');
       const data = await response.json();
-
+  
+      const divisionMap = {
+        // AL
+        'NYY': 'AL East', 'BOS': 'AL East', 'TOR': 'AL East', 'BAL': 'AL East', 'TB': 'AL East',
+        'CLE': 'AL Central', 'MIN': 'AL Central', 'KC': 'AL Central', 'CHW': 'AL Central', 'DET': 'AL Central',
+        'HOU': 'AL West', 'SEA': 'AL West', 'TEX': 'AL West', 'LAA': 'AL West', 'ATH': 'AL West',
+        // NL
+        'NYM': 'NL East', 'ATL': 'NL East', 'PHI': 'NL East', 'MIA': 'NL East', 'WSH': 'NL East',
+        'MIL': 'NL Central', 'CHC': 'NL Central', 'STL': 'NL Central', 'PIT': 'NL Central', 'CIN': 'NL Central',
+        'LAD': 'NL West', 'SD': 'NL West', 'SF': 'NL West', 'COL': 'NL West', 'ARI': 'NL West',
+      };
+  
       const american = [];
       const national = [];
-
+  
       data.children?.forEach(league => {
-        const isAL = league.name?.includes('American');
-
-        league.children?.forEach(division => {
-          division.standings?.entries?.forEach(entry => {
-            const team = entry.team;
-            const getStat = (name) =>
-              entry.stats?.find(s => s.name === name)?.displayValue || '-';
-
-            const obj = {
-              rank: parseInt(getStat('divisionRank') || '99'),
-              team: team.abbreviation,
-              logo: team.logos?.[0]?.href,
-              division: division.name?.replace(' Division', '') || '',
-              gb: getStat('gamesBehind'),
-              wins: getStat('wins'),
-              losses: getStat('losses'),
-              pct: getStat('winPercent'),
-              l10: getStat('Last Ten Games'),
-              streak: getStat('streak'),
-              home: getStat('Home'),
-              away: getStat('Road'),
-              rs: getStat('avgRuns') || getStat('runsScored'),
-              ra: getStat('runsScoredAgainst') || getStat('runsAllowed'),
-            };
-
-            if (isAL) american.push(obj);
-            else national.push(obj);
-          });
+        const isAL = league.abbreviation === 'AL';
+  
+        league.standings?.entries?.forEach(entry => {
+          const team = entry.team;
+          const getStat = (name) => entry.stats?.find(s => s.name === name)?.displayValue || '-';
+          const abbr = team.abbreviation;
+  
+          const obj = {
+            team: abbr,
+            logo: team.logos?.[0]?.href,
+            division: divisionMap[abbr] || '-',
+            gb: getStat('gamesBehind'),
+            divGb: getStat('divisionGamesBehind'),
+            wins: getStat('wins'),
+            losses: getStat('losses'),
+            pct: getStat('winPercent'),
+            l10: getStat('Last Ten Games'),
+            streak: getStat('streak'),
+            home: getStat('Home'),
+            away: getStat('Road'),
+            rs: getStat('avgPointsFor'),
+            ra: getStat('avgPointsAgainst'),
+            diff: getStat('pointDifferential'),
+            playoffPct: getStat('playoffPercent'),
+            divPct: getStat('divisionWinPercent'),
+            divRecord: getStat('Intradivision'),
+            lgRecord: getStat('Intraleague'),
+            seed: parseInt(getStat('playoffSeed') || '99'),
+          };
+  
+          if (isAL) american.push(obj);
+          else national.push(obj);
         });
       });
-
-      const sortByWins = arr => [...arr].sort((a, b) =>
-        parseInt(b.wins) - parseInt(a.wins)
-      );
-
-      setStandings({ american: sortByWins(american), national: sortByWins(national) });
+  
+      const sortBySeed = arr => [...arr].sort((a, b) => a.seed - b.seed);
+      setStandings({ american: sortBySeed(american), national: sortBySeed(national) });
     } catch (error) {
       console.error('Error fetching MLB standings:', error);
     }
     setLoadingStandings(false);
   };
-
   const getMLBTeamStatsData = async (teamAbbr) => {
     try {
       const [standingsRes, teamsRes] = await Promise.all([
@@ -1592,18 +1601,17 @@ export default function MLBApp({ sport, setSport }) {
           )}
         </div>
       </div>
-
-      {/* ── STANDINGS ── */}
-      {showStandings && (
+{/* ── STANDINGS ── */}
+{showStandings && (
         <div ref={mlbStandingsRef} className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
           <div className="min-h-screen px-4 pt-12 pb-8">
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => {
-  trigger('light');
-  setShowStandings(false);
-  if (navigationStack.length > 0) {
+                  trigger('light');
+                  setShowStandings(false);
+                  if (navigationStack.length > 0) {
                     const previous = navigationStack[navigationStack.length - 1];
                     setNavigationStack(prev => prev.slice(0, -1));
                     if (previous.type === 'teamStats') {
@@ -1629,56 +1637,92 @@ export default function MLBApp({ sport, setSport }) {
               {loadingStandings ? (
                 <div className="text-center py-12 text-gray-400">Loading standings...</div>
               ) : (
-                <div className="bg-zinc-900 rounded-2xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead className="bg-zinc-800 sticky top-0">
-                        <tr className="text-gray-400">
-                          <th className="text-left py-3 px-3 sticky left-0 bg-zinc-800 z-10">#</th>
-                          <th className="text-left py-3 px-3 sticky left-[40px] bg-zinc-800 z-10">Team</th>
-                          <th className="text-center py-3 px-3">DIV</th>
-                          <th className="text-center py-3 px-3">W-L</th>
-                          <th className="text-center py-3 px-3">PCT</th>
-                          <th className="text-center py-3 px-3">GB</th>
-                          <th className="text-center py-3 px-3">L10</th>
-                          <th className="text-center py-3 px-3">STRK</th>
-                          <th className="text-center py-3 px-3">HOME</th>
-                          <th className="text-center py-3 px-3">AWAY</th>
-                          <th className="text-center py-3 px-3">RS</th>
-                          <th className="text-center py-3 px-3">RA</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(selectedLeague === 'American' ? standings.american : standings.national).map((team, idx) => (
-                          <tr key={idx}
-                          onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
-                            className="border-t border-zinc-800 hover:bg-zinc-800 cursor-pointer transition-colors">
-                            <td className="py-3 px-3 sticky left-0 bg-zinc-900 font-semibold text-blue-500">{idx + 1}</td>
-                            <td className="py-3 px-3 sticky left-[40px] bg-zinc-900">
-                              <div className="flex items-center gap-2">
-                                {team.logo && <img src={team.logo} alt={team.team} className="w-6 h-6" />}
-                                <span className="font-semibold">{team.team}</span>
-                              </div>
-                            </td>
-                            <td className="text-center py-3 px-3 text-gray-400 text-xs whitespace-nowrap">{team.division}</td>
-                            <td className="text-center py-3 px-3 font-semibold">{team.wins}-{team.losses}</td>
-                            <td className="text-center py-3 px-3">{team.pct}</td>
-                            <td className="text-center py-3 px-3 text-gray-300">{team.gb}</td>
-                            <td className="text-center py-3 px-3 whitespace-nowrap">{team.l10}</td>
-                            <td className="text-center py-3 px-3">
-                              <span className={team.streak?.startsWith('W') ? 'text-green-500' : 'text-red-500'}>
-                                {team.streak}
-                              </span>
-                            </td>
-                            <td className="text-center py-3 px-3">{team.home}</td>
-                            <td className="text-center py-3 px-3">{team.away}</td>
-                            <td className="text-center py-3 px-3">{team.rs}</td>
-                            <td className="text-center py-3 px-3">{team.ra}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                <div>
+                  {(() => {
+                    const teams = selectedLeague === 'American' ? standings.american : standings.national;
+                    const prefix = selectedLeague === 'American' ? 'AL' : 'NL';
+                    const divisions = [`${prefix} East`, `${prefix} Central`, `${prefix} West`];
+
+                    return divisions.map(div => {
+                      const divTeams = teams.filter(t => t.division === div);
+                      if (divTeams.length === 0) return null;
+
+                      return (
+                        <div key={div} className="bg-zinc-900 rounded-2xl overflow-hidden mb-4">
+                          <div className="px-4 py-2 bg-zinc-800">
+                            <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">
+                              {div.replace('AL ', '').replace('NL ', '')} Division
+                            </span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead className="bg-zinc-800/50">
+                                <tr className="text-gray-400 text-xs">
+                                <th className="text-left py-2 px-3 sticky left-0 bg-zinc-800/50 z-10 min-w-[80px]">Team</th>
+                                  <th className="text-center py-2 px-2">W-L</th>
+                                  <th className="text-center py-2 px-2">PCT</th>
+                                  <th className="text-center py-2 px-2">GB</th>
+                                  
+                                  <th className="text-center py-2 px-2">L10</th>
+                                  <th className="text-center py-2 px-2">STRK</th>
+                                  <th className="text-center py-2 px-2">HOME</th>
+                                  <th className="text-center py-2 px-2">AWAY</th>
+                                  <th className="text-center py-2 px-2">DIV</th>
+                                  <th className="text-center py-2 px-2">LG</th>
+                                  <th className="text-center py-2 px-2">DPCT</th>
+                                  <th className="text-center py-2 px-2">RS</th>
+                                  <th className="text-center py-2 px-2">RA</th>
+                                  <th className="text-center py-2 px-2">DIFF</th>
+                                  <th className="text-center py-2 px-2">POST%</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {divTeams.map((team, idx) => (
+                                  <tr key={idx}
+                                    onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
+                                    className="border-t border-zinc-800 hover:bg-zinc-800 cursor-pointer transition-colors">
+                                   <td className="py-3 px-3 sticky left-0 bg-zinc-900 z-10 min-w-[80px]">
+                                      <div className="flex items-center gap-2">
+                                        {team.logo && <img src={team.logo} alt={team.team} className="w-6 h-6" />}
+                                        <span className="font-semibold">{team.team}</span>
+                                      </div>
+                                    </td>
+                                    <td className="text-center py-3 px-2 font-semibold whitespace-nowrap">{team.wins}-{team.losses}</td>
+                                    <td className="text-center py-3 px-2">{team.pct}</td>
+                                    <td className="text-center py-3 px-2 text-gray-300">{team.gb}</td>
+                                    
+                                    <td className="text-center py-3 px-2 whitespace-nowrap">{team.l10}</td>
+                                    <td className="text-center py-3 px-2">
+                                      <span className={team.streak?.startsWith('W') ? 'text-green-500' : 'text-red-500'}>
+                                        {team.streak}
+                                      </span>
+                                    </td>
+                                    <td className="text-center py-3 px-2">{team.home}</td>
+                                    <td className="text-center py-3 px-2">{team.away}</td>
+                                    <td className="text-center py-3 px-2 whitespace-nowrap">{team.divRecord}</td>
+                                    <td className="text-center py-3 px-2 whitespace-nowrap">{team.lgRecord}</td>
+                                    <td className="text-center py-3 px-2">{team.divPct}</td>
+                                    <td className="text-center py-3 px-2">{team.rs}</td>
+                                    <td className="text-center py-3 px-2">{team.ra}</td>
+                                    <td className="text-center py-3 px-2">
+                                      <span className={parseFloat(team.diff) > 0 ? 'text-green-500' : parseFloat(team.diff) < 0 ? 'text-red-500' : 'text-gray-400'}>
+                                      {team.diff}
+                                      </span>
+                                    </td>
+                                    <td className="text-center py-3 px-2">
+                                      <span className={parseFloat(team.playoffPct) >= 50 ? 'text-green-400' : 'text-gray-400'}>
+                                      {team.playoffPct !== '-' ? team.playoffPct : '-'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                 </div>
               )}
             </div>
