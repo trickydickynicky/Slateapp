@@ -90,6 +90,10 @@ const nbaPlayerRef = useRef(null);
 const rosterRef = useRef(null);
 const { trigger } = useWebHaptics();
 
+useEffect(() => {
+  localStorage.setItem('lastSport', sport);
+}, [sport]);
+
 const toggleFavorite = (teamAbbr) => {
   setFavoriteTeams(prev => {
     const newFavorites = prev.includes(teamAbbr)
