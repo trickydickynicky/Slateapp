@@ -734,7 +734,7 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
         {[
          { label: 'HIT', value: `${hits}/${vals.length}`, color: sideText },
          { label: 'HIT %', value: pct(prob), color: sideText },
-         { label: 'PROJ', value: fmt(proj), color: 'text-white' },
+         { label: 'AVG', value: fmt(proj), color: 'text-white' },
          {
            label: 'EDGE',
            value: `${proj - c.line >= 0 ? '+' : ''}${fmt(proj - c.line)}`,
