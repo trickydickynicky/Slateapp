@@ -4,6 +4,7 @@ import { useWebHaptics } from 'web-haptics/react';
 import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
+import Betting from './Betting';
 import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
 export default function SportsApp() {
@@ -1889,7 +1890,7 @@ console.log('🏀 FULL DATA:', data);
   };
 
   if (sport === 'MLB') return <MLBApp sport={sport} setSport={setSport} />;
-
+  if (sport === 'Betting') return <Betting sport={sport} setSport={setSport} />;
   
   return (
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
@@ -1993,7 +1994,7 @@ console.log('🏀 FULL DATA:', data);
 
 <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
   <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
-  {['NBA', 'MLB'].map(s => (
+  {['NBA', 'MLB', 'Betting'].map(s => (
   <button key={s} onClick={() => { trigger('light'); localStorage.setItem('lastSport', s); setSport(s); }}
         className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${
           sport === s
