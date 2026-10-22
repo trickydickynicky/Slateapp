@@ -213,6 +213,7 @@ function parseGamelog(json) {
           reb: num(iReb),
           ast: num(iAst),
           tpm: num(iTpm),
+          min: iMin >= 0 ? Math.round(mins) : null,
         });
       }
     }
@@ -654,6 +655,7 @@ const chart = vals
 const max = Math.max(c.line, proj, ...vals) * 1.15 || 1;
 
 const [defender, setDefender] = useState(null);
+const [showVs, setShowVs] = useState(false);
 useEffect(() => {
   let dead = false;
   getPrimaryDefender(c.athleteId, c.opp?.id, c.ath.pos).then((r) => !dead && setDefender(r));
@@ -795,15 +797,16 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
           style={{ bottom: `${(proj / max) * 100}%` }}
         />
       </div>
-      {chart.length <= 10 && (
-        <div className="flex gap-1 mt-1">
-          {chart.map((d, i) => (
-            <div key={i} className="flex-1 text-center text-[10px] text-gray-400">
-              {d.v}
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-1 mt-1">
+        {chart.map((d, i) => (
+          <div
+            key={i}
+            className={`flex-1 min-w-0 text-center text-gray-400 ${chart.length > 10 ? 'text-[8px]' : 'text-[10px]'}`}
+          >
+            {d.v}
+          </div>
+        ))}
+      </div>
      <div className="flex items-center justify-between mt-1">
   <div className="text-[10px] text-gray-500">
     Last {vals.length} • white = line {fmt(c.line)} • blue = proj {fmt(proj)}
@@ -891,13 +894,55 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
         )}
         <div className="text-sm mt-2 pt-2 border-t border-zinc-700">
           {vsOpp.length ? (
-            <>
-              <span className="text-gray-400">vs {c.opp.abbr} (last {vsOpp.length}): </span>
-              <span className="font-bold">
-                {vsHits}/{vsOpp.length}
-              </span>{' '}
-              {c.side} • avg <span className="font-bold">{fmt(vsVals.reduce((a, b) => a + b, 0) / vsVals.length)}</span>
-            </>
+                   <>
+                   <button
+                     onClick={() => {
+                       trigger('selection');
+                       setShowVs((s) => !s);
+                     }}
+                     className="w-full flex items-center justify-between text-left"
+                   >
+                     <span>
+                       <span className="text-gray-400">vs {c.opp.abbr} (last {vsOpp.length}): </span>
+                       <span className="font-bold">
+                         {vsHits}/{vsOpp.length}
+                       </span>{' '}
+                       {c.side} • avg{' '}
+                       <span className="font-bold">{fmt(vsVals.reduce((a, b) => a + b, 0) / vsVals.length)}</span>
+                     </span>
+                     <span className="text-gray-500 text-xs ml-2">{showVs ? '▲' : '▼'}</span>
+                   </button>
+                   {showVs && (
+                     <div className="mt-2 text-xs">
+          <div className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 text-[10px] text-gray-500 mb-1">
+                         <span>DATE</span>
+                         <span className="text-center">PTS</span>
+                         <span className="text-center">REB</span>
+                         <span className="text-center">AST</span>
+                         <span className="text-center">3PM</span>
+                         <span className="text-center">MIN</span>
+                         <span className="text-center">{type.unit.toUpperCase()}</span>
+                       </div>
+                       {vsOpp.map((g) => {
+                         const v = sumStats(g, type.stats);
+                         const hit = isOver ? v > c.line : v < c.line;
+                         return (
+                            <div key={g.id} className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 py-0.5 border-t border-zinc-800">
+                                  <span className="text-gray-400">
+                          {g.date ? `${g.date.slice(5, 7)}-${g.date.slice(8, 10)}-${g.date.slice(2, 4)}` : '–'}
+                        </span>
+                             <span className="text-center">{g.pts}</span>
+                             <span className="text-center">{g.reb}</span>
+                             <span className="text-center">{g.ast}</span>
+                             <span className="text-center">{g.tpm}</span>
+                             <span className="text-center text-gray-400">{g.min ?? '–'}</span>
+                             <span className={`text-center font-bold ${hit ? 'text-green-400' : 'text-red-400'}`}>{v}</span>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   )}
+                 </>
           ) : (
             <span className="text-xs text-gray-500">No recent games vs {c.opp?.abbr || 'this opponent'}</span>
         )}
