@@ -208,6 +208,7 @@ function parseGamelog(json) {
           date: meta.gameDate || '',
           opp: meta.opponent?.abbreviation || '',
           oppId: meta.opponent?.id ? String(meta.opponent.id) : null,
+          home: meta.atVs ? meta.atVs !== '@' : null,
           pts: num(iPts),
           reb: num(iReb),
           ast: num(iAst),
@@ -240,10 +241,18 @@ function parseGamelog(json) {
          `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${last.id}`
        );
        const side = (sum.boxscore?.players || []).find((t) => String(t.team?.id) === String(teamId));
-       const rows = side?.statistics?.[0]?.athletes || [];
+       const stat = side?.statistics?.[0];
+       const iMin = (stat?.labels || []).indexOf('MIN');
+       const rows = stat?.athletes || [];
        return rows
-         .filter((r) => r.starter)
-         .map((r) => ({ name: r.athlete?.displayName, pos: r.athlete?.position?.abbreviation || '' }));
+         .map((r) => ({
+           name: r.athlete?.displayName,
+           pos: r.athlete?.position?.abbreviation || '',
+           min: iMin >= 0 ? Number(r.stats?.[iMin]) || 0 : 0,
+           starter: !!r.starter,
+         }))
+         .filter((r) => r.min > 0 || r.starter)
+         .sort((a, b) => b.min - a.min);
      })().catch(() => []);
      starterCache.set(teamId, p);
      return p;
@@ -253,8 +262,10 @@ function parseGamelog(json) {
      if (!oppTeamId) return null;
      const starters = await getStarters(oppTeamId);
      const grp = posGroup(pos);
-     const match = starters.find((s) => posGroup(s.pos) === grp);
-     return match ? { name: match.name, pos: match.pos, games: [] } : null;
+     const matches = starters.filter((s) => posGroup(s.pos) === grp).slice(0, 2);
+  return matches.length
+    ? { name: matches.map((m) => m.name).join(' / '), pos: matches[0].pos, games: [] }
+    : null;
    }
 
 /* =====================================================================
@@ -659,6 +670,18 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
   const vsVals = vsOpp.map((g) => sumStats(g, type.stats));
   const vsHits = vsVals.filter((v) => (isOver ? v > c.line : v < c.line)).length;
 
+  const isHome = c.mine?.homeAway === 'home';
+  const avgOf = (rows) =>
+    rows.length ? rows.reduce((a, g) => a + sumStats(g, type.stats), 0) / rows.length : null;
+  const sameLoc = c.log.filter((g) => g.home === isHome);
+  const otherLoc = c.log.filter((g) => g.home === !isHome);
+  const locHits = sameLoc.filter((g) => {
+    const v = sumStats(g, type.stats);
+    return isOver ? v > c.line : v < c.line;
+  }).length;
+  const locAvg = avgOf(sameLoc);
+  const otherAvg = avgOf(otherLoc);
+
   const price = isOver ? c.overPrice : c.underPrice;
 
   const teamView =
@@ -860,7 +883,7 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
               {defender.pos && <span className="text-gray-400"> • {defender.pos}</span>}
             </div>
             <div className="text-[10px] text-gray-500 mt-1">
-              Matched by position from {c.opp?.abbr}'s last starting five
+            {c.opp?.abbr}'s top players at his position by minutes last game
             </div>
           </div>
         ) : (
@@ -877,8 +900,29 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
             </>
           ) : (
             <span className="text-xs text-gray-500">No recent games vs {c.opp?.abbr || 'this opponent'}</span>
-          )}
-        </div>
+        )}
+      </div>
+      <div className="text-sm mt-2 pt-2 border-t border-zinc-700">
+        {locAvg != null ? (
+          <>
+            <span className="text-gray-400">
+              {isHome ? 'At home' : 'On road'} ({sameLoc.length} g):{' '}
+            </span>
+            <span className="font-bold">
+              {locHits}/{sameLoc.length}
+            </span>{' '}
+            {c.side} • avg <span className="font-bold">{fmt(locAvg)}</span>
+            {otherAvg != null && (
+              <span className="text-gray-400">
+                {' '}
+                (vs {fmt(otherAvg)} {isHome ? 'road' : 'home'})
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-xs text-gray-500">No home/away data</span>
+        )}
+      </div>
       </div>
     </div>
   );
