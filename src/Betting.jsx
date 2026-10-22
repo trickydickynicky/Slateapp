@@ -527,12 +527,12 @@ export default function Betting({ sport, setSport }) {
                     trigger('selection');
                     setPropKey(p.key);
                   }}
-                  className={`flex flex-col items-center justify-center px-4 py-3 rounded-xl min-w-[70px] transition-all ${
+                  className={`flex flex-col items-center justify-center px-3.5 py-3 rounded-xl min-w-[70px] flex-shrink-0 transition-all ${
                     selected ? 'bg-blue-600 shadow-[0_0_25px_rgba(37,99,235,0.7)]' : 'bg-zinc-900'
                   }`}
                 >
                   <span
-                    className={`text-base font-semibold whitespace-nowrap ${selected ? 'text-white' : 'text-gray-300'}`}
+                    className={`text-sm font-semibold whitespace-nowrap ${selected ? 'text-white' : 'text-gray-300'}`}
                   >
                     {p.label}
                   </span>
