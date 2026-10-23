@@ -3597,7 +3597,7 @@ onClick={(e) => {
   {selectedTeamInfo && (
   <div
     ref={teamStatsRef}
-    className={`fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto ${isSwipeClosing ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       animation: 'slideInRight 0.3s ease-out'
     }}
@@ -4180,7 +4180,7 @@ onClick={(e) => {
   )}
   
   {selectedNBAPlayer && (
-  <div ref={nbaPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[140] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
+  <div ref={nbaPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[180] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
     transform: slideDirection === 'left' ? 'translateX(100%)' : 'translateX(0)',
     transition: 'transform 0.3s ease-out'
   }}>
@@ -4543,7 +4543,7 @@ onClick={(e) => {
   </div>
 )}
 {showRoster && (
-  <div ref={rosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+  <div ref={rosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[170] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
     <div className="min-h-screen px-4 pt-12 pb-8">
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
