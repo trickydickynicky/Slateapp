@@ -11,6 +11,8 @@ const CONCURRENCY = 8;
 const RANK_N = 10; // rankings always use L10
 
 const SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
+const todayET = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).replace(/-/g, '');
 const STANDINGS = 'https://site.api.espn.com/apis/v2/sports/basketball/nba/standings';
 const propsUrl = (id, page) =>
   `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/${id}/competitions/${id}/odds/100/propBets?lang=en&region=us&limit=1000&page=${page}`;
@@ -289,7 +291,7 @@ export default function Betting({ sport, setSport }) {
     let dead = false;
     (async () => {
       try {
-        const sb = await getJSON(SCOREBOARD);
+        const sb = await getJSON(`${SCOREBOARD}?dates=${todayET()}&_=${Date.now()}`);
         const slate = (sb.events || [])
           .filter((e) => e.status?.type?.state !== 'post')
           .map((e) => {
