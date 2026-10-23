@@ -1331,7 +1331,7 @@ export default function MLBApp({ sport, setSport }) {
   return (
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
-      <div className="px-4 pt-12 pb-4">
+<div className="px-4 pt-3 pb-4">
         {/* Header */}
         <div className="flex justify-between items-start mb-1"
           style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
@@ -1605,7 +1605,7 @@ export default function MLBApp({ sport, setSport }) {
 {showStandings && (
         <div ref={mlbStandingsRef} className="fixed inset-0 bg-black bg-opacity-100 z-[150] overflow-y-auto"
           style={{ animation: 'slideInRight 0.3s ease-out' }}>
-          <div className="min-h-screen px-4 pt-12 pb-8">
+         <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => {
@@ -1737,7 +1737,7 @@ export default function MLBApp({ sport, setSport }) {
           className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
           style={{ animation: 'slideInRight 0.3s ease-out' }}
         >
-          <div className="min-h-screen px-4 pt-12 pb-8">
+         <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); closeModal(); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -2368,7 +2368,7 @@ export default function MLBApp({ sport, setSport }) {
           className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto transition-transform duration-300 ease-out"
           style={{ animation: 'slideInRight 0.3s ease-out' }}
         >
-          <div className="min-h-screen px-4 pt-12 pb-8">
+          <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); closeTeamModal(); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -2483,7 +2483,7 @@ export default function MLBApp({ sport, setSport }) {
                   {/* ── TEAM PICKER OVERLAY (select opponent) ── */}
                   {isCompareMode && (
                     <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
-                      <div className="min-h-screen px-4 pt-12 pb-8">
+                      <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
                         <div className="max-w-2xl mx-auto">
                           <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                             <button onClick={() => setIsCompareMode(false)} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -2812,7 +2812,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── FAVORITES ── */}
       {showFavorites && (
         <div ref={mlbFavoritesRef} className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
-          <div className="min-h-screen px-4 pt-12 pb-8">
+         <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); setShowFavorites(false); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -2856,7 +2856,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── ROSTER ── */}
       {showMLBRoster && (
         <div ref={mlbRosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[130] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
-          <div className="min-h-screen px-4 pt-12 pb-8">
+        <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); setShowMLBRoster(false); setMlbRosterData(null); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -2898,7 +2898,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── MLB PLAYER STATS ── */}
       {selectedMLBPlayer && (
         <div ref={mlbPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
-          <div className="min-h-screen px-4 pt-12 pb-8">
+         <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>

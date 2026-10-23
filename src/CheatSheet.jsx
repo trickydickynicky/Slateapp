@@ -396,7 +396,7 @@ export default function CheatSheet({ onClose }) {
           ) : !view ? (
             <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">Couldn't load cheat sheet data</div>
           ) : (
-            <div className="bg-zinc-900 rounded-2xl overflow-auto max-h-[calc(100vh-250px)]">
+            <div className="bg-zinc-900 rounded-2xl overflow-auto max-h-[calc(100vh-210px)]">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>

@@ -510,7 +510,7 @@ export default function Betting({ sport, setSport }) {
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         {showCheat && <CheatSheet onClose={() => setShowCheat(false)} />}
-      <div className="px-4 pt-12 pb-4">
+        <div className="px-4 pt-3 pb-4">
         <div
           className="flex justify-between items-start mb-1"
           style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}

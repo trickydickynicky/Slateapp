@@ -1896,7 +1896,7 @@ console.log('🏀 FULL DATA:', data);
     <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
 
-      <div className="px-4 pt-12 pb-4">
+<div className="px-4 pt-3 pb-4">
       <div className="flex justify-between items-start mb-1"
   style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
   <div>
@@ -2276,7 +2276,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       animation: 'slideInRight 0.3s ease-out'
     }}
 >
-    <div className="min-h-screen px-4 pt-12 pb-8">
+<div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-6xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
       <button 
@@ -2391,7 +2391,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
     }}
   >
-  <div className="min-h-screen px-4 pt-12 pb-8">
+  <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-10 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button 
@@ -3602,7 +3602,7 @@ onClick={(e) => {
       animation: 'slideInRight 0.3s ease-out'
     }}
   >
-      <div className="min-h-screen px-4 pt-12 pb-8">
+     <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
   <button onClick={() => { trigger('light'); closeTeamModal(); }}
@@ -3748,7 +3748,7 @@ onClick={(e) => {
   {/* Team Comparison Selector */}
 {isCompareMode && !compareTeam && (
   <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
-    <div className="min-h-screen px-4 pt-12 pb-8">
+    <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center mb-6">
           <button 
@@ -4184,7 +4184,7 @@ onClick={(e) => {
     transform: slideDirection === 'left' ? 'translateX(100%)' : 'translateX(0)',
     transition: 'transform 0.3s ease-out'
   }}>
-    <div className="min-h-screen px-4 pt-12 pb-8">
+  <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
 
         {/* Back button */}
@@ -4482,7 +4482,7 @@ onClick={(e) => {
 
 {showFavorites && (
   <div ref={favoritesRef} className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
-    <div className="min-h-screen px-4 pt-12 pb-8">
+   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button onClick={() => { trigger('light'); setShowFavorites(false); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
@@ -4544,7 +4544,7 @@ onClick={(e) => {
 )}
 {showRoster && (
   <div ref={rosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[170] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
-    <div className="min-h-screen px-4 pt-12 pb-8">
+  <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button onClick={() => { trigger('light'); setShowRoster(false); setRosterData(null); }}
