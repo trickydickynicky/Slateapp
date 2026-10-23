@@ -378,11 +378,6 @@ export default function CheatSheet({ onClose }) {
             ))}
           </div>
 
-          <p className="text-xs text-gray-500">
-            {tab === 'def'
-              ? 'Per-game averages each team allows. Positive vs Avg = tougher defense. Rank 1 = fewest allowed.'
-              : 'Per-game averages each team scores. Positive vs Avg = better offense. Rank 1 = most scored.'}
-          </p>
           {updated && <p className="text-[10px] text-gray-500 mb-3">Updated {updated}</p>}
           {failed && data && (
             <p className="text-[10px] text-red-400 mb-2">Couldn't refresh. Showing older data.</p>
@@ -401,7 +396,7 @@ export default function CheatSheet({ onClose }) {
           ) : !view ? (
             <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">Couldn't load cheat sheet data</div>
           ) : (
-            <div className="bg-zinc-900 rounded-2xl overflow-auto max-h-[calc(100vh-290px)]">
+            <div className="bg-zinc-900 rounded-2xl overflow-auto max-h-[calc(100vh-250px)]">
               <table className="w-full border-collapse">
                 <thead>
                   <tr>
