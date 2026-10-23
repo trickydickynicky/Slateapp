@@ -230,7 +230,29 @@ function parseGamelog(json) {
 
 
 
-   const starterCache = new Map();
+   const priorSeason = () => {
+    const d = new Date();
+    return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1; // ESPN names a season by the year it ends
+  };
+  const priorCache = new Map();
+  function getPriorLog(athleteId) {
+    if (!priorCache.has(athleteId)) {
+      const y = priorSeason();
+      priorCache.set(
+        athleteId,
+        Promise.all(
+          [y, y - 1, y - 2].map((s) =>
+            getJSON(`${gamelogUrl(athleteId)}?season=${s}`)
+              .then(parseGamelog)
+              .catch(() => [])
+          )
+        ).then((r) => r.flat().sort((a, b) => (a.date < b.date ? 1 : -1)))
+      );
+    }
+    return priorCache.get(athleteId);
+  }
+  
+  const starterCache = new Map();
    async function getStarters(teamId) {
      if (starterCache.has(teamId)) return starterCache.get(teamId);
      const p = (async () => {
@@ -644,20 +666,30 @@ function Skeletons() {
    function EdgeCard({ rank, c, type, defense, posSplits, index }) {
     const { trigger } = useWebHaptics();
     const [n, setN] = useState(10);
+    const [prior, setPrior] = useState([]);
+    useEffect(() => {
+      let dead = false;
+      getPriorLog(c.athleteId).then((r) => !dead && setPrior(r));
+      return () => {
+        dead = true;
+      };
+    }, [c.athleteId]);
+    const full = [...c.log, ...prior];
     const isOver = c.side === 'over';
   const sideText = isOver ? 'text-green-500' : 'text-red-500';
 
-  const vals = c.log.slice(0, n).map((g) => sumStats(g, type.stats));
+  const vals = full.slice(0, n).map((g) => sumStats(g, type.stats));
 const hits = vals.filter((v) => (isOver ? v > c.line : v < c.line)).length;
 const proj = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
 const prob = vals.length ? hits / vals.length : 0;
 const chart = vals
-  .map((v, i) => ({ v, opp: c.log[i]?.opp, date: c.log[i]?.date?.slice(5, 10) }))
+.map((v, i) => ({ v, opp: full[i]?.opp, date: full[i]?.date?.slice(5, 10) }))
   .reverse();
 const max = Math.max(c.line, proj, ...vals) * 1.15 || 1;
 
 const [defender, setDefender] = useState(null);
 const [showVs, setShowVs] = useState(false);
+
 useEffect(() => {
   let dead = false;
   getPrimaryDefender(c.athleteId, c.opp?.id, c.ath.pos).then((r) => !dead && setDefender(r));
@@ -670,7 +702,7 @@ const posDef = c.opp && grp ? posSplits[`${c.opp.id}|${grp}`] : null;
 const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
 
   const team = c.opp ? defense[c.opp.id] : null;
-  const vsOpp = c.opp ? c.log.filter((g) => g.oppId === c.opp.id).slice(0, n) : [];
+  const vsOpp = c.opp ? full.filter((g) => g.oppId === c.opp.id).slice(0, n) : [];
   const vsVals = vsOpp.map((g) => sumStats(g, type.stats));
   const vsHits = vsVals.filter((v) => (isOver ? v > c.line : v < c.line)).length;
 
@@ -817,7 +849,7 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
     {[10, 20].map((v) => (
       <button
         key={v}
-        disabled={v === 20 && c.log.length <= 10}
+        disabled={v === 20 && full.length <= 10}
         onClick={() => {
           trigger('selection');
           setN(v);
