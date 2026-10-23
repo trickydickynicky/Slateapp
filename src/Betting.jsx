@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
+import CheatSheet from './CheatSheet';
 
 /* =====================================================================
    CONFIG
@@ -299,6 +300,7 @@ function parseGamelog(json) {
 export default function Betting({ sport, setSport }) {
   const { trigger } = useWebHaptics();
   const [propKey, setPropKey] = useState('pts');
+  const [showCheat, setShowCheat] = useState(false);
 
   const [games, setGames] = useState([]);
   const [rawProps, setRawProps] = useState([]);
@@ -506,13 +508,14 @@ export default function Betting({ sport, setSport }) {
     <div
       className="min-h-screen bg-black text-white"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
+      >
+        {showCheat && <CheatSheet onClose={() => setShowCheat(false)} />}
       <div className="px-4 pt-12 pb-4">
         <div
           className="flex justify-between items-start mb-1"
           style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}
         >
-          <img src="/slate-logo.png" alt="Slate" className="h-8" />
+                <img src="/slate-logo.png" alt="Slate" className="h-8" />
         </div>
 
         <div
@@ -520,9 +523,20 @@ export default function Betting({ sport, setSport }) {
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both' }}
         >
           <p className="text-gray-400 text-sm">{formatDate()}</p>
-          <span className="text-gray-400 text-sm">
-            Tonight • {games.length} game{games.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">
+              Tonight • {games.length} game{games.length === 1 ? '' : 's'}
+            </span>
+            <button
+              onClick={() => {
+                trigger('light');
+                setShowCheat(true);
+              }}
+              className="text-blue-500 font-semibold text-sm hover:text-blue-400"
+            >
+              Cheat Sheet
+            </button>
+          </div>
         </div>
 
         {/* NBA | MLB | Betting */}
