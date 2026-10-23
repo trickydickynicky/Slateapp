@@ -4615,11 +4615,13 @@ onClick={(e) => {
   />
 )}
 {showPlayerComparison && selectedNBAPlayer && (
-  <PlayerComparison
-    basePlayer={selectedNBAPlayer}
-    playerCache={playerCache}
-    onClose={() => setShowPlayerComparison(false)}
-  />
+  <div className="fixed inset-0 z-[200] overflow-y-auto">
+    <PlayerComparison
+      basePlayer={selectedNBAPlayer}
+      playerCache={playerCache}
+      onClose={() => setShowPlayerComparison(false)}
+    />
+  </div>
 )}
     </div>
   );
