@@ -336,7 +336,7 @@ export default function CheatSheet({ onClose }) {
       className="fixed inset-0 bg-black z-[150] overflow-y-auto"
       style={{ animation: 'slideInRight 0.3s ease-out' }}
     >
-      <div className="min-h-screen px-4 pt-12 pb-8">
+           <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-6xl mx-auto">
           {/* header */}
           <div
