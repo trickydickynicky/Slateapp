@@ -730,7 +730,7 @@ console.log('Broadcasts:', competition.broadcasts);
                 }
               }
             }
-            return null;
+            return broadcasts.some(b => (b.names || []).includes('NBA League Pass')) ? 'NBA League Pass' : null;
           })(),
           allBroadcasts: competition.broadcasts?.flatMap(b => b.names || []).filter(name => name) || []
         };
@@ -1277,65 +1277,100 @@ console.log('Sample stats:', allStats);
     return `${displayHours}:${displayMinutes} ${ampm}`;
   };
 
-  const abbreviateChannel = (channel) => {
-    if (!channel) return null;
-    
-    // Exact matches - return as-is or with specific abbreviation
-    const exactMatches = {
-      'ESPN': 'ESPN',
-      'TNT': 'TNT',
-      'ABC': 'ABC',
-      'NBA TV': 'NBATV',
-      'TBS': 'TBS',
-      'MSG': 'MSG',
-      'NBC Sports Bay Area': 'NBCS',
-      'NBC Sports California': 'NBCS',
-      'NBC Sports': 'NBCS',
-      'FOX Sports': 'FS',
-      'CBS Sports': 'CBSS',
-      'FanDuel Sports Network - Indiana': 'FDSI',
-      'FanDuel Sports Network - Sun': 'FDSS',
-      'FanDuel SN Sun': 'FDSS',
-      'FanDuel Sports Network - Southeast': 'FDSS',
-      'KFAA-TV': 'KFAA',
-      'Prime Video': 'AMZN',
-      'FanDuel SN SE': 'FDSS',
-      'MNMT': 'SN-LA',
-      'KUNP 16': 'KUNP',
-      'Altitude Sports': 'ALT',
-      'NBA League Pass': 'NBALP',
-      'Peacock': 'PEA',
-      'ALT2/KTVD': 'ALT2',
-      'KJZZ-TV': 'KJZZ',
-      'Jazz+': 'JAZZ+',
-      'BlazerVision': 'BV',
-      'Sportsnet': 'SN',
-      'GCSEN': 'GCS',
-      'Pelicans.com': 'Pel+'
+ // Put these OUTSIDE the component so they're built once.
+ const CHANNEL_EXACT = Object.fromEntries(Object.entries({
+  // National
+  'ESPN': 'ESPN', 'ESPN2': 'ESPN2', 'ABC': 'ABC', 'NBC': 'NBC', 'NBCSN': 'NBCSN', 'Peacock': 'PEA',
+  'Prime Video': 'AMZN', 'NBA TV': 'NBATV', 'NBA League Pass': 'NBALP', 'TNT': 'TNT', 'TBS': 'TBS',
+  // Streaming / team apps
+  'DAZN': 'DAZN', 'Jazz+': 'JAZZ+', 'BlazerVision': 'BV', 'Pelicans.com': 'Pel+',
+  // Regional networks (2026-27)
+  'Chicago Sports Network': 'CHSN', 'CHSN': 'CHSN',
+  'Rock Entertainment Sports Network': 'ROCK', 'RESN': 'ROCK',
+  'Peachtree Sports Network': 'PTSN',
+  'Monumental Sports Network': 'MSN', 'MNMT': 'MSN',
+  'Rip City TV Network': 'RCTV', 'Rip City Television Network': 'RCTV',
+  "Arizona's Family Sports": 'AFS',
+  'Space City Home Network': 'SCHN',
+  'Thunder Gameday Network': 'TGN',
+  'Gulf Coast Sports & Entertainment Network': 'GCS', 'GCSEN': 'GCS',
+  'Altitude Sports': 'ALT', 'Altitude': 'ALT', 'ALT2/KTVD': 'ALT2',
+  'MSG': 'MSG', 'MSG Network': 'MSG', 'YES': 'YES', 'YES Network': 'YES',
+  'Spectrum SportsNet': 'SSN', 'SportsNet LA': 'SN-LA', 'Sportsnet': 'SN', 'TSN': 'TSN',
+  'NBC Sports': 'NBCS', 'NBC Sports Boston': 'NBCS', 'NBC Sports Bay Area': 'NBCS',
+  'NBC Sports California': 'NBCS', 'NBC Sports Philadelphia': 'NBCS', 'NBC Sports Chicago': 'NBCS',
+  'FOX Sports': 'FS', 'CBS Sports': 'CBSS',
+  // Legacy FanDuel names (network shut down; harmless to keep)
+  'FanDuel Sports Network - Indiana': 'FDSI', 'FanDuel Sports Network - Sun': 'FDSS',
+  'FanDuel SN Sun': 'FDSS', 'FanDuel Sports Network - Southeast': 'FDSS', 'FanDuel SN SE': 'FDSS',
+   // Names ESPN is sending this season
+   'ClipperVision': 'CV', 'Thunder App': 'OKC+', 'Bucks App': 'MIL+', 'Suns Live': 'SUNS',
+   'MavsTV': 'MAVS', 'MyMi': 'MYMI',
+   'Spectrum Sports Net': 'SSN', 'Spectrum Sports Net +': 'SSN+',
+   'KTLA': 'KTLA', 'KSBI': 'KSBI',
+  // Stations
+  'KFAA-TV': 'KFAA', 'KUNP 16': 'KUNP', 'KJZZ-TV': 'KJZZ',
+}).map(([k, v]) => [k.toLowerCase(), v]));
 
-    };
-    
-    // Check for exact match first
-    if (exactMatches[channel]) {
-      return exactMatches[channel];
-    }
-    
-    // Check if channel contains key phrases
-    if (channel.includes('FanDuel') && channel.includes('Sun')) return 'FDSS';
-    if (channel.includes('FanDuel') && channel.includes('Southeast')) return 'FDSS';
-    if (channel.includes('FanDuel') && channel.includes('Indiana')) return 'FDSI';
-    if (channel.includes('NBC Sports')) return 'NBCS';
-    if (channel.includes('MSG')) return 'MSG';
-    
-    // If it's already short (3 chars or less), return as-is
-    if (channel.length <= 4) return channel;
-    
-    // Otherwise, take initials from each word
-    return channel
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase())
-      .join('');
-  };
+const WARNED_CHANNELS = new Set();
+
+const abbreviateChannel = (channel) => {
+  if (!channel) return null;
+  const raw = String(channel);
+  const name = raw.replace(/\([^)]*\)/g, ' ').replace(/\bHD\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  if (!/[a-z0-9]/i.test(name)) return null;
+  const low = name.toLowerCase();
+  const flat = low.replace(/[’']/g, '');
+
+  if (CHANNEL_EXACT[low]) return CHANNEL_EXACT[low];
+
+  // Brand rules (catch variants of names ESPN may spell differently)
+  if (flat.includes('dazn')) return 'DAZN';
+  if (flat.includes('chicago sports network')) return 'CHSN';
+  if (flat.includes('rock entertainment')) return 'ROCK';
+  if (flat.includes('peachtree')) return 'PTSN';
+  if (flat.includes('monumental')) return 'MSN';
+  if (flat.includes('rip city')) return 'RCTV';
+  if (flat.includes('arizonas family')) return 'AFS';
+  if (flat.includes('space city')) return 'SCHN';
+  if (flat.includes('gameday network')) return 'TGN';
+  if (flat.includes('gulf coast')) return 'GCS';
+  if (flat.includes('spectrum sportsnet')) return 'SSN';
+  if (flat.includes('altitude')) return 'ALT';
+  if (flat.includes('fanduel')) {
+    if (/sun|southeast|\bse\b/.test(flat)) return 'FDSS';
+    if (flat.includes('indiana')) return 'FDSI';
+    const region = flat.replace(/fanduel|sports network|\bsn\b|[-–—]/g, ' ').trim().split(/\s+/)[0];
+    return region ? `FDS${region[0].toUpperCase()}` : 'FDS';
+  }
+  if (flat.includes('nbc sports')) return 'NBCS';
+  if (flat.includes('msg')) return 'MSG';
+  if (flat.startsWith('fox sports')) return 'FS';
+  if (flat.startsWith('cbs sports')) return 'CBSS';
+  if (flat.includes('prime video') || flat.includes('amazon')) return 'AMZN';
+  if (/\bnba tv\b|^nbatv$/.test(flat)) return 'NBATV';
+  if (flat.includes('league pass')) return 'NBALP';
+  if (flat.startsWith('sportsnet')) return 'SN';
+
+  // Local station call letters: KTVK, WSOC-TV, WAXN-TV, KUNP 16, WFTV ...
+  const station = name.match(/^([kw][a-z]{2,3})(?:[-\s]?(?:tv|hd|dt\d?|ld|lp))?(?:[-\s]?\d+)?$/i);
+  if (station) return station[1].toUpperCase();
+
+  if (name.length <= 4) return name.toUpperCase();
+
+  // Fallback: initials of real words only
+  const words = name.replace(/[^A-Za-z0-9+\s]/g, ' ').split(/\s+/)
+    .filter((w) => w && !/^(the|of|tv|network)$/i.test(w));
+  let out = words.map((w) => w[0].toUpperCase()).join('');
+  if (out.length < 2) out = words.join('').slice(0, 4).toUpperCase();
+  out = out.slice(0, 5);
+
+  if (!WARNED_CHANNELS.has(raw)) {
+    WARNED_CHANNELS.add(raw);
+    console.warn('[channels] unmapped:', JSON.stringify(raw), '->', out);
+  }
+  return out || null;
+};
 
   const getOrdinalSuffix = (num) => {
     const j = num % 10;
@@ -1763,7 +1798,7 @@ console.log('🏀 FULL DATA:', data);
                     }
                   }
                 }
-                return null;
+                return broadcasts.some(b => (b.names || []).includes('NBA League Pass')) ? 'NBA League Pass' : null;
               })(),
             };
           } catch (err) {
@@ -2459,24 +2494,34 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
           ? (selectedGame.period === 2 ? 'Half' : `End Q${selectedGame.period}`)
           : `Q${selectedGame.period} • ${selectedGame.clock}`}
       </div>
-      {selectedGame.allBroadcasts?.length > 0 && (
-        <div className="flex flex-col items-center mt-1">
-          {selectedGame.allBroadcasts.map((ch, idx) => (
-            <div key={idx} className="text-xs text-gray-500">{abbreviateChannel(ch)}</div>
-          ))}
-        </div>
-      )}
+      {selectedGame.allBroadcasts?.length > 0 && (() => {
+        const codes = [...new Set(selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).filter(Boolean))];
+        const shown = codes.filter(c => c !== 'NBALP');
+        const list = shown.length > 0 ? shown : codes;
+        return (
+          <div className="flex flex-col items-center mt-1">
+            {list.map((code, idx) => (
+              <div key={idx} className="text-xs text-gray-500">{code}</div>
+            ))}
+          </div>
+        );
+      })()}
     </div>
   )}
 
-  {selectedGame.isPreGame && (
+{selectedGame.isPreGame && (
     <div className="text-center">
       <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
-      {selectedGame.allBroadcasts?.length > 0 && (
-        <div className="text-xs text-gray-500 mt-0.5">
-          {selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).join(' • ')}
-        </div>
-      )}
+      {selectedGame.allBroadcasts?.length > 0 && (() => {
+        const codes = [...new Set(selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).filter(Boolean))];
+        const shown = codes.filter(c => c !== 'NBALP');
+        const list = shown.length > 0 ? shown : codes;
+        return (
+          <div className="text-xs text-gray-500 mt-0.5">
+            {list.join(' • ')}
+          </div>
+        );
+      })()}
     </div>
   )}
 
