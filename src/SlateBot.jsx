@@ -1376,7 +1376,7 @@
      { id: 'help', cat: 'Help', ex: ['/help'], test: (p) => /^\/?help$|^\/\?$|what can (i|you)|what do you do/.test(p.n), run: hHelp },
      { id: 'propLine', cat: 'Prop lines', ex: ['What was his set line?', 'Jaylen Brown points line tonight'], test: (p) => p.player && /\blines?\b|\bprops?\b|\bo\/u\b|over\/under/.test(p.n), run: hPropLine },
      { id: 'injuries', cat: 'Injuries', ex: ['Who\'s injured on the Warriors?', 'Is Embiid injured?'], test: (p) => /\binjur\w*|\bhurt\b|\bquestionable\b|\bout tonight\b/.test(p.n), run: hInjuries },
-     { id: 'plays', cat: 'Play-by-play', ex: ['Last 5 plays of the Celtics game', 'Latest scoring plays Lakers'], test: (p) => /\bplays?\b|play by play|pbp/.test(p.n), run: hPlays },
+     { id: 'plays', cat: 'Play-by-play', ex: ['Last 5 plays of the Celtics game', 'Latest scoring plays Lakers'], test: (p) => !/\b(who|teams?)\b.*\bplays?\b/.test(p.n) && /\bplays?\b|play by play|pbp/.test(p.n), run: hPlays },
      { id: 'winProb', cat: 'Live game', ex: ['Win probability in the Nuggets game'], test: (p) => /win prob\w*|chances? (of|to) win/.test(p.n), run: hWinProb },
      { id: 'futures', cat: 'Betting context', ex: ['Who\'s favored to win the title?'], test: (p) => /\b(futures|favou?red to win|favou?rites? to win|title (odds|favou?rites?|contenders?)|championship (odds|favou?rites?)|(win|winning) the (title|championship|finals)|who wins the (title|championship|finals))\b/.test(p.n), run: hFutures },
      { id: 'ats', cat: 'Betting context', ex: ['Celtics ATS record'], test: (p) => /\bats\b|against the spread|cover(s|ed|ing)? the spread|\b(over under|o\/u) record/.test(p.n), run: hAts },
@@ -1754,7 +1754,34 @@
        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
        window.addEventListener('keydown', onKey);
        return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
-     }, [open]);
+    }, [open]);
+  
+    /* Lock the page behind the chat while it is open */
+    useEffect(() => {
+      if (!open) return undefined;
+      const y = window.scrollY;
+      const b = document.body.style;
+      const h = document.documentElement.style;
+      const prev = { position: b.position, top: b.top, width: b.width, overflow: b.overflow, paddingRight: b.paddingRight, hOverflow: h.overflow };
+      const sbw = window.innerWidth - document.documentElement.clientWidth; // keeps desktop layout from jumping
+      b.position = 'fixed';
+      b.top = `-${y}px`;
+      b.width = '100%';
+      b.overflow = 'hidden';
+      if (sbw > 0) b.paddingRight = `${sbw}px`;
+      h.overflow = 'hidden';
+      // also stops inner scroll containers in the app: only the message list may scroll
+      const block = (e) => { if (!listRef.current?.contains(e.target)) e.preventDefault(); };
+      document.addEventListener('touchmove', block, { passive: false });
+      document.addEventListener('wheel', block, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', block);
+        document.removeEventListener('wheel', block);
+        b.position = prev.position; b.top = prev.top; b.width = prev.width; b.overflow = prev.overflow; b.paddingRight = prev.paddingRight;
+        h.overflow = prev.hOverflow;
+        window.scrollTo(0, y);
+      };
+    }, [open]);
    
      const loadIndex = useCallback(() => {
        if (!idxPromise.current) {
@@ -1835,7 +1862,7 @@
    
          {/* dim backdrop (phones only); tap to close */}
          <div
-           className={`fixed inset-0 z-[159] bg-black/60 transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+           className={`fixed inset-0 z-[159] bg-black/60 touch-none transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
            onClick={() => setOpen(false)}
            aria-hidden="true"
          />
