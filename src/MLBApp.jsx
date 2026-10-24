@@ -2898,7 +2898,7 @@ export default function MLBApp({ sport, setSport }) {
       {/* ── MLB PLAYER STATS ── */}
       {selectedMLBPlayer && (
         <div ref={mlbPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
-         <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+                   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
                 <button onClick={() => { trigger('light'); setSelectedMLBPlayer(null); setMlbPlayerStats(null); setSelectedMLBSeason(null); setMlbAvailableSeasons([]); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>

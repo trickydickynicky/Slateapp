@@ -5,9 +5,12 @@ import logo from './assets/slate-logo.png';
 import { Search, Star } from 'lucide-react';
 import MLBApp from './MLBApp';
 import Betting from './Betting';
+import SlateBot from "./SlateBot";
+
 import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
-export default function SportsApp() {
+function SportsApp() {
+
   // Store API key safely (in production, use environment variables)
  
   const [sport, setSport] = useState(() => localStorage.getItem('lastSport') || 'NBA');
@@ -4626,3 +4629,12 @@ onClick={(e) => {
     </div>
   );
 }
+export default function App() {
+  return (
+    <>
+      <SportsApp />
+      <SlateBot league="nba" side="left" bottomOffset={24} />
+    </>
+  );
+}
+
