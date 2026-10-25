@@ -1839,7 +1839,6 @@
      const listRef = useRef(null);
      const inputRef = useRef(null);
      const sheetRef = useRef(null);
-     const formRef = useRef(null);
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -1899,24 +1898,42 @@
        };
      }, [open]);
    
-     /* Keyboard opens OVER the chat: the sheet and messages never resize or move.
-        Only the input bar lifts above the keyboard; the keyboard simply covers the messages. */
+     /* Native-chat keyboard behavior (like the Claude app): the sheet always fits the visible area, so the
+        input bar rides on top of the keyboard, and the messages stay pinned to the bottom, i.e. they slide up with
+        the input instead of being covered or jumping. Nothing else on the page can move (body is locked). */
      useEffect(() => {
+       if (!open) return undefined;
+       const meta = document.querySelector('meta[name="viewport"]');
+       const prevMeta = meta?.getAttribute('content');
+       if (meta && prevMeta && !/interactive-widget/.test(prevMeta)) meta.setAttribute('content', `${prevMeta}, interactive-widget=resizes-content`); // Android Chrome: resize with the keyboard natively
        const vv = window.visualViewport;
        const el = sheetRef.current;
-       const form = formRef.current;
-       if (!open || !vv || !el || !form) return undefined;
+       const list = listRef.current;
+       if (!vv || !el || !list) return () => { if (meta && prevMeta) meta.setAttribute('content', prevMeta); };
+       let raf = 0;
        const sync = () => {
-         if (window.innerWidth >= 640) { el.style.top = ''; form.style.transform = ''; return; }
-         const kb = Math.max(0, window.innerHeight - vv.height); // keyboard height
-         el.style.top = `${vv.offsetTop}px`; // cancels the browser panning the page when an input gets focus
-         form.style.transform = kb > 0 ? `translateY(-${kb}px)` : '';
+         cancelAnimationFrame(raf);
+         raf = requestAnimationFrame(() => {
+           if (window.innerWidth >= 640) { el.style.height = ''; el.style.top = ''; return; }
+           const fromBottom = list.scrollHeight - list.scrollTop - list.clientHeight; // distance from the newest message
+           const h = `${Math.round(vv.height)}px`;
+           const t = `${Math.round(vv.offsetTop)}px`;
+           if (el.style.height === h && el.style.top === t) return;
+           el.style.height = h;
+           el.style.top = t;
+           list.scrollTop = Math.max(0, list.scrollHeight - list.clientHeight - fromBottom); // keep the same messages above the input
+         });
        };
        sync();
        vv.addEventListener('resize', sync);
        vv.addEventListener('scroll', sync);
-       window.addEventListener('resize', sync);
-       return () => { vv.removeEventListener('resize', sync); vv.removeEventListener('scroll', sync); window.removeEventListener('resize', sync); el.style.top = ''; form.style.transform = ''; };
+       return () => {
+         cancelAnimationFrame(raf);
+         vv.removeEventListener('resize', sync);
+         vv.removeEventListener('scroll', sync);
+         el.style.height = ''; el.style.top = '';
+         if (meta && prevMeta) meta.setAttribute('content', prevMeta);
+       };
      }, [open]);
    
      const loadIndex = useCallback(() => {
@@ -2066,7 +2083,6 @@
    
            {/* sticky input bar */}
            <form
-             ref={formRef}
              className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
