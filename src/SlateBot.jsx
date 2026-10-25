@@ -26,7 +26,7 @@
    gamelog column map (parseGamelog) and intents. Everything else (fetch
    layer, index, parser, UI) is league-agnostic.
    ===================================================================== */
-   import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+   import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
    import { MessageCircle, X, Trash2, Send } from 'lucide-react';
    
    /* =====================================================================
@@ -1609,9 +1609,9 @@
    /* =====================================================================
       11. STYLE HELPERS (Tailwind does the styling; only one local keyframe)
       ===================================================================== */
-   const KEYFRAMES = '@keyframes sbDot{0%,80%,100%{opacity:.25}40%{opacity:1}}@keyframes sbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){[data-sb] *{animation:none!important;transition:none!important}}';
+   const KEYFRAMES = '@keyframes sbDot{0%,80%,100%{opacity:.25}40%{opacity:1}}';
    const RAJ = { fontFamily: 'Rajdhani, sans-serif' };
-   const FADE_UP = { animation: 'sbIn 0.2s ease-out both' };
+   const FADE_UP = { animation: 'fadeUp 0.3s ease-out both' };
    const HEADER_BG = { background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' };
    const TILE = 'rounded-xl border border-zinc-700 bg-zinc-800/50 p-2';
    
@@ -1780,19 +1780,9 @@
      return null;
    }
    
-   function MessageBase({ m, onChip }) {
+   function Message({ m, onChip }) {
      const isUser = m.role === 'user';
      const blocks = m.blocks || [];
-     const tokens = useMemo(() => (m.text || '').match(/\S+\s*/g) || [], [m.text]);
-     const step = Math.max(1, Math.ceil(tokens.length / 18)); // whole answer reveals in about half a second
-     const reduce = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-     const [shown, setShown] = useState(() => (isUser || !m.fresh || reduce ? tokens.length : Math.min(step, tokens.length)));
-     const done = shown >= tokens.length;
-     useEffect(() => {
-       if (done) return undefined;
-       const t = setInterval(() => setShown((n) => Math.min(tokens.length, n + step)), 28);
-       return () => clearInterval(t);
-     }, [done, tokens.length, step]);
    
      if (isUser) {
        return (
@@ -1802,8 +1792,6 @@
        );
      }
    
-     let text = done ? (m.text || '') : tokens.slice(0, shown).join('');
-     if ((text.match(/\*\*/g) || []).length % 2) text += '**'; // keep half-typed bold from showing stray asterisks
      const cardStyle = m.tint ? { borderColor: `${m.tint}99`, boxShadow: `0 -10px 24px -14px ${m.tint}` } : undefined;
      return (
        <div className="flex flex-col items-start gap-1.5" style={FADE_UP}>
@@ -1812,22 +1800,18 @@
              className={`bg-zinc-900 text-white rounded-2xl rounded-bl-md max-w-[92%] min-w-0 px-3 py-2 flex flex-col gap-2 border ${m.tint ? '' : 'border-transparent'} ${blocks.length ? 'w-full' : ''}`}
              style={cardStyle}
            >
-             {text ? <div className="whitespace-pre-wrap break-words"><Rich text={text} /></div> : null}
-             {done && (
-               <div className="flex flex-col gap-2 empty:hidden" style={FADE_UP}>
-                 {blocks.map((b, i) => <Block b={b} key={i} />)}
-                 {m.ts && (
-                   <div className="text-[10px] text-gray-500">
-                     ESPN{m.provider ? ` · ${m.provider}${m.stamp ? ` · line ${m.stamp}` : ''}` : ''} · as of {new Date(m.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                     {m.betting ? ' · data only, not advice' : ''}
-                   </div>
-                 )}
+             {m.text ? <div className="whitespace-pre-wrap break-words"><Rich text={m.text} /></div> : null}
+             {blocks.map((b, i) => <Block b={b} key={i} />)}
+             {m.ts && (
+               <div className="text-[10px] text-gray-500">
+                 ESPN{m.provider ? ` · ${m.provider}${m.stamp ? ` · line ${m.stamp}` : ''}` : ''} · as of {new Date(m.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                 {m.betting ? ' · data only, not advice' : ''}
                </div>
              )}
            </div>
          )}
-         {done && m.chips?.length ? (
-           <div className="flex flex-wrap gap-2" style={FADE_UP}>
+         {m.chips?.length ? (
+           <div className="flex flex-wrap gap-2">
              {m.chips.map((c, i) => (
                <button key={i} className="rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 text-left active:bg-blue-600 active:text-white" onClick={() => onChip(c.q)}>{c.label}</button>
              ))}
@@ -1836,7 +1820,6 @@
        </div>
      );
    }
-   const Message = React.memo(MessageBase);
    
    const SUGGESTIONS = ['How many points did LeBron have last night?', 'Who leads the league in threes?', 'Who\'s injured on the Warriors?', 'What channel is the Lakers game on?', 'Lakers home vs away splits', '/help'];
    const OLD_STORAGE_KEYS = ['sb_chat_v1', 'sb_ctx_v1']; // older versions saved the chat here; deleted on mount
@@ -1855,13 +1838,6 @@
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
      const inputRef = useRef(null);
-     const sheetRef = useRef(null);
-     const contentRef = useRef(null);
-     const valRef = useRef(''); // current composer text, so send() stays stable and old messages never re-render
-     const busyRef = useRef(false);
-     const stickRef = useRef(true); // true while the user is within ~80px of the newest message
-     const lastComposerH = useRef(48);
-     const setBusyNow = useCallback((v) => { busyRef.current = v; setBusy(v); }, []);
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -1878,67 +1854,16 @@
        return () => document.removeEventListener('visibilitychange', onVis);
      }, []);
    
-     /* Follow new content only while the user is already near the bottom (about 80px). Scrolling up stops following. */
      useEffect(() => {
-       const content = contentRef.current, list = listRef.current;
-       if (!content || !list || typeof ResizeObserver === 'undefined') return undefined;
-       const ro = new ResizeObserver(() => { if (stickRef.current) list.scrollTop = list.scrollHeight; });
-       ro.observe(content);
-       return () => ro.disconnect();
-     }, []);
-     useEffect(() => { if (open) { stickRef.current = true; const l = listRef.current; if (l) l.scrollTop = l.scrollHeight; } }, [open]);
-   
-     /* Phone keyboard: the sheet always matches the visible area, and when the height changes the list is re-pinned
-        in the same frame, so messages stay put relative to the composer and nothing jumps. */
-     useEffect(() => {
-       if (!open) return undefined;
-       const meta = document.querySelector('meta[name="viewport"]');
-       const prevMeta = meta?.getAttribute('content');
-       if (meta && prevMeta && !/interactive-widget/.test(prevMeta)) meta.setAttribute('content', `${prevMeta}, interactive-widget=overlays-content`);
-       const restore = () => { if (meta && prevMeta) meta.setAttribute('content', prevMeta); };
-       const vv = window.visualViewport;
-       const el = sheetRef.current, list = listRef.current;
-       if (!vv || !el || !list) return restore;
-       let lastH = vv.height, raf = 0;
-       const sync = () => {
-         cancelAnimationFrame(raf);
-         raf = requestAnimationFrame(() => {
-           if (window.innerWidth >= 640) { el.style.height = ''; return; }
-           if (vv.offsetTop > 0) window.scrollTo(0, 0); // never let the browser pan the page behind the sheet
-           const h = vv.height;
-           if (Math.abs(h - lastH) < 1 && el.style.height) return;
-           const pinned = stickRef.current; // read before the resize changes the scroll position
-           lastH = h;
-           el.style.height = `${Math.round(h)}px`;
-           if (pinned) list.scrollTop = list.scrollHeight;
-         });
-       };
-       sync();
-       vv.addEventListener('resize', sync);
-       vv.addEventListener('scroll', sync);
-       return () => { cancelAnimationFrame(raf); vv.removeEventListener('resize', sync); vv.removeEventListener('scroll', sync); el.style.height = ''; restore(); };
-     }, [open]);
-   
-     /* Composer: auto-grows from 1 to 6 lines (then scrolls inside), and eases back to one line after sending. */
-     useLayoutEffect(() => {
-       const el = inputRef.current;
+       const el = listRef.current;
        if (!el) return;
-       const MAX = 168;
-       el.style.transition = 'none';
-       el.style.height = 'auto';
-       const target = Math.min(Math.max(el.scrollHeight, 48), MAX);
-       el.style.overflowY = el.scrollHeight > MAX ? 'auto' : 'hidden';
-       el.style.height = `${lastComposerH.current}px`;
-       void el.offsetHeight; // commit the starting height so the next change animates
-       el.style.transition = '';
-       el.style.height = `${target}px`;
-       lastComposerH.current = target;
-     }, [input]);
+       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+       el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+     }, [messages, busy, open]);
    
      useEffect(() => {
        if (!open) return undefined;
-       const coarse = window.matchMedia?.('(pointer: coarse)').matches; // phones: don't pop the keyboard open on its own
-       const t = setTimeout(() => { if (!coarse) inputRef.current?.focus(); }, 320);
+       const t = setTimeout(() => inputRef.current?.focus(), 320);
        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
        window.addEventListener('keydown', onKey);
        return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
@@ -1995,16 +1920,13 @@
        getEnv().then((env) => snapshotTonight(env)).catch(() => {});
      }, [open, getEnv]);
    
-     const push = useCallback((m) => setMessages((prev) => [...prev, { id: uid(), ts: Date.now(), fresh: m.role === 'bot', ...m }].slice(-50)), []);
+     const push = useCallback((m) => setMessages((prev) => [...prev, { id: uid(), ts: Date.now(), ...m }].slice(-50)), []);
    
      const send = useCallback(async (text) => {
-       const q = String(text ?? valRef.current).trim();
-       if (!q || busyRef.current) return;
-       if (window.matchMedia?.('(pointer: coarse)').matches) inputRef.current?.blur(); // 1. keyboard collapses immediately
-       valRef.current = '';
-       setInput(''); // 4. composer clears and eases back to one line
-       stickRef.current = true; // the new message and the reply are followed
-       push({ role: 'user', text: q }); // 3. optimistic render with a short fade and slide
+       const q = String(text ?? input).trim();
+       if (!q || busy) return;
+       setInput('');
+       push({ role: 'user', text: q });
    
        if (/^\/?reset$/i.test(q)) { // handled before getEnv so it works even when the index can't build
          resetCaches();
@@ -2015,15 +1937,15 @@
        }
    
        if (/^\/probe$/i.test(q)) { // hidden developer command
-         setBusyNow(true);
+         setBusy(true);
          try {
            const env = await getEnv();
            push({ role: 'bot', text: `Probe results for the ${seasonNow()} season. Copy a sample or "Copy all" and send it back.`, blocks: [{ t: 'probe', rows: await runProbe(env) }] });
-         } catch (e) { push({ role: 'bot', text: `Probe failed: ${e?.message || e}` }); } finally { setBusyNow(false); }
+         } catch (e) { push({ role: 'bot', text: `Probe failed: ${e?.message || e}` }); } finally { setBusy(false); }
          return;
        }
    
-       setBusyNow(true);
+       setBusy(true);
        try {
          const env = await getEnv();
          const res = await answerQuestion(q, ctxRef.current, env);
@@ -2038,23 +1960,18 @@
            ? `ESPN data is temporarily unavailable for part of that (${down.map((d) => d.split('/').slice(0, 3).join('/')).join(', ') || 'one endpoint'}). I'll retry in about 10 minutes, or type /reset to retry now.`
            : 'ESPN didn\'t respond. Try again in a moment, or type /reset.' });
          dbg(`answer failed (${e?.name}: ${e?.message})`);
-       } finally { setBusyNow(false); }
-     }, [getEnv, push, teamColors, setBusyNow]);
+       } finally { setBusy(false); }
+     }, [input, busy, getEnv, push, teamColors]);
    
      const clear = () => { setMessages([]); ctxRef.current = {}; };
    
      const isRight = side === 'right';
      const sideBubble = isRight ? 'right-4' : 'left-4';
      const sideSheet = isRight ? 'sm:right-4' : 'sm:left-4';
-     const hasText = !!input.trim();
-     const canSend = !busy && hasText;
-     const coarsePointer = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches;
-     const onInput = (e) => { valRef.current = e.target.value; setInput(e.target.value); };
-     const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !coarsePointer && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } };
-     const onListScroll = () => { const el = listRef.current; if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; };
+     const canSend = !busy && !!input.trim();
    
      return (
-       <div data-sb style={{ '--sb-bottom': `${bottomOffset}px` }}>
+       <div style={{ '--sb-bottom': `${bottomOffset}px` }}>
          <style>{KEYFRAMES}</style>
    
          {/* dim backdrop (phones only); tap to close */}
@@ -2080,7 +1997,6 @@
            role="dialog"
            aria-label="Slate assistant"
            aria-hidden={!open}
-           ref={sheetRef}
            className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
@@ -2093,68 +2009,57 @@
              <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-1.5 text-gray-400 hover:text-white"><X size={20} /></button>
            </div>
    
-           {/* messages: the only scrolling area */}
-           <div
-             ref={listRef}
-             onScroll={onListScroll}
-             aria-live="polite"
-             className="flex-1 min-h-0 overflow-y-auto overscroll-contain [overflow-anchor:auto] [-webkit-overflow-scrolling:touch]"
-           >
-             <div ref={contentRef} className="flex flex-col gap-2 px-3 py-3 min-h-full">
-               {messages.length === 0 && !busy && (
-                 <div className="my-auto flex flex-col gap-3" style={FADE_UP}>
-                   <div>
-                     <h4 className="text-xl font-bold" style={RAJ}>Ask about {lg.label} players, games and lines</h4>
-                     <p className="text-gray-400 mt-1">Answers come straight from ESPN. Nothing is estimated.</p>
-                   </div>
-                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={RAJ}>Try asking</div>
-                   <div className="flex gap-2 overflow-x-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible -mx-3 px-3 sm:mx-0 sm:px-0">
-                     {SUGGESTIONS.map((sg) => (
-                       <button
-                         key={sg}
-                         type="button"
-                         onClick={() => send(sg)}
-                         className="shrink-0 whitespace-nowrap sm:whitespace-normal sm:text-left rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
-                       >
-                         {sg === '/help' ? 'What can I ask?' : sg}
-                       </button>
-                     ))}
-                   </div>
+           {/* messages */}
+           <div ref={listRef} aria-live="polite" className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-2 [-webkit-overflow-scrolling:touch]">
+             {messages.length === 0 && !busy && (
+               <div className="my-auto flex flex-col gap-3" style={FADE_UP}>
+                 <div>
+                   <h4 className="text-xl font-bold" style={RAJ}>Ask about {lg.label} players, games and lines</h4>
+                   <p className="text-gray-400 mt-1">Answers come straight from ESPN. Nothing is estimated.</p>
                  </div>
-               )}
-               {messages.map((m) => <Message key={m.id} m={m} onChip={send} />)}
-               {busy && (
-                 <div className="flex gap-1 w-fit bg-zinc-900 rounded-2xl rounded-bl-md px-4 py-3" aria-label="Looking that up" style={FADE_UP}>
-                   {[0, 0.2, 0.4].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-zinc-600" style={{ animation: 'sbDot 1.2s infinite', animationDelay: `${d}s` }} />)}
+                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={RAJ}>Try asking</div>
+                 <div className="flex gap-2 overflow-x-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible -mx-3 px-3 sm:mx-0 sm:px-0">
+                   {SUGGESTIONS.map((s) => (
+                     <button
+                       key={s}
+                       type="button"
+                       onClick={() => send(s)}
+                       className="shrink-0 whitespace-nowrap sm:whitespace-normal sm:text-left rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
+                     >
+                       {s === '/help' ? 'What can I ask?' : s}
+                     </button>
+                   ))}
                  </div>
-               )}
-             </div>
+               </div>
+             )}
+             {messages.map((m) => <Message key={m.id} m={m} onChip={send} />)}
+             {busy && (
+               <div className="flex gap-1 w-fit bg-zinc-900 rounded-2xl rounded-bl-md px-4 py-3" aria-label="Looking that up" style={FADE_UP}>
+                 {[0, 0.2, 0.4].map((d) => <span key={d} className="w-1.5 h-1.5 rounded-full bg-zinc-600" style={{ animation: 'sbDot 1.2s infinite', animationDelay: `${d}s` }} />)}
+               </div>
+             )}
            </div>
    
-           {/* composer pinned to the bottom */}
+           {/* sticky input bar */}
            <form
-             className="relative z-10 flex items-end gap-2 px-3 pt-2 bg-black border-t border-white/5"
+             className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
            >
-             <textarea
+             <input
                ref={inputRef}
-               rows={1}
                value={input}
-               onChange={onInput}
-               onKeyDown={onKey}
+               onChange={(e) => setInput(e.target.value)}
                placeholder="Ask a question…"
                aria-label="Ask a question"
-               enterKeyHint={coarsePointer ? 'enter' : 'send'}
-               className="flex-1 min-w-0 resize-none bg-zinc-900 rounded-3xl px-4 py-3 text-base leading-6 text-white placeholder-gray-400 outline-none transition-[height] duration-150 ease-out"
-               style={{ height: 48, maxHeight: 168 }}
+               enterKeyHint="send"
+               className="flex-1 min-w-0 bg-zinc-900 rounded-full px-4 py-3 text-base text-white placeholder-gray-400 outline-none"
              />
              <button
                type="submit"
                disabled={!canSend}
-               tabIndex={hasText ? 0 : -1}
                aria-label="Send"
-               className={`shrink-0 w-11 h-11 mb-0.5 rounded-full flex items-center justify-center transition-[transform,opacity] duration-150 ease-out ${hasText ? 'opacity-100 scale-100' : 'opacity-0 scale-75 pointer-events-none'} ${canSend ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-500'}`}
+               className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-colors ${canSend ? 'bg-blue-600 text-white active:scale-95' : 'bg-zinc-800 text-gray-500'}`}
              >
                <Send size={18} />
              </button>
