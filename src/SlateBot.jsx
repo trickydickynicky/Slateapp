@@ -1839,6 +1839,7 @@
      const listRef = useRef(null);
      const inputRef = useRef(null);
      const sheetRef = useRef(null);
+     const formRef = useRef(null);
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -1898,21 +1899,24 @@
        };
      }, [open]);
    
-     /* Full-screen sheet on phones: fit it to the visible area so the input stays above the keyboard */
+     /* Keyboard opens OVER the chat: the sheet and messages never resize or move.
+        Only the input bar lifts above the keyboard; the keyboard simply covers the messages. */
      useEffect(() => {
        const vv = window.visualViewport;
        const el = sheetRef.current;
-       if (!open || !vv || !el) return undefined;
-       const fit = () => {
-         if (window.innerWidth >= 640) { el.style.height = ''; el.style.top = ''; return; }
-         el.style.height = `${vv.height}px`;
-         el.style.top = `${vv.offsetTop}px`;
+       const form = formRef.current;
+       if (!open || !vv || !el || !form) return undefined;
+       const sync = () => {
+         if (window.innerWidth >= 640) { el.style.top = ''; form.style.transform = ''; return; }
+         const kb = Math.max(0, window.innerHeight - vv.height); // keyboard height
+         el.style.top = `${vv.offsetTop}px`; // cancels the browser panning the page when an input gets focus
+         form.style.transform = kb > 0 ? `translateY(-${kb}px)` : '';
        };
-       fit();
-       vv.addEventListener('resize', fit);
-       vv.addEventListener('scroll', fit);
-       window.addEventListener('resize', fit);
-       return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); window.removeEventListener('resize', fit); el.style.height = ''; el.style.top = ''; };
+       sync();
+       vv.addEventListener('resize', sync);
+       vv.addEventListener('scroll', sync);
+       window.addEventListener('resize', sync);
+       return () => { vv.removeEventListener('resize', sync); vv.removeEventListener('scroll', sync); window.removeEventListener('resize', sync); el.style.top = ''; form.style.transform = ''; };
      }, [open]);
    
      const loadIndex = useCallback(() => {
@@ -2062,7 +2066,8 @@
    
            {/* sticky input bar */}
            <form
-             className="sticky bottom-0 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
+             ref={formRef}
+             className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
            >
