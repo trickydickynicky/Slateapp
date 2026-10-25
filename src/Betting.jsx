@@ -300,6 +300,7 @@ function parseGamelog(json) {
 export default function Betting({ sport, setSport }) {
   const { trigger } = useWebHaptics();
   const [propKey, setPropKey] = useState('pts');
+  const [gameId, setGameId] = useState('top');
   const [showCheat, setShowCheat] = useState(false);
 
   const [games, setGames] = useState([]);
@@ -378,15 +379,20 @@ export default function Betting({ sport, setSport }) {
 
   const type = PROP_TYPES.find((p) => p.key === propKey);
 
+  const chipLabel = (g) => {
+    const a = g.teams.find((t) => t.homeAway === 'away');
+    const h = g.teams.find((t) => t.homeAway === 'home');
+    return a && h ? `${a.abbr} @ ${h.abbr}` : g.name;
+  };
+  const activeGame = games.find((g) => g.id === gameId);
+
   /* 2) candidates for the selected prop type */
-  const candidates = useMemo(
-    () =>
-      rawProps
-        .filter((p) => p.key === propKey)
-        .sort((a, b) => b.line - a.line)
-        .slice(0, MAX_CANDIDATES),
-    [rawProps, propKey]
-  );
+  const candidates = useMemo(() => {
+    const list = rawProps
+      .filter((p) => p.key === propKey && (gameId === 'top' || p.gameId === gameId))
+      .sort((a, b) => b.line - a.line);
+    return gameId === 'top' ? list.slice(0, MAX_CANDIDATES) : list;
+  }, [rawProps, propKey, gameId]);
 
   /* 3) resolve athletes + game logs (cached across prop types) */
   useEffect(() => {
@@ -500,8 +506,8 @@ export default function Betting({ sport, setSport }) {
       });
     }
     out.sort((a, b) => b.prob - a.prob || Math.abs(b.proj - b.line) - Math.abs(a.proj - a.line));
-    return { cards: out.slice(0, 20), pending: wait };
-}, [candidates, athletes, logs, type, games]);
+    return { cards: gameId === 'top' ? out.slice(0, 20) : out, pending: wait };
+  }, [candidates, athletes, logs, type, games, gameId]);
 
   /* ============================== RENDER ============================== */
   return (
@@ -594,6 +600,28 @@ export default function Betting({ sport, setSport }) {
       </div>
 
       <div className="px-4 -mt-3 pb-8">
+        {/* game selector */}
+        <div className="overflow-x-auto scrollbar-hide pb-3">
+          <div className="flex gap-2">
+            {[{ id: 'top', label: 'Top Edges' }, ...games.map((g) => ({ id: g.id, label: chipLabel(g) }))].map((c) => (
+              <button
+                key={c.id}
+                onClick={() => {
+                  trigger('selection');
+                  setGameId(c.id);
+                }}
+                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                  gameId === c.id
+                    ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]'
+                    : 'bg-zinc-900 text-gray-300'
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* last-N toggle */}
         <div className="flex items-center justify-between mb-3">
   <h4
@@ -616,7 +644,7 @@ export default function Betting({ sport, setSport }) {
         )}
         {phase === 'ready' && games.length > 0 && candidates.length === 0 && (
           <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-            No {type.label} lines posted yet
+               No {type.label} lines posted yet{activeGame ? ` for ${chipLabel(activeGame)}` : ''}
           </div>
         )}
         {phase === 'ready' && candidates.length > 0 && pending > 0 && (
