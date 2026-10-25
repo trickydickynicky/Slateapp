@@ -2011,8 +2011,8 @@
    
            {/* messages */}
            <div ref={listRef} aria-live="polite" className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-2 [-webkit-overflow-scrolling:touch]">
-             {messages.length === 0 && !busy && (
-               <div className="my-auto flex flex-col gap-3" style={FADE_UP}>
+           {(
+  <div className="flex flex-col gap-3 pb-2" style={FADE_UP}>
                  <div>
                    <h4 className="text-xl font-bold" style={RAJ}>Ask about {lg.label} players, games and lines</h4>
                    <p className="text-gray-400 mt-1">Answers come straight from ESPN. Nothing is estimated.</p>
