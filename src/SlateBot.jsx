@@ -26,7 +26,7 @@
    gamelog column map (parseGamelog) and intents. Everything else (fetch
    layer, index, parser, UI) is league-agnostic.
    ===================================================================== */
-   import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+   import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
    import { MessageCircle, X, Trash2, Send } from 'lucide-react';
    
    /* =====================================================================
@@ -1838,8 +1838,6 @@
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
      const inputRef = useRef(null);
-     const [vv, setVv] = useState(null); // visual viewport size on phones while the chat is open
-     const fromBottomRef = useRef(0);
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -1898,28 +1896,7 @@
        };
      }, [open]);
    
-   /* Keep the panel exactly the size of the visible area (above the keyboard) so iOS can't push it around */
-useEffect(() => {
-    const v = window.visualViewport;
-    if (!open || !v) return undefined;
-    const update = () => {
-      if (window.innerWidth >= 640) { setVv(null); return; }
-      const el = listRef.current;
-      if (el) fromBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight;
-      setVv({ h: v.height, top: v.offsetTop });
-      window.scrollTo(0, 0);
-    };
-    update();
-    v.addEventListener('resize', update);
-    v.addEventListener('scroll', update);
-    return () => { v.removeEventListener('resize', update); v.removeEventListener('scroll', update); setVv(null); };
-  }, [open]);
-  
-  /* After the panel resizes, put the message list back at the same distance from the bottom */
-  useLayoutEffect(() => {
-    const el = listRef.current;
-    if (el && vv) el.scrollTop = el.scrollHeight - el.clientHeight - fromBottomRef.current;
-  }, [vv?.h]);
+   
      const loadIndex = useCallback(() => {
        if (!idxPromise.current) {
          idxPromise.current = (async () => {
@@ -2017,10 +1994,9 @@ useEffect(() => {
    
          {/* chat panel: bottom sheet on phones, ~380px card on desktop */}
          <div
-  role="dialog"
-  aria-label="Slate assistant"
-  aria-hidden={!open}
-  style={vv ? { height: vv.h, top: vv.top } : undefined}
+           role="dialog"
+           aria-label="Slate assistant"
+           aria-hidden={!open}
            className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
