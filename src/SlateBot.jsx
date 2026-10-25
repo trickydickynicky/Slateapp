@@ -384,7 +384,7 @@
    /* =====================================================================
       5. PARSER — rule-based entity extraction (no LLM)
       ===================================================================== */
-   const STOP = new Set(('the and for was were are has have had did does how many much what whats who whom when where which with from this that his her him their them they last night game games over under against home away road points point rebounds assists threes steals blocks average avg season career tonight today yesterday playoffs time times first second third fourth quarter line lines spread stats stat about also just than more less most best top lead leads league nba team teams player players ever give show tell please plays play pick picks score scored scoring get got make made make shot shots').split(' '));
+   const STOP = new Set(('the and for was were are has have had did does how many much what whats who whom when where which with from this that his her him their them they last night game games over under against home away road points point rebounds assists threes steals blocks average avg season career tonight today yesterday playoffs time times first second third fourth quarter line lines spread stats stat about also just than more less most best top lead leads league nba team teams player players ever give show tell please plays play pick picks score scored scoring get got make made make shot shots defend defends defense defensive guards forwards centers bigs wings numbers change production highest biggest lowest smallest closest tightest prop props bet bets edges').split(' '));
    
    const STATS = {
      pra: { key: 'pra', label: 'PRA', parts: ['pts', 'reb', 'ast'], re: /\bpra\b|pts\+reb\+ast|points rebounds (?:and )?assists/ },
@@ -1225,6 +1225,115 @@
      return A(`${gameLabel(ev, t.id)} on ${fmtDay(ev.iso)}: tipoff **${fmtTime(ev.date)}** (your local time). ${nets.length ? `Watch on **${nets.join(', ')}**.` : 'ESPN has not listed a network yet.'}`, [], { ctx: { teams: [t.id] } });
    }
    
+   /* ---- tonight's games ranked by total / spread ---- */
+   const posNum = (v) => { const m = String(v ?? '').match(/-?\d+(\.\d+)?/g); return m ? Math.abs(Number(m[m.length - 1])) : 0; };
+   async function hTopLines(p, env) {
+     const all = await board(env, env.today);
+     if (!all.length) return A('No NBA games tonight.');
+     const rows = all.filter((e) => e.odds && (e.odds.overUnder != null || e.odds.details)).map((e) => ({ e, total: Number(e.odds.overUnder) || 0, spread: posNum(e.odds.details) }));
+     if (!rows.length) return A('No lines are posted for tonight\'s games yet. I can show the schedule instead.', [], { chips: [{ label: 'Tonight\'s games', q: 'What games are on tonight?' }] });
+     const bySpread = /\b(spreads?|favou?r\w*|blowouts?|lopsided)\b/.test(p.n);
+     const low = /\b(lowest|smallest|closest|tightest|least)\b/.test(p.n);
+     const key = bySpread ? 'spread' : 'total';
+     rows.sort((a, b) => (low ? 1 : -1) * (a[key] - b[key]));
+     const label = bySpread ? (low ? 'closest spreads' : 'biggest spreads') : (low ? 'lowest totals' : 'highest totals');
+     const prov = rows.map((r) => r.e.odds?.provider?.name).find(Boolean);
+     return A(`Tonight's games by ${label}.${bySpread ? '' : ' Ask about spreads to rank by the biggest point spread instead.'}`,
+       [tbl(['Game', 'Total', 'Spread', 'Tip / status'], rows.map(({ e, total }) => [`${e.away?.abbr} @ ${e.home?.abbr}`, total || '–', e.odds.details || '–', e.state === 'pre' ? fmtTime(e.date) : e.detail]))],
+       { betting: true, provider: prov || 'ESPN', stamp: fmtTime(Date.now()) });
+   }
+   
+   /* ---- best-looking props tonight: last-10 hit rate against the posted line ---- */
+   async function hTopProps(p, env) {
+     const pre = (await board(env, env.today)).filter((e) => e.state === 'pre');
+     if (!pre.length) return A('There are no upcoming games tonight, so there are no open prop lines to look at.', [], { chips: [{ label: 'Tonight\'s games', q: 'What games are on tonight?' }] });
+     const keys = p.stat && PROP_LABEL[p.stat.key] ? [p.stat.key] : ['pts', 'reb', 'ast', 'pra', 'tpm'];
+     const props = [];
+     await pool(pre, 3, async (g) => { const list = await fetchGameProps(env, g.id); if (list.length) saveSnap(env, env.today, g.id, list); props.push(...list); });
+     const usable = props.filter((r) => keys.includes(r.key) && r.line != null && env.idx.byId[r.aid]);
+     if (!usable.length) return A('Prop lines for tonight aren\'t posted yet. Check back closer to tip-off.', [], { chips: [{ label: 'Tonight\'s lines', q: 'Tonight\'s odds' }] });
+     const out = new Set();
+     try {
+       const j = await getJSON(`${env.EP.site}/injuries`, { ttl: MIN5 });
+       for (const t of j?.injuries || []) for (const i of t.injuries || []) if (/out|doubt/i.test(i.status || '')) out.add(String(i.athlete?.id));
+     } catch (e) { /* skip the filter */ }
+     const byPlayer = new Map();
+     for (const r of usable) { if (out.has(r.aid)) continue; (byPlayer.get(r.aid) || byPlayer.set(r.aid, []).get(r.aid)).push(r); }
+     const cands = [...byPlayer.entries()].sort((a, b) => Math.max(...b[1].map((r) => r.line)) - Math.max(...a[1].map((r) => r.line))).slice(0, 16);
+     const picks = [];
+     await pool(cands, 4, async ([aid, list]) => {
+       const rows = (await loadLog(env, aid, 2)).slice(0, 10);
+       for (const r of list) {
+         const vals = rows.map((x) => rowVal(x, STATS[r.key]));
+         if (vals.length < 6) continue;
+         const over = vals.filter((v) => v > r.line).length, under = vals.filter((v) => v < r.line).length;
+         const side = over >= under ? 'Over' : 'Under';
+         const hit = Math.max(over, under);
+         const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+         const margin = side === 'Over' ? avg - r.line : r.line - avg;
+         picks.push({ r, pl: env.idx.byId[aid], side, hit, n: vals.length, avg, score: hit / vals.length + margin / Math.max(r.line, 1), pr: side === 'Over' ? r.over : r.under });
+       }
+     });
+     const top = picks.sort((a, b) => b.score - a.score).slice(0, 5);
+     if (!top.length) return A('I couldn\'t find enough recent games on these players to rank their props yet.');
+     return A('Best-looking props tonight, ranked by how often the player cleared or missed the line over his last 10 games. This shows recent patterns, not a prediction. Injuries and matchups are not factored in.',
+       [tbl(['Player', 'Prop', 'Pick', 'Line', 'Hit', 'Avg', 'Price'], top.map((x) => [`${x.pl.name} (${x.pl.abbr})`, PROP_LABEL[x.r.key], x.side, x.r.line, `${x.hit}/${x.n}`, f1(x.avg), price(x.pr)]))],
+       { betting: true, provider: 'DraftKings', stamp: fmtTime(Date.now()) });
+   }
+   
+   /* ---- "if X is out, how do Y's numbers change" ---- */
+   async function hWithout(p, env) {
+     const pls = p.players;
+     if (pls.length < 2) {
+       for (const w of unresolvedNames(p, env.idx)) {
+         const sug = suggestPlayers(w, env.idx, 0.75);
+         if (sug.length) return A(`I couldn't find "${w}". Did you mean one of these?`, [], { chips: sug.map((x) => ({ label: `${x.name} (${x.abbr})`, q: String(p.raw).replace(new RegExp(esc(w), 'i'), x.name) })) });
+       }
+       return A('Name both players, like "How do Maxey\'s numbers change if Embiid is out?"');
+     }
+     const two = pls.slice(0, 2);
+     const at = (pl) => p.n.indexOf(pl.last);
+     const wi = p.n.search(/\bwithout\b/), oi = p.n.search(/\bout\b/);
+     let outP = two[0];
+     if (wi >= 0) outP = two.filter((x) => at(x) > wi).sort((a, b) => at(a) - at(b))[0] || two[1];
+     else if (oi >= 0) outP = two.filter((x) => at(x) >= 0 && at(x) < oi).sort((a, b) => at(b) - at(a))[0] || two[0];
+     const subj = two.find((x) => x.id !== outP.id);
+     if (outP.team && subj.team && outP.team !== subj.team) return A(`${outP.name} and ${subj.name} aren't on the same team, so there's no with-or-without split to show.`);
+     const [sRows, oRows] = await Promise.all([loadLog(env, subj.id, 2), loadLog(env, outP.id, 2)]);
+     if (!oRows.length) return A(`ESPN has no recent games on file for ${outP.name}.`);
+     const since = oRows[oRows.length - 1].date;
+     const played = new Set(oRows.map((r) => r.id));
+     const span = sRows.filter((r) => r.date >= since);
+     const withP = span.filter((r) => played.has(r.id)), without = span.filter((r) => !played.has(r.id));
+     const ctx = { player: subj };
+     if (!without.length) return A(`${outP.name} played in every game ${subj.name} played over this stretch, so there's no "without" sample to compare.`, [], { ctx });
+     if (!withP.length) return A(`${subj.name} has no games with ${outP.name} on file over this stretch.`, [], { ctx });
+     const def = p.stat && !p.stat.pct && !p.stat.dbl ? p.stat : null;
+     const line = (label, rs) => (def ? [label, rs.length, f1(aggVal(rs, def))] : [label, rs.length, f1(aggVal(rs, STATS.pts)), f1(aggVal(rs, STATS.reb)), f1(aggVal(rs, STATS.ast)), f1(aggVal(rs, STATS.tpm)), f1(aggVal(rs, STATS.min))]);
+     const head = def ? ['', 'GP', `Avg ${def.label}`] : ['', 'GP', 'PTS', 'REB', 'AST', '3PM', 'MIN'];
+     const cmpDef = def || STATS.pts;
+     const small = without.length < 5 ? ` Small sample: only ${without.length} game${without.length === 1 ? '' : 's'} without him.` : '';
+     return A(`${subj.name} averages **${f1(aggVal(without, cmpDef))} ${cmpDef.label.toLowerCase()}** in ${without.length} games without ${outP.name}, compared with **${f1(aggVal(withP, cmpDef))}** in ${withP.length} games with him.${small} "Without" means games ${outP.name} has no stat line in ESPN's logs (injury, rest, or not on the team yet).`,
+       [tbl(head, [line(`With ${outP.last}`, withP), line(`Without ${outP.last}`, without)])], { ctx });
+   }
+   
+   /* ---- team defense (overall; ESPN has no by-position split) ---- */
+   async function hDefense(p, env) {
+     const t = p.teams[0].team;
+     const done = (await teamSched(env, t.id)).filter((e) => e.completed && mineOf(e, t.id)?.score != null && otherOf(e, t.id)?.score != null);
+     const ctx = { teams: [t.id] };
+     const chips = [{ label: `${t.nick} injuries`, q: `Who's injured on the ${t.nick}?` }, { label: `${t.nick} next game`, q: `${t.nick} next game` }];
+     if (!done.length) return A(`The ${t.nick} haven't played a completed game yet, so there's no defensive data to show.`, [], { ctx, chips });
+     const allowed = (g) => (g.length ? f1(g.reduce((sum, e) => sum + otherOf(e, t.id).score, 0) / g.length) : '–');
+     const last = done.slice(-10);
+     const home = done.filter((e) => mineOf(e, t.id).home), away = done.filter((e) => !mineOf(e, t.id).home);
+     const pos = p.n.match(/\b(guards?|forwards?|centers?|bigs?|wings?)\b/);
+     const lead = pos
+       ? `ESPN doesn't break defense down by position, so I can't say how the ${t.nick} do against ${pos[1]} specifically. Here is their overall defense.`
+       : `${t.name} defense, measured by points allowed.`;
+     return A(lead, [cards([{ k: 'Opp PPG', v: allowed(done) }, { k: `Last ${last.length}`, v: allowed(last) }, { k: 'Home', v: allowed(home) }, { k: 'Away', v: allowed(away) }, { k: 'Games', v: done.length }])], { ctx, chips });
+   }
+   
    /* ---- honest limits ---- */
    const hUnsupported = (p) => {
      const n = p?.n || '';
@@ -1375,6 +1484,10 @@
    const INTENTS = [
      { id: 'help', cat: 'Help', ex: ['/help'], test: (p) => /^\/?help$|^\/\?$|what can (i|you)|what do you do/.test(p.n), run: hHelp },
      { id: 'propLine', cat: 'Prop lines', ex: ['What was his set line?', 'Jaylen Brown points line tonight'], test: (p) => p.player && /\blines?\b|\bprops?\b|\bo\/u\b|over\/under/.test(p.n), run: hPropLine },
+     { id: 'topProps', cat: 'Betting context', ex: ['What\'s the best prop tonight?'], test: (p) => !p.player && (/\b(best|top|strongest|safest|smartest|good)\b.*\b(props?|bets?|picks?|edges?)\b|\b(props?|bets?|picks?)\b.*\b(best|top|worth)\b/.test(p.n)), run: hTopProps },
+     { id: 'topLines', cat: 'Betting context', ex: ['Which games tonight have the highest lines?'], test: (p) => !p.player && /\b(highest|biggest|largest|lowest|smallest|closest|tightest|most)\b.*\b(lines?|totals?|spreads?|over under|odds)\b/.test(p.n), run: hTopLines },
+     { id: 'without', cat: 'With and without', ex: ['If Embiid is out, how do Maxey\'s numbers change?'], test: (p) => p.players.length >= 1 && /\b(if|when|without)\b/.test(p.n) && /\b(out|without|sits?|sitting|misses|missing|injured|absent)\b/.test(p.n) && /\b(numbers?|stats?|averages?|change|production|perform\w*|do|does|better|worse|points|rebounds|assists|scor\w*)\b/.test(p.n), run: hWithout },
+     { id: 'defense', cat: 'Team', ex: ['How does Miami defend?'], test: (p) => p.teams.length > 0 && /\b(defen[sc]e|defend\w*|defensive)\b/.test(p.n), run: hDefense },
      { id: 'injuries', cat: 'Injuries', ex: ['Who\'s injured on the Warriors?', 'Is Embiid injured?'], test: (p) => /\binjur\w*|\bhurt\b|\bquestionable\b|\bout tonight\b/.test(p.n), run: hInjuries },
      { id: 'plays', cat: 'Play-by-play', ex: ['Last 5 plays of the Celtics game', 'Latest scoring plays Lakers'], test: (p) => !/\b(who|teams?)\b.*\bplays?\b/.test(p.n) && /\bplays?\b|play by play|pbp/.test(p.n), run: hPlays },
      { id: 'winProb', cat: 'Live game', ex: ['Win probability in the Nuggets game'], test: (p) => /win prob\w*|chances? (of|to) win/.test(p.n), run: hWinProb },
@@ -1412,11 +1525,11 @@
      const known = new Set(p.players.flatMap((x) => x.nn.split(' ')));
      return p.n.split(' ').filter((w) => w.length >= 3 && !/\d/.test(w) && !STOP.has(w) && !FUNC.has(w) && !idx.teamWords.has(w) && !known.has(w) && !STAT_ORDER.some((k) => STATS[k].re.test(w)));
    };
-   const suggestPlayers = (word, idx) => {
+   const suggestPlayers = (word, idx, min = 0.6) => {
      const seen = new Set();
      return idx.players
        .map((x) => ({ x, sc: Math.max(sim(word, x.last), sim(word, x.first), sim(word, x.nn)) }))
-       .filter((r) => r.sc >= 0.6).sort((a, b) => b.sc - a.sc)
+       .filter((r) => r.sc >= min).sort((a, b) => b.sc - a.sc)
        .filter((r) => (seen.has(r.x.id) ? false : (seen.add(r.x.id), true))).slice(0, 3).map((r) => r.x);
    };
    const FOLLOW_RE = /^(and|also|what about|how about|what if|same|now|then|but)\b|\binstead\b/;
@@ -1754,34 +1867,35 @@
        const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
        window.addEventListener('keydown', onKey);
        return () => { clearTimeout(t); window.removeEventListener('keydown', onKey); };
-    }, [open]);
-  
-    /* Lock the page behind the chat while it is open */
-    useEffect(() => {
-      if (!open) return undefined;
-      const y = window.scrollY;
-      const b = document.body.style;
-      const h = document.documentElement.style;
-      const prev = { position: b.position, top: b.top, width: b.width, overflow: b.overflow, paddingRight: b.paddingRight, hOverflow: h.overflow };
-      const sbw = window.innerWidth - document.documentElement.clientWidth; // keeps desktop layout from jumping
-      b.position = 'fixed';
-      b.top = `-${y}px`;
-      b.width = '100%';
-      b.overflow = 'hidden';
-      if (sbw > 0) b.paddingRight = `${sbw}px`;
-      h.overflow = 'hidden';
-      // also stops inner scroll containers in the app: only the message list may scroll
-      const block = (e) => { if (!listRef.current?.contains(e.target)) e.preventDefault(); };
-      document.addEventListener('touchmove', block, { passive: false });
-      document.addEventListener('wheel', block, { passive: false });
-      return () => {
-        document.removeEventListener('touchmove', block);
-        document.removeEventListener('wheel', block);
-        b.position = prev.position; b.top = prev.top; b.width = prev.width; b.overflow = prev.overflow; b.paddingRight = prev.paddingRight;
-        h.overflow = prev.hOverflow;
-        window.scrollTo(0, y);
-      };
-    }, [open]);
+     }, [open]);
+   
+     /* Lock the page behind the chat while it is open */
+     useEffect(() => {
+       if (!open) return undefined;
+       const y = window.scrollY;
+       const b = document.body.style;
+       const h = document.documentElement.style;
+       const prev = { position: b.position, top: b.top, width: b.width, overflow: b.overflow, paddingRight: b.paddingRight, hOverflow: h.overflow };
+       const sbw = window.innerWidth - document.documentElement.clientWidth; // keeps desktop layout from jumping
+       b.position = 'fixed';
+       b.top = `-${y}px`;
+       b.width = '100%';
+       b.overflow = 'hidden';
+       if (sbw > 0) b.paddingRight = `${sbw}px`;
+       h.overflow = 'hidden';
+       // also stops inner scroll containers in the app: only the message list may scroll
+       const block = (e) => { if (!listRef.current?.contains(e.target)) e.preventDefault(); };
+       document.addEventListener('touchmove', block, { passive: false });
+       document.addEventListener('wheel', block, { passive: false });
+       return () => {
+         document.removeEventListener('touchmove', block);
+         document.removeEventListener('wheel', block);
+         b.position = prev.position; b.top = prev.top; b.width = prev.width; b.overflow = prev.overflow; b.paddingRight = prev.paddingRight;
+         h.overflow = prev.hOverflow;
+         window.scrollTo(0, y);
+       };
+     }, [open]);
+   
    
      const loadIndex = useCallback(() => {
        if (!idxPromise.current) {
@@ -1862,7 +1976,7 @@
    
          {/* dim backdrop (phones only); tap to close */}
          <div
-           className={`fixed inset-0 z-[159] bg-black/60 touch-none transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+           className={`fixed inset-0 z-[159] bg-black/60 transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
            onClick={() => setOpen(false)}
            aria-hidden="true"
          />
@@ -1883,11 +1997,10 @@
            role="dialog"
            aria-label="Slate assistant"
            aria-hidden={!open}
-           className={`fixed z-[161] inset-x-0 bottom-0 h-[85vh] flex flex-col bg-black text-white rounded-t-3xl border-t border-white/5 overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
-           style={{ maxHeight: 'calc(100dvh - env(safe-area-inset-top, 0px) - 12px)' }}
+           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
-           <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 backdrop-blur-md border-b border-white/5" style={HEADER_BG}>
+           <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 backdrop-blur-md border-b border-white/5" style={{ ...HEADER_BG, paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
              <div className="flex-1 flex items-baseline gap-2 min-w-0">
                <span className="text-xl font-bold" style={RAJ}>Ask Slate</span>
                <span className="text-xs text-gray-500">Beta · ESPN data</span>
@@ -1929,7 +2042,7 @@
    
            {/* sticky input bar */}
            <form
-             className="sticky bottom-0 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
+             className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
            >
