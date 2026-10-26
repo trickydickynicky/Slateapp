@@ -9,6 +9,7 @@ import SlateBot from "./SlateBot";
 
 import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
+import PlayerRecentGames from './PlayerRecentGames';
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -4522,11 +4523,17 @@ onClick={(e) => {
             </div>
 
           </div>
-        ) : (
-          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-            No stats available
-          </div>
-        )}
+            ) : (
+              <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
+                No stats available
+              </div>
+            )}
+    
+            <PlayerRecentGames
+              key={selectedNBAPlayer.id}
+              playerId={selectedNBAPlayer.id}
+              color={teamColors[selectedNBAPlayer.teamAbbr] || '#3B82F6'}
+            />
 
       </div>
     </div>
