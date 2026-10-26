@@ -10,6 +10,7 @@ import SlateBot from "./SlateBot";
 import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
 import PlayerRecentGames from './PlayerRecentGames';
+import TeamSchedule from './TeamSchedule';
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -1638,8 +1639,10 @@ console.log('🏀 FULL DATA:', data);
   };
 
   const handleTeamClick = (teamAbbr, teamLogo) => {
-    // Add current game to navigation stack
-    if (selectedGame) {
+    // If we're already on a team page, remember that team. Otherwise remember the game.
+    if (selectedTeamInfo) {
+      setNavigationStack(prev => [...prev, { type: 'team', teamInfo: selectedTeamInfo }]);
+    } else if (selectedGame) {
       setNavigationStack(prev => [...prev, { type: 'game', data: selectedGame, details: gameDetails }]);
     }
     
@@ -1809,14 +1812,61 @@ console.log('🏀 FULL DATA:', data);
         })
         .filter(game => game !== null);
       
-      return {
-        record: teamRecord,
-        conference,
-        conferenceRank,
-        stats: statsData.results?.stats?.categories || [],
-        recentGames,
-        upcomingGames
-      };
+        // Full schedule (preseason + regular season) for the schedule view
+        let preEvents = [];
+        try {
+          const preRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/schedule?seasontype=1`);
+          preEvents = (await preRes.json()).events || [];
+        } catch (e) {}
+  
+        const scoreOf = (c) => Number(c?.score?.value ?? c?.score?.displayValue ?? c?.score) || 0;
+        const toGame = (event, isPre) => {
+          try {
+            const comp = event.competitions[0];
+            const me = comp.competitors.find(c => c.team?.id === teamId);
+            const opp = comp.competitors.find(c => c.team?.id !== teamId);
+            if (!me || !opp) return null;
+            const completed = !!comp.status?.type?.completed;
+            const myScore = scoreOf(me);
+            const oppScore = scoreOf(opp);
+            const names = (comp.broadcasts || []).flatMap(b => b.names || []).filter(Boolean);
+            const channel = names.find(n => n !== 'NBA League Pass') || names[0] || null;
+            return {
+              id: event.id,
+              date: event.date,
+              isPre,
+              completed,
+              isHome: me.homeAway === 'home',
+              opponent: opp.team.abbreviation,
+              opponentLogo: opp.team.logo || opp.team.logos?.[0]?.href || null,
+              opponentRecord: teamRecordsMap[opp.team.abbreviation] || null,
+              broadcast: abbreviateChannel(channel),
+              win: me.winner ?? myScore > oppScore,
+              myScore,
+              oppScore,
+            };
+          } catch (err) {
+            return null;
+          }
+        };
+  
+        const seen = new Set();
+        const fullSchedule = [
+          ...preEvents.map(e => toGame(e, true)),
+          ...(scheduleData.events || []).map(e => toGame(e, String(e.seasonType?.id) === '1')),
+        ]
+          .filter(g => g && !seen.has(g.id) && seen.add(g.id))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+  
+        return {
+          record: teamRecord,
+          conference,
+          conferenceRank,
+          stats: statsData.results?.stats?.categories || [],
+          recentGames,
+          upcomingGames,
+          fullSchedule
+        };
     } catch (error) {
       console.error('Error fetching team stats:', error);
       return null;
@@ -1843,7 +1893,16 @@ console.log('🏀 FULL DATA:', data);
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       
-      if (previous.type === 'game') {
+      if (previous.type === 'team') {
+        setCompareTeam(null);
+        setCompareTeamStats(null);
+        setIsCompareMode(false);
+        setShowRoster(false);
+        setRosterData(null);
+        setSelectedTeamInfo(previous.teamInfo);
+        setTeamStats(null);
+        fetchTeamStats(previous.teamInfo.abbr);
+      } else if (previous.type === 'game') {
         setSelectedGame(previous.data);
         setGameDetails(previous.details);
         
@@ -4159,7 +4218,8 @@ onClick={(e) => {
   </div>
 </div>
 
-{/* Upcoming Schedule */}
+<TeamSchedule games={teamStats.fullSchedule} onTeamClick={handleTeamClick} />
+{false && (
 <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
   <div className="space-y-2">
@@ -4226,6 +4286,7 @@ onClick={(e) => {
     )}
   </div>
 </div>
+)}
             </div>
           ) : null}
         </div>
