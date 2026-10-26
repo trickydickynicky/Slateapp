@@ -1821,7 +1821,109 @@
      );
    }
    
-   const SUGGESTIONS = ['How many points did LeBron have last night?', 'Who leads the league in threes?', 'Who\'s injured on the Warriors?', 'What channel is the Lakers game on?', 'Lakers home vs away splits', '/help'];
+   const SUGGESTIONS = [
+    'How many points did LeBron have last night?',
+    'Who leads the league in threes?',
+    'Who\'s injured on the Warriors?',
+    'What channel is the Lakers game on?',
+    'Lakers home vs away splits',
+    'What games are on tonight?',
+    'What\'s the best prop tonight?',
+    'Which games tonight have the highest lines?',
+    'Tonight\'s odds',
+    'East standings',
+    'West standings',
+    'Jokic triple-doubles this season',
+    'Last time Curry scored 40+',
+    'LeBron last 10 games',
+    'Brunson home vs away',
+    'Who leads the league in assists?',
+    'Top rebounders this season',
+    'Celtics next game',
+    'Who coaches the Cavs?',
+    'Heat roster',
+    'Any trades today?',
+    'Latest Warriors news',
+    'Knicks vs Celtics head to head',
+    'If Embiid is out, how do Maxey\'s numbers change?',
+    'Who\'s favored to win the title?',
+    'Celtics ATS record',
+    'Last 5 plays of the Celtics game',
+    'How tall is Wemby?',
+    '/help',
+  ];
+  
+  /* Auto-scrolling suggestion row. Drifts left on its own, pauses while the user touches, hovers,
+     focuses or wheel-scrolls it, then resumes. Still manually scrollable; every chip is tappable. */
+  function SuggestionMarquee({ items, onPick, speed = 28 }) {
+    const ref = useRef(null);
+    const paused = useRef(false);
+    const timer = useRef(null);
+  
+    const hold = () => { clearTimeout(timer.current); paused.current = true; };
+    const release = (ms) => { clearTimeout(timer.current); timer.current = setTimeout(() => { paused.current = false; }, ms); };
+  
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return undefined;
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+      let raf;
+      let last = performance.now();
+      let pos = el.scrollLeft;
+      const tick = (now) => {
+        const dt = Math.min(now - last, 64);
+        last = now;
+        if (paused.current) {
+          pos = el.scrollLeft; // follow the user's own scrolling
+        } else {
+          if (Math.abs(el.scrollLeft - pos) > 1.5) pos = el.scrollLeft;
+          pos += (speed * dt) / 1000;
+          const half = el.scrollWidth / 2; // list is rendered twice, so wrap at the midpoint
+          if (half > 0 && pos >= half) pos -= half;
+          el.scrollLeft = pos;
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      return () => { cancelAnimationFrame(raf); clearTimeout(timer.current); };
+    }, [speed]);
+  
+    const wrapFix = () => { // manual scroll past either end of the doubled list: jump to the matching spot
+      const el = ref.current;
+      if (!el) return;
+      const half = el.scrollWidth / 2;
+      if (half > 0 && el.scrollLeft >= half) el.scrollLeft -= half;
+    };
+  
+    return (
+      <div
+        ref={ref}
+        className="flex overflow-x-auto -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onTouchStart={() => hold()}
+        onTouchEnd={() => release(3000)}
+        onTouchCancel={() => release(3000)}
+        onMouseEnter={() => hold()}
+        onMouseLeave={() => release(600)}
+        onWheel={() => { hold(); release(2000); }}
+        onFocus={() => hold()}
+        onBlur={() => release(1000)}
+        onScroll={wrapFix}
+      >
+        {[0, 1].map((copy) => items.map((s) => (
+          <button
+            key={`${copy}-${s}`}
+            type="button"
+            tabIndex={copy ? -1 : 0}
+            aria-hidden={copy ? true : undefined}
+            onClick={() => onPick(s)}
+            className="shrink-0 whitespace-nowrap mr-2 rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
+          >
+            {s === '/help' ? 'What can I ask?' : s}
+          </button>
+        )))}
+      </div>
+    );
+  }
    const OLD_STORAGE_KEYS = ['sb_chat_v1', 'sb_ctx_v1']; // older versions saved the chat here; deleted on mount
    
    /* =====================================================================
@@ -2018,18 +2120,7 @@
                    <p className="text-gray-400 mt-1">Answers come straight from ESPN. Nothing is estimated.</p>
                  </div>
                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={RAJ}>Try asking</div>
-                 <div className="flex gap-2 overflow-x-auto scrollbar-hide [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible -mx-3 px-3 sm:mx-0 sm:px-0">
-                   {SUGGESTIONS.map((s) => (
-                     <button
-                       key={s}
-                       type="button"
-                       onClick={() => send(s)}
-                       className="shrink-0 whitespace-nowrap sm:whitespace-normal sm:text-left rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
-                     >
-                       {s === '/help' ? 'What can I ask?' : s}
-                     </button>
-                   ))}
-                 </div>
+                 <SuggestionMarquee items={SUGGESTIONS} onPick={send} />
                </div>
              )}
              {messages.map((m) => <Message key={m.id} m={m} onChip={send} />)}
