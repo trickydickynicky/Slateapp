@@ -1824,6 +1824,25 @@
    const SUGGESTIONS = ['How many points did LeBron have last night?', 'Who leads the league in threes?', 'Who\'s injured on the Warriors?', 'What channel is the Lakers game on?', 'Lakers home vs away splits', '/help'];
    const OLD_STORAGE_KEYS = ['sb_chat_v1', 'sb_ctx_v1']; // older versions saved the chat here; deleted on mount
    
+   const [vv, setVv] = useState(null); // visible-area box, phones only
+
+   useEffect(() => {
+     if (!open) { setVv(null); return undefined; }
+     const v = window.visualViewport;
+     if (!v) return undefined;
+     const sync = () => {
+       if (window.innerWidth >= 640) { setVv(null); return; } // desktop card keeps its own sizing
+       setVv({ top: v.offsetTop, height: v.height });
+     };
+     sync();
+     v.addEventListener('resize', sync);
+     v.addEventListener('scroll', sync);
+     return () => {
+       v.removeEventListener('resize', sync);
+       v.removeEventListener('scroll', sync);
+     };
+   }, [open]);
+
    /* =====================================================================
       13. MAIN COMPONENT
       ===================================================================== */
@@ -1994,11 +2013,12 @@
    
          {/* chat panel: bottom sheet on phones, ~380px card on desktop */}
          <div
-           role="dialog"
-           aria-label="Slate assistant"
-           aria-hidden={!open}
-           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
-         >
+  role="dialog"
+  aria-label="Slate assistant"
+  aria-hidden={!open}
+  style={vv ? { top: vv.top, height: vv.height } : undefined}
+  className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black ...`}
+>
            {/* sticky header */}
            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 backdrop-blur-md border-b border-white/5" style={{ ...HEADER_BG, paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
              <div className="flex-1 flex items-baseline gap-2 min-w-0">
