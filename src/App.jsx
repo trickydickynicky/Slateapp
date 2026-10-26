@@ -631,10 +631,10 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
 
   useEffect(() => {
     fetchLiveScores();
-    fetchLeagueRankings(); // ADD THIS LINE
+    const rankTimer = setTimeout(fetchLeagueRankings, 3000);
 
     const interval = setInterval(fetchLiveScores, 30000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearTimeout(rankTimer); };
   }, [selectedDate]);
 // Updated betting odds useEffect with duplicate prevention
 useEffect(() => {
@@ -683,7 +683,8 @@ useEffect(() => {
     setPlayerCache(players);
   };
 
-  loadAllPlayers();
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 2000));
+  idle(loadAllPlayers);
 }, []);
   const fetchLiveScores = async () => {
     try {
@@ -785,6 +786,7 @@ const fetchLeagueRankings = async () => {
   
   const allTeamStats = {};
   const teamAbbrs = Object.keys(espnTeamIds);
+  const standData = await (await fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings')).json();
   
   // Fetch in batches of 5
   for (let i = 0; i < teamAbbrs.length; i += 5) {
@@ -797,8 +799,7 @@ const data = await res.json();
 const offense = data.results?.stats?.categories?.find(c => c.name === 'offensive');
 const defense = data.results?.stats?.categories?.find(c => c.name === 'defensive');
 
-const standRes = await fetch(`https://site.api.espn.com/apis/v2/sports/basketball/nba/standings`);
-const standData = await standRes.json();
+
 const teamEntry = standData.children?.flatMap(conf => conf.standings.entries).find(e => e.team.abbreviation === abbr);
 const oppg = parseFloat(teamEntry?.stats?.find(s => s.name === 'avgPointsAgainst')?.displayValue) || null;
         if (abbr === 'BOS') {
