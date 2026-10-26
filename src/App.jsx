@@ -66,6 +66,7 @@ const [loadingNBAStats, setLoadingNBAStats] = useState(false);
 // ADD THESE TWO LINES:
 const [selectedStatSeason, setSelectedStatSeason] = useState(null);
 const [availableSeasons, setAvailableSeasons] = useState([]);
+const [noPlayerAnim, setNoPlayerAnim] = useState(false);
 const [compareTeam, setCompareTeam] = useState(null);
 const [isCompareMode, setIsCompareMode] = useState(false);
 const [compareTeamStats, setCompareTeamStats] = useState(null);
@@ -1258,6 +1259,7 @@ console.log('Sample stats:', allStats);
       return;
     }
     setSlideDirection('right');
+    setNoPlayerAnim(false);
     setSelectedNBAPlayer({ name: playerName, id: playerId, headshot: headshotUrl, teamAbbr, teamLogo, jersey, position });
     fetchNBAPlayerStats(playerName, playerId);
   };
@@ -1887,6 +1889,27 @@ console.log('🏀 FULL DATA:', data);
   
   
   const closeTeamModal = () => {
+    // team page was opened from a player page: go straight back to that player
+    if (selectedTeamInfo?.returnTo) {
+      const r = selectedTeamInfo.returnTo;
+      setSlideDirection('right'); // player page is pushed off-screen when this is 'left'
+      setCompareTeam(null);
+      setCompareTeamStats(null);
+      setIsCompareMode(false);
+      setShowRoster(false);
+      setRosterData(null);
+      setTeamStats(null);
+      if (r.prevInfo) {
+        setSelectedTeamInfo(r.prevInfo);
+        fetchTeamStats(r.prevInfo.abbr);
+      } else {
+        setSelectedTeamInfo(null);
+      }
+      setNoPlayerAnim(true);
+      setSelectedNBAPlayer(r.player);
+      fetchNBAPlayerStats(r.player.name, r.player.id);
+      return;
+    }
     setSlideDirection('left');
     
     if (navigationStack.length > 0) {
@@ -4295,7 +4318,7 @@ onClick={(e) => {
   )}
   
   {selectedNBAPlayer && (
-  <div ref={nbaPlayerRef} className="fixed inset-0 bg-black bg-opacity-100 z-[180] overflow-y-auto animate-[slideInRight_0.3s_ease-out]" style={{
+    <div ref={nbaPlayerRef} className={`fixed inset-0 bg-black bg-opacity-100 z-[180] overflow-y-auto ${noPlayerAnim ? '' : 'animate-[slideInRight_0.3s_ease-out]'}`} style={{
     transform: slideDirection === 'left' ? 'translateX(100%)' : 'translateX(0)',
     transition: 'transform 0.3s ease-out'
   }}>
@@ -4305,16 +4328,13 @@ onClick={(e) => {
         {/* Back button */}
         <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
           <button
-            onClick={() => {
-              trigger('light');
-              setSlideDirection('left');
-              setTimeout(() => {
-                setSelectedNBAPlayer(null);
-                setNbaPlayerStats(null);
-                setSelectedStatSeason(null);
-                setAvailableSeasons([]);
-              }, 300);
-            }}
+                   onClick={() => {
+                    trigger('light');
+                    setSelectedNBAPlayer(null);
+                    setNbaPlayerStats(null);
+                    setSelectedStatSeason(null);
+                    setAvailableSeasons([]);
+                  }}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
           >‹</button>
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
@@ -4360,9 +4380,30 @@ onClick={(e) => {
                 />
                 <div className="flex-1">
                 <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedNBAPlayer.name}</h3>
-                  <div className="flex items-center gap-2 mt-1">
+                <div
+                    className={`flex items-center gap-2 mt-1 ${teamAbbr ? 'cursor-pointer active:opacity-70' : ''}`}
+                    onClick={() => {
+                      if (!teamAbbr) return;
+                      trigger('light');
+                      const logo = teamLogo || `https://a.espncdn.com/i/teamlogos/nba/500/${teamAbbr}.png`;
+                      const returnTo = { player: selectedNBAPlayer, prevInfo: selectedTeamInfo };
+                      setSelectedNBAPlayer(null);
+                      setNbaPlayerStats(null);
+                      setSelectedStatSeason(null);
+                      setAvailableSeasons([]);
+                      setShowRoster(false);
+                      setRosterData(null);
+                      setCompareTeam(null);
+                      setCompareTeamStats(null);
+                      setIsCompareMode(false);
+                      setSlideDirection('right');
+                      setSelectedTeamInfo({ abbr: teamAbbr, logo, returnTo });
+                      setTeamStats(null);
+                      fetchTeamStats(teamAbbr);
+                    }}
+                  >
                     <img src={teamLogo} alt={teamAbbr} className="w-4 h-4" />
-                    <span className="text-gray-400 text-xs">{teamFullNames[teamAbbr]}</span>
+                    <span className="text-gray-400 text-xs">{teamFullNames[teamAbbr]} ›</span>
                   </div>
                   <div className="text-gray-500 text-xs mt-0.5">#{jersey} • {position}</div>
                 </div>
