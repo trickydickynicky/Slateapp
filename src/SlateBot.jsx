@@ -27,7 +27,6 @@
    layer, index, parser, UI) is league-agnostic.
    ===================================================================== */
    import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-   import { flushSync } from 'react-dom';
    import { MessageCircle, X, Trash2, Send } from 'lucide-react';
    
    /* =====================================================================
@@ -1823,108 +1822,108 @@
    }
    
    const SUGGESTIONS = [
-     'How many points did LeBron have last night?',
-     'Who leads the league in threes?',
-     'Who\'s injured on the Warriors?',
-     'What channel is the Lakers game on?',
-     'Lakers home vs away splits',
-     'What games are on tonight?',
-     'What\'s the best prop tonight?',
-     'Which games tonight have the highest lines?',
-     'Tonight\'s odds',
-     'East standings',
-     'West standings',
-     'Jokic triple-doubles this season',
-     'Last time Curry scored 40+',
-     'LeBron last 10 games',
-     'Brunson home vs away',
-     'Who leads the league in assists?',
-     'Top rebounders this season',
-     'Celtics next game',
-     'Who coaches the Cavs?',
-     'Heat roster',
-     'Any trades today?',
-     'Latest Warriors news',
-     'Knicks vs Celtics head to head',
-     'If Embiid is out, how do Maxey\'s numbers change?',
-     'Who\'s favored to win the title?',
-     'Celtics ATS record',
-     'Last 5 plays of the Celtics game',
-     'How tall is Wemby?',
-     '/help',
-   ];
-   
-   /* Auto-scrolling suggestion row. Drifts left on its own, pauses while the user touches, hovers,
-      focuses or wheel-scrolls it, then resumes. Still manually scrollable; every chip is tappable. */
-   function SuggestionMarquee({ items, onPick, speed = 28 }) {
-     const ref = useRef(null);
-     const paused = useRef(false);
-     const timer = useRef(null);
-   
-     const hold = () => { clearTimeout(timer.current); paused.current = true; };
-     const release = (ms) => { clearTimeout(timer.current); timer.current = setTimeout(() => { paused.current = false; }, ms); };
-   
-     useEffect(() => {
-       const el = ref.current;
-       if (!el) return undefined;
-       if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-       let raf;
-       let last = performance.now();
-       let pos = el.scrollLeft;
-       const tick = (now) => {
-         const dt = Math.min(now - last, 64);
-         last = now;
-         if (paused.current) {
-           pos = el.scrollLeft; // follow the user's own scrolling
-         } else {
-           if (Math.abs(el.scrollLeft - pos) > 1.5) pos = el.scrollLeft;
-           pos += (speed * dt) / 1000;
-           const half = el.scrollWidth / 2; // list is rendered twice, so wrap at the midpoint
-           if (half > 0 && pos >= half) pos -= half;
-           el.scrollLeft = pos;
-         }
-         raf = requestAnimationFrame(tick);
-       };
-       raf = requestAnimationFrame(tick);
-       return () => { cancelAnimationFrame(raf); clearTimeout(timer.current); };
-     }, [speed]);
-   
-     const wrapFix = () => { // manual scroll past either end of the doubled list: jump to the matching spot
-       const el = ref.current;
-       if (!el) return;
-       const half = el.scrollWidth / 2;
-       if (half > 0 && el.scrollLeft >= half) el.scrollLeft -= half;
-     };
-   
-     return (
-       <div
-         ref={ref}
-         className="flex overflow-x-auto -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-         onTouchStart={() => hold()}
-         onTouchEnd={() => release(3000)}
-         onTouchCancel={() => release(3000)}
-         onMouseEnter={() => hold()}
-         onMouseLeave={() => release(600)}
-         onWheel={() => { hold(); release(2000); }}
-         onFocus={() => hold()}
-         onBlur={() => release(1000)}
-         onScroll={wrapFix}
-       >
-         {[0, 1].map((copy) => items.map((s) => (
-           <button
-             key={`${copy}-${s}`}
-             type="button"
-             tabIndex={copy ? -1 : 0}
-             aria-hidden={copy ? true : undefined}
-             onClick={() => onPick(s)}
-             className="shrink-0 whitespace-nowrap mr-2 rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
-           >
-             {s === '/help' ? 'What can I ask?' : s}
-           </button>
-         )))}
-       </div>
-     );
-   }
+    'How many points did LeBron have last night?',
+    'Who leads the league in threes?',
+    'Who\'s injured on the Warriors?',
+    'What channel is the Lakers game on?',
+    'Lakers home vs away splits',
+    'What games are on tonight?',
+    'What\'s the best prop tonight?',
+    'Which games tonight have the highest lines?',
+    'Tonight\'s odds',
+    'East standings',
+    'West standings',
+    'Jokic triple-doubles this season',
+    'Last time Curry scored 40+',
+    'LeBron last 10 games',
+    'Brunson home vs away',
+    'Who leads the league in assists?',
+    'Top rebounders this season',
+    'Celtics next game',
+    'Who coaches the Cavs?',
+    'Heat roster',
+    'Any trades today?',
+    'Latest Warriors news',
+    'Knicks vs Celtics head to head',
+    'If Embiid is out, how do Maxey\'s numbers change?',
+    'Who\'s favored to win the title?',
+    'Celtics ATS record',
+    'Last 5 plays of the Celtics game',
+    'How tall is Wemby?',
+    '/help',
+  ];
+  
+  /* Auto-scrolling suggestion row. Drifts left on its own, pauses while the user touches, hovers,
+     focuses or wheel-scrolls it, then resumes. Still manually scrollable; every chip is tappable. */
+  function SuggestionMarquee({ items, onPick, speed = 28 }) {
+    const ref = useRef(null);
+    const paused = useRef(false);
+    const timer = useRef(null);
+  
+    const hold = () => { clearTimeout(timer.current); paused.current = true; };
+    const release = (ms) => { clearTimeout(timer.current); timer.current = setTimeout(() => { paused.current = false; }, ms); };
+  
+    useEffect(() => {
+      const el = ref.current;
+      if (!el) return undefined;
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+      let raf;
+      let last = performance.now();
+      let pos = el.scrollLeft;
+      const tick = (now) => {
+        const dt = Math.min(now - last, 64);
+        last = now;
+        if (paused.current) {
+          pos = el.scrollLeft; // follow the user's own scrolling
+        } else {
+          if (Math.abs(el.scrollLeft - pos) > 1.5) pos = el.scrollLeft;
+          pos += (speed * dt) / 1000;
+          const half = el.scrollWidth / 2; // list is rendered twice, so wrap at the midpoint
+          if (half > 0 && pos >= half) pos -= half;
+          el.scrollLeft = pos;
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+      return () => { cancelAnimationFrame(raf); clearTimeout(timer.current); };
+    }, [speed]);
+  
+    const wrapFix = () => { // manual scroll past either end of the doubled list: jump to the matching spot
+      const el = ref.current;
+      if (!el) return;
+      const half = el.scrollWidth / 2;
+      if (half > 0 && el.scrollLeft >= half) el.scrollLeft -= half;
+    };
+  
+    return (
+      <div
+        ref={ref}
+        className="flex overflow-x-auto -mx-3 px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onTouchStart={() => hold()}
+        onTouchEnd={() => release(3000)}
+        onTouchCancel={() => release(3000)}
+        onMouseEnter={() => hold()}
+        onMouseLeave={() => release(600)}
+        onWheel={() => { hold(); release(2000); }}
+        onFocus={() => hold()}
+        onBlur={() => release(1000)}
+        onScroll={wrapFix}
+      >
+        {[0, 1].map((copy) => items.map((s) => (
+          <button
+            key={`${copy}-${s}`}
+            type="button"
+            tabIndex={copy ? -1 : 0}
+            aria-hidden={copy ? true : undefined}
+            onClick={() => onPick(s)}
+            className="shrink-0 whitespace-nowrap mr-2 rounded-full bg-zinc-800 text-gray-300 text-xs font-semibold px-3 py-1.5 active:bg-blue-600 active:text-white"
+          >
+            {s === '/help' ? 'What can I ask?' : s}
+          </button>
+        )))}
+      </div>
+    );
+  }
    const OLD_STORAGE_KEYS = ['sb_chat_v1', 'sb_ctx_v1']; // older versions saved the chat here; deleted on mount
    
    /* =====================================================================
@@ -1941,21 +1940,6 @@
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
      const inputRef = useRef(null);
-   
-     /* Visual viewport (shrinks when the on-screen keyboard opens) so the sheet fits above the keyboard */
-     const [vv, setVv] = useState(null);
-   
-     useEffect(() => {
-       if (!open || !window.visualViewport) return undefined;
-       const vp = window.visualViewport;
-       const update = () => setVv({ h: vp.height, top: vp.offsetTop, kb: window.innerHeight - vp.height > 120 });
-       update();
-       vp.addEventListener('resize', update);
-       vp.addEventListener('scroll', update);
-       return () => { vp.removeEventListener('resize', update); vp.removeEventListener('scroll', update); setVv(null); };
-     }, [open]);
-   
-     const mobileSheet = !!vv && window.matchMedia('(max-width: 639px)').matches;
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -1977,7 +1961,7 @@
        if (!el) return;
        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
        el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
-     }, [messages, busy, open, vv?.h]);
+     }, [messages, busy, open]);
    
      useEffect(() => {
        if (!open) return undefined;
@@ -2083,13 +2067,6 @@
    
      const clear = () => { setMessages([]); ctxRef.current = {}; };
    
-     /* Open + focus inside the same tap so iOS shows the keyboard immediately */
-     const toggle = () => {
-       if (open) { setOpen(false); return; }
-       flushSync(() => setOpen(true));
-       inputRef.current?.focus({ preventScroll: true });
-     };
-   
      const isRight = side === 'right';
      const sideBubble = isRight ? 'right-4' : 'left-4';
      const sideSheet = isRight ? 'sm:right-4' : 'sm:left-4';
@@ -2110,7 +2087,7 @@
          <button
            type="button"
            aria-label={open ? 'Close Slate assistant' : 'Open Slate assistant'}
-           onClick={toggle}
+           onClick={() => setOpen((o) => !o)}
            className={`fixed z-[160] ${sideBubble} w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-[0_0_12px_rgba(37,99,235,0.7)] active:scale-95 transition-transform duration-150 ${open ? 'max-sm:hidden' : ''}`}
            style={{ bottom: 'calc(var(--sb-bottom) + env(safe-area-inset-bottom, 0px))' }}
          >
@@ -2122,8 +2099,7 @@
            role="dialog"
            aria-label="Slate assistant"
            aria-hidden={!open}
-           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}
-           style={mobileSheet ? { top: vv.top, height: vv.h } : undefined}
+           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 backdrop-blur-md border-b border-white/5" style={{ ...HEADER_BG, paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
@@ -2137,8 +2113,8 @@
    
            {/* messages */}
            <div ref={listRef} aria-live="polite" className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-2 [-webkit-overflow-scrolling:touch]">
-             {(
-               <div className="flex flex-col gap-3 pb-2" style={FADE_UP}>
+           {(
+  <div className="flex flex-col gap-3 pb-2" style={FADE_UP}>
                  <div>
                    <h4 className="text-xl font-bold" style={RAJ}>Ask about {lg.label} players, games and lines</h4>
                    <p className="text-gray-400 mt-1">Answers come straight from ESPN. Nothing is estimated.</p>
@@ -2158,7 +2134,7 @@
            {/* sticky input bar */}
            <form
              className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
-             style={{ paddingBottom: vv?.kb ? '0.75rem' : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+             style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
            >
              <input
