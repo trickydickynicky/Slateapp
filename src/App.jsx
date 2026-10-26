@@ -1928,12 +1928,16 @@ console.log('🏀 FULL DATA:', data);
   };
 
   if (sport === 'MLB') return <MLBApp sport={sport} setSport={setSport} />;
-  if (sport === 'Betting') return <Betting sport={sport} setSport={setSport} />;
+
   
   return (
-    <div className="min-h-screen bg-black text-white" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div className="min-h-screen bg-black text-white" style={sport === 'Betting' ? undefined : { paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
 
+{sport === 'Betting' && (
+  <Betting sport={sport} setSport={setSport} onPlayerClick={handlePlayerStatsClick} />
+)}
 
+{sport !== 'Betting' && (<>
 <div className="px-4 pt-3 pb-4">
       <div className="flex justify-between items-start mb-1"
   style={{ animation: 'dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
@@ -2239,10 +2243,11 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
         </div>
       ))
     )}
+    </div>
   </div>
-</div>
-
-{/* Black transitioning overlay */}
+  </>)}
+  
+  {/* Black transitioning overlay */}
 {isTransitioning && (
   <div className="fixed inset-0 bg-black z-[60]" />
 )}

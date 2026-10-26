@@ -297,7 +297,7 @@ function parseGamelog(json) {
 /* =====================================================================
    MAIN COMPONENT
    ===================================================================== */
-export default function Betting({ sport, setSport }) {
+   export default function Betting({ sport, setSport, onPlayerClick }) {
   const { trigger } = useWebHaptics();
   const [propKey, setPropKey] = useState('pts');
   const [gameId, setGameId] = useState('top');
@@ -670,6 +670,7 @@ export default function Betting({ sport, setSport }) {
               defense={defense}
               posSplits={posSplits}
               index={i}
+              onPlayerClick={onPlayerClick}
             />
           ))}
         </div>
@@ -705,7 +706,7 @@ function Skeletons() {
 /* =====================================================================
    CARD
    ===================================================================== */
-   function EdgeCard({ rank, c, type, defense, posSplits, index }) {
+   function EdgeCard({ rank, c, type, defense, posSplits, index, onPlayerClick }) {
     const { trigger } = useWebHaptics();
     const [n, setN] = useState(10);
     const [prior, setPrior] = useState([]);
@@ -797,10 +798,22 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
     >
       {/* header */}
       <div className="flex items-center gap-3">
-        <img
+      <img
           src={headshotUrl(c.athleteId)}
           alt={c.ath.name}
-          className="w-12 h-12 rounded-full object-cover bg-zinc-800 flex-shrink-0"
+          className="w-12 h-12 rounded-full object-cover bg-zinc-800 flex-shrink-0 cursor-pointer active:opacity-70 transition-opacity"
+          onClick={() => {
+            trigger('light');
+            onPlayerClick?.(
+              c.ath.name,
+              c.athleteId,
+              headshotUrl(c.athleteId),
+              c.mine?.abbr || null,
+              c.mine ? logoUrl(c.mine.abbr) : null,
+              null,
+              c.ath.pos
+            );
+          }}
           onError={(e) => {
             e.target.style.visibility = 'hidden';
           }}
