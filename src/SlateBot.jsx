@@ -1839,25 +1839,6 @@
      const listRef = useRef(null);
      const inputRef = useRef(null);
    
-     const [kb, setKb] = useState(0); // how much of the panel's bottom the keyboard covers
-
-     useEffect(() => {
-       if (!open) { setKb(0); return undefined; }
-       const v = window.visualViewport;
-       if (!v) return undefined;
-       const sync = () => {
-         if (window.innerWidth >= 640) { setKb(0); return; } // desktop card: not needed
-         setKb(Math.max(0, Math.round(window.innerHeight - v.height - v.offsetTop)));
-       };
-       sync();
-       v.addEventListener('resize', sync);
-       v.addEventListener('scroll', sync);
-       return () => {
-         v.removeEventListener('resize', sync);
-         v.removeEventListener('scroll', sync);
-       };
-     }, [open]);
-
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
    
@@ -1878,7 +1859,7 @@
        if (!el) return;
        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
        el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
-    }, [messages, busy, open, kb]);
+     }, [messages, busy, open]);
    
      useEffect(() => {
        if (!open) return undefined;
@@ -2062,7 +2043,7 @@
            {/* sticky input bar */}
            <form
              className="sticky bottom-0 z-10 flex items-center gap-2 px-3 pt-2 bg-black border-t border-white/5"
-             style={{ paddingBottom: kb ? `${kb + 12}px` : 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+             style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
              onSubmit={(e) => { e.preventDefault(); send(); }}
            >
              <input
