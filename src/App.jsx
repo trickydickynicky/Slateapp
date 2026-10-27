@@ -11,6 +11,7 @@ import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
 import PlayerRecentGames from './PlayerRecentGames';
 import TeamSchedule from './TeamSchedule';
+import Momentum from './Momentum';
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -2796,6 +2797,13 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 </table>
   </div>
 )}
+<Momentum
+  gameId={selectedGame.id}
+  status={selectedGame.isLive ? 'in' : selectedGame.isPreGame ? 'pre' : selectedGame.isFinal ? 'post' : undefined}
+  home={{ abbr: selectedGame.homeTeam, logo: selectedGame.homeLogo, color: teamColors[selectedGame.homeTeam] }}
+  away={{ abbr: selectedGame.awayTeam, logo: selectedGame.awayLogo, color: teamColors[selectedGame.awayTeam] }}
+/>
+
 {/* Team Selection Tabs */}
 <div className="flex gap-2 mb-3">
 <button
