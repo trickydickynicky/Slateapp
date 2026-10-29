@@ -656,7 +656,7 @@ async function getKeyInjuries(athleteId, teamId, propKey) {
         {/* NBA | MLB | Betting */}
         <div className="flex mb-1" style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both' }}>
           <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5">
-            {['NBA', 'MLB', 'Betting'].map((s) => (
+            {['NBA', 'Betting'].map((s) => (
               <button
                 key={s}
                 onClick={() => {
