@@ -14,7 +14,7 @@ import TeamSchedule from './TeamSchedule';
 import TeamStatsPage from './TeamStatsPage';
 
 import Momentum from './Momentum';
-
+import GameLineups from './GameLineups';
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -3730,9 +3730,10 @@ onClick={(e) => {
 });
 })()}
 </tbody>
-                        </table>
+</table>
                       </div>
                     </div>
+                    <GameLineups gameId={selectedGame.id} />
                   </div>
                 )}
                 </div>
