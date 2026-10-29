@@ -28,6 +28,7 @@
    ===================================================================== */
    import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
    import { MessageCircle, X, Trash2, Send } from 'lucide-react';
+import { flushSync } from 'react-dom';
    
    /* =====================================================================
       1. CONFIG
@@ -2087,7 +2088,13 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
    
      const clear = () => { setMessages([]); ctxRef.current = {}; };
    
-     const isRight = side === 'right';
+     const toggleOpen = () => {
+        if (open) { setOpen(false); return; }
+        flushSync(() => setOpen(true)); // panel becomes visible now, so iOS allows focus inside this tap
+        inputRef.current?.focus();
+      };
+   
+      const isRight = side === 'right';
      const sideBubble = isRight ? 'right-4' : 'left-4';
      const sideSheet = isRight ? 'sm:right-4' : 'sm:left-4';
      const canSend = !busy && !!input.trim();
@@ -2107,7 +2114,7 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
          <button
            type="button"
            aria-label={open ? 'Close Slate assistant' : 'Open Slate assistant'}
-           onClick={() => setOpen((o) => !o)}
+           onClick={toggleOpen}
            className={`fixed z-[160] ${sideBubble} w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-[0_0_12px_rgba(37,99,235,0.7)] active:scale-95 transition-transform duration-150 ${open ? 'max-sm:hidden' : ''}`}
            style={{ bottom: 'calc(var(--sb-bottom) + env(safe-area-inset-bottom, 0px))' }}
          >
