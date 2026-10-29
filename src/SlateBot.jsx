@@ -1936,6 +1936,7 @@
      const [messages, setMessages] = useState([]);
      const [input, setInput] = useState('');
      const [busy, setBusy] = useState(false);
+const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while open
      const ctxRef = useRef({});
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
@@ -1961,7 +1962,7 @@
        if (!el) return;
        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
        el.scrollTo({ top: el.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
-     }, [messages, busy, open]);
+    }, [messages, busy, open, vp?.h]);
    
      useEffect(() => {
        if (!open) return undefined;
@@ -1999,7 +2000,26 @@
      }, [open]);
    
    
-     const loadIndex = useCallback(() => {
+     /* Keep the panel inside the visual viewport so the iOS keyboard never covers the input */
+     useEffect(() => {
+        if (!open) return undefined;
+        const vv = window.visualViewport;
+        if (!vv) return undefined;
+        const update = () => {
+          if (window.innerWidth >= 640) { setVp(null); return; } // desktop card uses its own sizing
+          setVp({ h: Math.round(vv.height), top: Math.round(vv.offsetTop) });
+        };
+        update();
+        vv.addEventListener('resize', update);
+        vv.addEventListener('scroll', update);
+        return () => {
+          vv.removeEventListener('resize', update);
+          vv.removeEventListener('scroll', update);
+          setVp(null);
+        };
+      }, [open]);
+   
+      const loadIndex = useCallback(() => {
        if (!idxPromise.current) {
          idxPromise.current = (async () => {
            let raw;
@@ -2099,6 +2119,7 @@
            role="dialog"
            aria-label="Slate assistant"
            aria-hidden={!open}
+           style={vp ? { top: vp.top, height: vp.h } : undefined}
            className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
