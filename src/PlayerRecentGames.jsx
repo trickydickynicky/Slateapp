@@ -91,7 +91,7 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
   const cols = 'grid-cols-[1.3fr_2fr_1fr_1fr_1fr_1fr_1fr]';
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 mt-3">
+    <div className="bg-black rounded-2xl p-4 mt-3">
       <div className="flex items-center justify-between mb-3">
         <h5
           className="text-xs font-semibold text-gray-400 uppercase tracking-widest"

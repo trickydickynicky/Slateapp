@@ -2061,7 +2061,7 @@ console.log('🏀 FULL DATA:', data);
 </div>
 
 {showSearch && (
-  <div className="mt-2 relative bg-zinc-900 rounded-xl px-4 py-3 flex items-center">
+  <div className="mt-2 relative bg-black rounded-xl px-4 py-3 flex items-center">
     <Search className="w-5 h-5 text-gray-400 mr-3" />
     <input 
       type="text" 
@@ -2448,13 +2448,13 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
         {loadingStandings ? (
           <div className="text-center py-12 text-gray-400">Loading standings...</div>
         ) : (
-          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+          <div className="bg-black rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-zinc-800 sticky top-0">
+                <thead className="bg-black sticky top-0">
                   <tr className="text-gray-400">
-                    <th className="text-left py-3 px-3 sticky left-0 bg-zinc-800 z-10">#</th>
-                    <th className="text-left py-3 px-3 sticky left-[40px] bg-zinc-800 z-10">Team</th>
+                    <th className="text-left py-3 px-3 sticky left-0 bg-black z-10">#</th>
+                    <th className="text-left py-3 px-3 sticky left-[40px] bg-black z-10">Team</th>
                     <th className="text-center py-3 px-3">GB</th>
                     <th className="text-center py-3 px-3">W-L</th>
                     <th className="text-center py-3 px-3">PCT</th>
@@ -2471,13 +2471,13 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   <tr 
     key={idx} 
     onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
-    className={`border-t hover:bg-zinc-800 cursor-pointer transition-colors ${
+    className={`border-t hover:bg-black cursor-pointer transition-colors ${
       idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
    : 'border-zinc-800'
     }`}
   >
-                      <td className="py-3 px-3 sticky left-0 bg-zinc-900 font-semibold text-blue-500">{idx + 1}</td>
-                      <td className="py-3 px-3 sticky left-[40px] bg-zinc-900">
+                      <td className="py-3 px-3 sticky left-0 bg-black font-semibold text-blue-500">{idx + 1}</td>
+                      <td className="py-3 px-3 sticky left-[40px] bg-black">
                         <div className="flex items-center gap-2">
                           {team.logo && (
                             <img src={team.logo} alt={team.team} className="w-6 h-6" />
@@ -2532,7 +2532,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
         </div>
         <div
-  className="bg-zinc-900 rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
+  className="bg-black rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
   style={{
     transform: `translateX(${scoreboardSwipeX}px)`,
     transition: isScoreboardSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -2842,7 +2842,7 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
   <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
     {selectedTeam === 'game' && !selectedGame.isPreGame ? (
       /* TEAM COMPARISON VIEW */
-      <div className="bg-zinc-900 rounded-2xl p-4">
+      <div className="bg-black rounded-2xl p-4">
         <div className="space-y-4">
           {(() => {
           const awayStats = gameDetails.boxscore?.teams?.[0]?.statistics || [];
@@ -3138,7 +3138,7 @@ const statsToCompare = [
    ) : selectedTeam === 'game' && selectedGame.isPreGame ? (
     <div className="space-y-3">
       {/* Away Team Injuries */}
-      <div className="bg-zinc-900 rounded-2xl p-3">
+      <div className="bg-black rounded-2xl p-3">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-5 h-5" />
           {selectedGame.awayTeam} Injuries
@@ -3183,7 +3183,7 @@ const statsToCompare = [
       </div>
   
       {/* Home Team Injuries */}
-      <div className="bg-zinc-900 rounded-2xl p-3">
+      <div className="bg-black rounded-2xl p-3">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-5 h-5" />
           {selectedGame.homeTeam} Injuries
@@ -3229,7 +3229,7 @@ const statsToCompare = [
 
     {/* Head-to-Head Matchup Bars */}
     {pregameMatchupStats ? (
-      <div className="bg-zinc-900 rounded-2xl p-4 mt-3">
+      <div className="bg-black rounded-2xl p-4 mt-3">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
   Head-to-Head
 </h4>
@@ -3329,7 +3329,7 @@ const statsToCompare = [
         </div>
       </div>
     ) : (
-      <div className="bg-zinc-900 rounded-2xl p-4 mt-3 flex items-center justify-center gap-2 text-gray-500 text-sm">
+      <div className="bg-black rounded-2xl p-4 mt-3 flex items-center justify-center gap-2 text-gray-500 text-sm">
         <div className="w-3 h-3 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin" />
         Loading matchup stats...
       </div>
@@ -3337,7 +3337,7 @@ const statsToCompare = [
     </div>
     ) : selectedGame.isPreGame ? (
       <div>
-      <div className="bg-zinc-900 rounded-2xl p-4">
+      <div className="bg-black rounded-2xl p-4">
         <div className="space-y-2">
         {(() => {
   // Get the current team abbreviation and roster
@@ -3484,13 +3484,13 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     </div>
                 ) : (
                   <div>
-  <div className="bg-zinc-900 rounded-2xl p-4 pr-0">
+  <div className="bg-black rounded-2xl p-4 pr-0">
   <div className="overflow-x-auto -ml-4">
     <table className="w-full text-sm">
       <thead>
         {/* TOTALS ROW - colSpan keeps it independent from column widths */}
         <tr className="border-b border-zinc-700">
-          <td colSpan="15" className="bg-zinc-900 pb-1 px-2">
+          <td colSpan="15" className="bg-black pb-1 px-2">
             {(() => {
               const boxscorePlayers = gameDetails.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes || [];
               let totalPts = 0, totalReb = 0, totalAst = 0, totalStl = 0, totalBlk = 0, totalTo = 0, totalPf = 0;
@@ -3590,7 +3590,7 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
         
 return (
   <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
-<td className="py-1 sticky left-0 bg-zinc-900 z-20 -ml-px border-l-0 w-14 min-w-[56px]">
+<td className="py-1 sticky left-0 bg-black z-20 -ml-px border-l-0 w-14 min-w-[56px]">
 <div className="flex items-center gap-0">
 {player.athlete.headshot && (
 <img 
@@ -3915,7 +3915,7 @@ onClick={(e) => {
                   setCompareTeam({ abbr, logo: `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png` });
                   fetchTeamStatsForComparison(abbr);
                 }}
-                className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+                className="bg-black hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
               >
                 <img 
                   src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
@@ -3939,7 +3939,7 @@ onClick={(e) => {
      {compareTeam && (
   <button
     onClick={() => { setCompareTeam(null); setCompareTeamStats(null); setIsCompareMode(false); }}
-    className="w-full mb-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-sm font-semibold text-gray-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-2"
+    className="w-full mb-4 py-2.5 rounded-xl bg-black border border-zinc-700 text-sm font-semibold text-gray-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-2"
   >
     <span>✕</span> Clear Comparison
   </button>
@@ -3949,7 +3949,7 @@ onClick={(e) => {
     /* COMPARISON VIEW */
     <div>
       {/* VS header card */}
-      <div className="bg-zinc-900 rounded-2xl p-4 mb-4 flex items-center">
+      <div className="bg-black rounded-2xl p-4 mb-4 flex items-center">
         <div className="flex flex-col items-center flex-1">
           <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-12 h-12 mb-1" />
           <span className="font-bold text-sm" style={{ color: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }}>{selectedTeamInfo.abbr}</span>
@@ -3964,7 +3964,7 @@ onClick={(e) => {
       </div>
 
       {/* Offense card */}
-      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <div className="bg-black rounded-2xl p-4 mb-4">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
         <div className="space-y-4">
           {(() => {
@@ -4006,7 +4006,7 @@ onClick={(e) => {
       </div>
 
       {/* Defense card */}
-      <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+      <div className="bg-black rounded-2xl p-4 mb-4">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
         <div className="space-y-4">
           {(() => {
@@ -4049,7 +4049,7 @@ onClick={(e) => {
     /* ORIGINAL SINGLE TEAM VIEW */
 /* ORIGINAL SINGLE TEAM VIEW */
 <div>
-  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <div className="bg-black rounded-2xl p-4 mb-4">
     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
     <div className="grid grid-cols-4 gap-2 mb-2">
       {(() => {
@@ -4116,7 +4116,7 @@ onClick={(e) => {
     </div>
   </div>
 
-  <div className="bg-zinc-900 rounded-2xl p-4 mb-4">
+  <div className="bg-black rounded-2xl p-4 mb-4">
     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
     <div className="grid grid-cols-4 gap-2">
       {(() => {
@@ -4159,7 +4159,7 @@ onClick={(e) => {
 )}
 
 {/* Recent Differentials */}
-<div className="bg-zinc-900 rounded-2xl p-4">
+<div className="bg-black rounded-2xl p-4">
 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
   <div className="flex gap-2 justify-between">
     {teamStats.recentGames.map((game, idx) => {
@@ -4252,7 +4252,7 @@ onClick={(e) => {
 
 <TeamSchedule games={teamStats.fullSchedule} onTeamClick={handleTeamClick} />
 {false && (
-<div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+<div className="bg-black rounded-2xl p-4 mt-4">
 <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
   <div className="space-y-2">
     {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
@@ -4411,7 +4411,7 @@ onClick={(e) => {
                   <button
                     key={abbr}
                     onClick={() => toggleFavorite(abbr)}
-                    className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+                    className="bg-black hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
                   >
                     <img 
                       src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
@@ -4435,7 +4435,7 @@ onClick={(e) => {
             <button
               key={abbr}
               onClick={() => toggleFavorite(abbr)}
-              className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+              className="bg-black hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
             >
               <img 
                 src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
@@ -4471,7 +4471,7 @@ onClick={(e) => {
         ) : rosterData.length === 0 ? (
           <div className="text-center py-12 text-gray-400">No roster data available</div>
         ) : (
-          <div className="bg-zinc-900 rounded-2xl overflow-hidden">
+          <div className="bg-black rounded-2xl overflow-hidden">
             {rosterData.map((player, idx) => (
               <div
                 key={player.id}

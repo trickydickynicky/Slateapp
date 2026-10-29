@@ -47,7 +47,7 @@ export default function TeamSchedule({ games = [], onTeamClick }) {
 
   if (!groups.length) {
     return (
-      <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+      <div className="bg-black rounded-2xl p-4 mt-4">
         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           Schedule
         </h4>
@@ -63,7 +63,7 @@ export default function TeamSchedule({ games = [], onTeamClick }) {
   const visible = open ? groups : groups.filter((gr) => gr.key === currentKey);
 
   return (
-    <div className="bg-zinc-900 rounded-2xl p-4 mt-4">
+    <div className="bg-black rounded-2xl p-4 mt-4">
       <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
         Schedule
       </h4>

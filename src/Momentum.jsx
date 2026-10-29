@@ -594,7 +594,7 @@ export default function Momentum({ gameId, status, home: homeProp, away: awayPro
     };
   }, [data, homeProp, awayProp]);
 
-  const card = 'bg-zinc-900 rounded-2xl p-4 mb-4';
+  const card = 'bg-black rounded-2xl p-4 mb-4';
 
   if (!gameId) return null;
 
