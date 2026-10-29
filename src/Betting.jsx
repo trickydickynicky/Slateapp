@@ -10,6 +10,11 @@ const MAX_CANDIDATES = 80; // players per prop type we pull game logs for (highe
 const MIN_GAMES = 5;
 const CONCURRENCY = 8;
 const RANK_N = 10; // rankings always use L10
+const INJURY_MIN_PPG = 15; // teammate counts as "key" at this PPG...
+const INJURY_MIN_RPG = 7; // ...or this RPG (rebound-based props)...
+const INJURY_MIN_APG = 5; // ...or this APG (assist props)...
+const INJURY_MIN_MPG = 25; // ...or this many minutes per game, for any prop
+const SMALL_SAMPLE = 5; // "without him" games below this get a label
 
 const SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
 const todayET = () =>
@@ -293,6 +298,109 @@ function parseGamelog(json) {
     ? { name: matches.map((m) => m.name).join(' / '), pos: matches[0].pos, games: [] }
     : null;
    }
+
+/* ---- Teammate injuries (swap getTeamInjuries to change the source) ---- */
+const INJURIES = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries';
+const INJURY_TTL = 10 * 60 * 1000;
+let injuryCache = { at: 0, promise: null };
+
+const injuryKind = (status) => {
+  const s = String(status || '').toLowerCase();
+  if (/\bout\b/.test(s)) return 'out';
+  if (/doubtful|questionable|day[- ]to[- ]day/.test(s)) return 'maybe';
+  return null;
+};
+
+const fmtReturn = (d) => {
+  const dt = new Date(String(d).length <= 10 ? `${d}T12:00:00` : d);
+  if (Number.isNaN(dt.getTime()) || dt < new Date()) return null;
+  return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+function loadInjuries() {
+  if (!injuryCache.promise || Date.now() - injuryCache.at > INJURY_TTL) {
+    injuryCache = {
+      at: Date.now(),
+      promise: getJSON(INJURIES)
+        .then((j) => j?.injuries || [])
+        .catch(() => []),
+    };
+  }
+  return injuryCache.promise;
+}
+
+/* -> [{ id, name, status, kind: 'out' | 'maybe', returnDate }] for one team */
+
+const injuryAthleteId = (a) =>
+  (a?.id && String(a.id)) ||
+  idFromRef(a?.$ref, 'athletes') ||
+  (a?.links || []).map((l) => String(l.href).match(/\/id\/(\d+)/)?.[1]).find(Boolean) ||
+  String(a?.headshot?.href || '').match(/\/(\d+)\.png/)?.[1] ||
+  null;
+
+/* -> [{ id, name, status, kind: 'out' | 'maybe', returnDate }] for one team */
+async function getTeamInjuries(teamId) {
+  if (!teamId) return [];
+  const teams = await loadInjuries();
+  const team = teams.find((t) => String(t.id) === String(teamId));
+  return (team?.injuries || [])
+    .map((i) => {
+      const status = i.status || i.type?.description || '';
+      return {
+        id: injuryAthleteId(i.athlete),
+        name: i.athlete?.displayName,
+        status,
+        kind: injuryKind(status),
+        returnDate: i.details?.returnDate || null,
+      };
+    })
+    .filter((i) => i.id && i.name && i.kind);
+}
+
+const mateCache = new Map();
+function getTeammateLog(id) {
+  if (!mateCache.has(id)) {
+    mateCache.set(id, getJSON(gamelogUrl(id)).then(parseGamelog).catch(() => null));
+  }
+  return mateCache.get(id);
+}
+
+/* which teammate stats matter for each prop, and the bar each must clear */
+const INJURY_BAR = {
+  pts: ['pts'],
+  reb: ['reb'],
+  ast: ['ast'],
+  pr: ['pts', 'reb'],
+  pa: ['pts'],
+  pra: ['pts', 'reb', 'ast'],
+  tpm: ['pts'],
+};
+const INJURY_MIN = { pts: INJURY_MIN_PPG, reb: INJURY_MIN_RPG, ast: INJURY_MIN_APG };
+const INJURY_UNIT = { pts: 'ppg', reb: 'rpg', ast: 'apg' };
+
+/* injured teammates who clear the bar for this prop type, with the games they played */
+async function getKeyInjuries(athleteId, teamId, propKey) {
+  const bar = INJURY_BAR[propKey] || ['pts'];
+  const inj = (await getTeamInjuries(teamId)).filter((i) => i.id !== String(athleteId));
+  const rows = await Promise.all(
+    inj.map(async (i) => {
+      const log = await getTeammateLog(i.id);
+      if (!log || !log.length) return null;
+      const avgs = {
+        pts: log.reduce((a, g) => a + g.pts, 0) / log.length,
+        reb: log.reduce((a, g) => a + g.reb, 0) / log.length,
+        ast: log.reduce((a, g) => a + g.ast, 0) / log.length,
+      };
+      const mins = log.filter((g) => g.min != null);
+      const mpg = mins.length ? mins.reduce((a, g) => a + g.min, 0) / mins.length : 0;
+      const hit = bar.find((s) => avgs[s] >= INJURY_MIN[s]);
+      if (!hit && mpg < INJURY_MIN_MPG) return null;
+      const shown = hit || bar[0]; // stat displayed in the row
+      return { ...i, avg: avgs[shown], unit: INJURY_UNIT[shown], played: new Set(log.map((g) => g.id)) };
+    })
+  );
+  return rows.filter(Boolean).sort((a, b) => b.avg - a.avg);
+}
 
 /* =====================================================================
    MAIN COMPONENT
@@ -740,6 +848,17 @@ useEffect(() => {
     dead = true;
   };
 }, [c.athleteId, c.opp?.id, c.ath.pos]);
+
+const [keyInj, setKeyInj] = useState([]);
+useEffect(() => {
+  let dead = false;
+  getKeyInjuries(c.athleteId, c.mine?.id, c.key)
+  .then((r) => !dead && setKeyInj(r))
+  .catch(() => {});
+return () => {
+  dead = true;
+};
+}, [c.athleteId, c.mine?.id, c.key]);
 const grp = posGroup(c.ath.pos);
 const posDef = c.opp && grp ? posSplits[`${c.opp.id}|${grp}`] : null;
 const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
@@ -760,6 +879,13 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
   }).length;
   const locAvg = avgOf(sameLoc);
   const otherAvg = avgOf(otherLoc);
+
+  const injRows = keyInj.map((t) => {
+    const without = c.log.filter((g) => !t.played.has(g.id));
+    const withHim = c.log.filter((g) => t.played.has(g.id));
+    return { ...t, without, withoutAvg: avgOf(without), withAvg: avgOf(withHim) };
+  });
+  const injNames = keyInj.map((t) => t.name).join(' & ');
 
   const price = isOver ? c.overPrice : c.underPrice;
 
@@ -831,6 +957,11 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
             {c.opp && <img src={logoUrl(c.opp.abbr)} alt={c.opp.abbr} className="w-4 h-4" />}
             {c.ath.pos && <span>• {c.ath.pos}</span>}
           </div>
+          {injRows.length > 0 && (
+            <span className="inline-block mt-1 whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+              ⚠ Key teammate out
+            </span>
+          )}
         </div>
         <div className="text-right flex-shrink-0">
           <div className={`text-2xl font-bold leading-none ${sideText}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
@@ -864,6 +995,11 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
           </div>
         ))}
       </div>
+      {injRows.length > 0 && (
+        <div className="text-[10px] text-gray-500 -mt-1.5 mb-3">
+          Stats include games with {injNames} active.
+        </div>
+      )}
 
       {/* bar chart: last N games, dashed = book line, dotted blue = projection */}
       <div className="relative h-28 flex items-end gap-1">
@@ -918,6 +1054,47 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
     ))}
   </div>
 </div>
+
+         {/* teammate injuries */}
+         {injRows.length > 0 && (
+        <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-800/50 p-3">
+          <h5
+            className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2"
+            style={{ fontFamily: 'Rajdhani, sans-serif' }}
+          >
+            Teammate Injuries
+          </h5>
+          {injRows.map((t, i) => {
+            const ret = t.returnDate ? fmtReturn(t.returnDate) : null;
+            return (
+              <div key={t.id} className={i ? 'mt-2 pt-2 border-t border-zinc-700' : ''}>
+                <div className="flex items-start justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <div className="font-bold truncate">{t.name}</div>
+                    <div className={`text-xs uppercase ${t.kind === 'out' ? 'text-red-400' : 'text-amber-400'}`}>
+                      {t.status}
+                      {ret && `, est. return ${ret}`}
+                    </div>
+                  </div>
+                  <span className="whitespace-nowrap flex-shrink-0">
+                  <span className="font-bold">{t.avg.toFixed(1)}</span>{' '}
+                  <span className="text-gray-400 text-xs">{t.unit}</span>
+                  </span>
+                </div>
+                {t.without.length > 0 && t.withoutAvg != null && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    {c.ath.name} without him: <span className="font-bold text-white">{t.without.length}</span> game
+                    {t.without.length === 1 ? '' : 's'}, avg{' '}
+                    <span className="font-bold text-white">{fmt(t.withoutAvg)}</span> {type.unit}
+                    {t.withAvg != null && ` (${fmt(t.withAvg)} with him)`}
+                    {t.without.length < SMALL_SAMPLE && <span className="text-gray-500"> • small sample</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* opponent defense */}
       <div className="mt-3 rounded-xl border border-zinc-700 bg-zinc-800/50 p-3">
