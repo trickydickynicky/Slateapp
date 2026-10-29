@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Zap } from 'lucide-react';
 import PlayerRecentGames from './PlayerRecentGames';
 
@@ -68,7 +68,7 @@ export const ordinal = n => {
  * One season's averages (the shape App.jsx builds in nbaPlayerStats.currentSeason) -> two rows of cells.
  * `rankNames` are ESPN stat names to look the league rank up by. Totals are averages x games, rounded.
  */
-export function buildSeasonCells(s, mode = 'avg') {
+export function buildSeasonCells(s, mode = 'avg', pmTotal) {
   if (!s) return { row1: [], row2: [] };
   const gp = num(s.gp);
   const totals = mode === 'totals';
@@ -87,6 +87,12 @@ export function buildSeasonCells(s, mode = 'avg') {
   const arr = x => (Array.isArray(x) ? x : [x]);
   const rk = (avgNames, totalNames) => arr(totals ? totalNames : avgNames);
   const rkAvg = names => (totals ? null : arr(names));   // percentages: rank only in Averages (Totals shows made/att)
+  const pmN = has(pmTotal) ? num(pmTotal) : null;   // season total from ESPN stats endpoint
+  const pmVal = pmN === null ? '—' : (() => {
+    const n = totals ? pmN : (gp > 0 ? pmN / gp : 0);
+    const t = totals ? String(Math.round(n)) : n.toFixed(1);
+    return n > 0 ? `+${t}` : t;
+  })();
   const den = 2 * (fga + 0.44 * fta);
   const ts = den > 0 ? ((num(s.pts) / den) * 100).toFixed(1) : '—';
 
@@ -109,6 +115,9 @@ export function buildSeasonCells(s, mode = 'avg') {
       { l: 'FTA',  v: rate(fta), rank: rk('avgFreeThrowsAttempted', 'freeThrowsAttempted') },
       { l: 'TS%',  v: ts, rank: ['trueShootingPct'] },
     ],
+    row3: [
+        { l: '+/-', v: pmVal },
+    ],
   };
 }
 
@@ -118,8 +127,10 @@ export function parseRanks(json) {
   const unranked = [];
   (json?.splits?.categories || []).forEach(c =>
     (c?.stats || []).forEach(s => {
-      if (!s?.name || out[s.name]) return;
-      const r = s.rankDisplayValue || (Number.isFinite(s.rank) ? ordinal(s.rank) : null);
+        if (s?.name === 'plusMinus' && Number.isFinite(s.value)) out.__pmv = s.value;
+        if (!s?.name || out[s.name]) return;
+      const raw = s.rankDisplayValue || (Number.isFinite(s.rank) ? ordinal(s.rank) : null);
+      const r = raw ? String(raw).replace(/^\s*(tied|t)\s*[-–:]?\s*(?=\d)/i, '').replace(/\s*\(?tied\)?\s*$/i, '').trim() : null;
       if (r) out[s.name] = r; else unranked.push(s.name);
     })
   );
@@ -186,7 +197,72 @@ function useCachedFetch(cache, url, parse, enabled) {
    Presentational pieces
 ──────────────────────────────────────────────────────────────────────────── */
 
-function Headshot({ src, name, size, ring }) {
+/* League-wide ranks for stats ESPN doesn't rank itself (avg minutes, total rebounds) */
+const LEAGUE_URL = (yr, page) =>
+    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/statistics/byathlete?region=us&lang=en&season=${yr}&seasontype=2&limit=500&page=${page}`;
+  const LEAGUE_STATS = ['avgMinutes', 'minutes', 'rebounds', 'avgRebounds'];
+  const MIN_GP_SHARE = 0.5;   // per-game ranks only count players with >= 50% of the max games played
+  const leagueCache = new Map();   // season -> { at, rows }
+  
+  async function fetchLeagueRows(yr, signal) {
+    const hit = leagueCache.get(yr);
+    if (hit && Date.now() - hit.at < TTL) return hit.rows;
+    const getPage = p =>
+      fetch(LEAGUE_URL(yr, p), { signal }).then(r => {
+        if (!r.ok) throw new Error(`ESPN ${r.status}`);
+        return r.json();
+      });
+    const first = await getPage(1);
+    const pages = first?.pagination?.pages || 1;
+    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => getPage(i + 2)));
+    const defs = first?.categories || [];
+    const rows = [];
+    [first, ...rest].forEach(j => {
+      (j?.athletes || []).forEach(a => {
+        const row = { id: String(a?.athlete?.id), gp: 0 };
+        defs.forEach(def => {
+          const cat = (a?.categories || []).find(c => c.name === def.name);
+          (def.names || []).forEach((n, i) => {
+            if (n === 'gamesPlayed') row.gp = num(cat?.values?.[i]);
+            else if (LEAGUE_STATS.includes(n)) row[n] = num(cat?.values?.[i]);
+          });
+        });
+        rows.push(row);
+      });
+    });
+    leagueCache.set(yr, { at: Date.now(), rows });
+    return rows;
+  }
+  
+  function leagueRanks(rows, playerId) {
+    const me = rows.find(r => r.id === String(playerId));
+    if (!me) return {};
+    const maxGp = rows.reduce((m, r) => Math.max(m, r.gp), 0);
+    const qualified = rows.filter(r => r.gp >= maxGp * MIN_GP_SHARE);
+    const out = {};
+    LEAGUE_STATS.forEach(k => {
+      if (!(k in me)) return;
+      const pool = k.startsWith('avg') ? qualified : rows;
+      out[k] = ordinal(1 + pool.filter(r => r.id !== me.id && (r[k] ?? 0) > me[k]).length);
+    });
+    return out;
+  }
+  
+  function useLeagueRanks(playerId, season) {
+    const [ranks, setRanks] = useState(null);
+    useEffect(() => {
+      if (playerId == null || season == null) return undefined;
+      setRanks(null);
+      const controller = new AbortController();
+      fetchLeagueRows(season, controller.signal)
+        .then(rows => setRanks(leagueRanks(rows, playerId)))
+        .catch(() => {});
+      return () => controller.abort();
+    }, [playerId, season]);
+    return ranks;
+  }
+  
+  function Headshot({ src, name, size, ring }) {
   if (!src) {
     return (
       <div
@@ -242,8 +318,13 @@ function StatGrid({ cells, ranks }) {
         {cells.row1.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
       </div>
       <div style={{ ...grid, marginTop: 16 }}>
-        {cells.row2.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
+      {cells.row2.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
       </div>
+      {cells.row3?.length > 0 && (
+        <div style={{ ...grid, marginTop: 16 }}>
+          {cells.row3.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
+        </div>
+      )}
     </div>
   );
 }
@@ -372,11 +453,17 @@ export default function PlayerStatsPage({
   const position = boxscorePlayer?.athlete?.position?.abbreviation || rosterPlayer?.position?.abbreviation || player?.position;
 
   const current = stats?.currentSeason;
-  const cells = buildSeasonCells(current, mode);
+
 
   const ranksUrl = player?.id != null && season != null ? RANKS_URL(player.id, season) : null;
   const ranksState = useCachedFetch(ranksCache, ranksUrl, parseRanks, !!ranksUrl);
-  const ranks = ranksState.status === 'ready' ? ranksState.data : null;
+  const ranksBase = ranksState.status === 'ready' ? ranksState.data : null;
+  const leagueRk = useLeagueRanks(player?.id, season);
+  const ranks = useMemo(
+    () => (ranksBase || leagueRk ? { ...leagueRk, ...ranksBase } : null),
+    [ranksBase, leagueRk]
+  );
+  const cells = buildSeasonCells(current, mode, ranks?.__pmv);
 
   return (
     <div>

@@ -12,7 +12,27 @@ const priorSeason = () => {
   return d.getMonth() >= 8 ? d.getFullYear() : d.getFullYear() - 1;
 };
 
-function parseGamelog(json) {
+// label -> possible ESPN gamelog names (first match wins)
+const COLS = [
+    ['MIN', ['minutes', 'min']],
+    ['PTS', ['points', 'pts']],
+    ['REB', ['totalRebounds', 'rebounds', 'reb']],
+    ['AST', ['assists', 'ast']],
+    ['STL', ['steals', 'stl']],
+    ['BLK', ['blocks', 'blk']],
+    ['TO', ['turnovers', 'to']],
+    ['FG', ['fieldGoalsMade-fieldGoalsAttempted', 'fg']],
+    ['FG%', ['fieldGoalPct', 'fg%']],
+    ['3PT', ['threePointFieldGoalsMade-threePointFieldGoalsAttempted', '3pt']],
+    ['3P%', ['threePointFieldGoalPct', 'threePointPct', '3p%']],
+    ['FT', ['freeThrowsMade-freeThrowsAttempted', 'ft']],
+    ['FT%', ['freeThrowPct', 'ft%']],
+    ['PF', ['fouls', 'personalFouls', 'pf']],
+    ['+/-', ['plusMinus', '+/-']],
+  ];
+  const colW = (l) => (/^(FG|3PT|FT)$/.test(l) ? 50 : 42);
+  
+  function parseGamelog(json) {
   const names = json?.names || json?.labels || [];
   const idx = (...needles) =>
     names.findIndex((n) => needles.some((x) => String(n).toLowerCase() === x.toLowerCase()));
@@ -21,6 +41,7 @@ function parseGamelog(json) {
   const iReb = idx('totalRebounds', 'rebounds', 'reb');
   const iAst = idx('assists', 'ast');
   const iTpm = idx('threePointFieldGoalsMade-threePointFieldGoalsAttempted', '3PT', 'threePointFieldGoalsMade');
+  const colIdx = COLS.map(([label, keys]) => [label, idx(...keys)]);
   const meta = json?.events || {};
   const rows = [];
   for (const st of json?.seasonTypes || []) {
@@ -43,7 +64,10 @@ function parseGamelog(json) {
           pts: num(iPts),
           reb: num(iReb),
           ast: num(iAst),
-          tpm: num(iTpm),
+                   tpm: num(iTpm),
+          box: Object.fromEntries(
+            colIdx.map(([label, i]) => [label, i >= 0 && s[i] != null && s[i] !== '' ? String(s[i]) : null])
+          ),
         });
       }
     }
@@ -54,10 +78,58 @@ function parseGamelog(json) {
 const avg = (rows, k) =>
   rows.length ? (rows.reduce((a, g) => a + (g[k] || 0), 0) / rows.length).toFixed(1) : '–';
 
+const summaryUrl = (id) => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
+const pmCache = new Map(); // eventId -> Promise<{ athleteId: '+/-' string }>
+function fetchPlusMinus(eventId) {
+  if (!pmCache.has(eventId)) {
+    pmCache.set(
+      eventId,
+      fetch(summaryUrl(eventId))
+        .then((r) => r.json())
+        .then((j) => {
+          const out = {};
+          for (const team of j?.boxscore?.players || []) {
+            const st = team?.statistics?.[0];
+            const i = (st?.labels || []).indexOf('+/-');
+            if (i < 0) continue;
+            for (const a of st?.athletes || []) {
+              const v = a?.stats?.[i];
+              if (a?.athlete?.id != null && v != null && v !== '') out[String(a.athlete.id)] = String(v);
+            }
+          }
+          return out;
+        })
+        .catch(() => {
+          pmCache.delete(eventId);
+          return {};
+        })
+    );
+  }
+  return pmCache.get(eventId);
+}
+
 export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
   const { trigger } = useWebHaptics();
   const [games, setGames] = useState(null); // null = loading
   const [n, setN] = useState(5);
+  const [pm, setPm] = useState({}); // eventId -> '+12'
+
+  useEffect(() => {
+    if (!games) return undefined;
+    let dead = false;
+    games
+      .slice(0, n)
+      .filter((g) => g.box?.['+/-'] == null)
+      .forEach((g) => {
+        fetchPlusMinus(g.id).then((m) => {
+          const v = m[String(playerId)];
+          if (!dead && v != null) setPm((p) => ({ ...p, [g.id]: v }));
+        });
+      });
+    return () => {
+      dead = true;
+    };
+  }, [games, n, playerId]);
 
   useEffect(() => {
     let dead = false;
@@ -88,7 +160,7 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
   }, [playerId]);
 
   const shown = (games || []).slice(0, n);
-  const cols = 'grid-cols-[1.3fr_2fr_1fr_1fr_1fr_1fr_1fr]';
+  const boxCols = COLS.map(([l]) => l).filter((l) => l === '+/-' || shown.some((g) => g.box?.[l] != null));
 
   return (
     <div className="bg-black rounded-2xl p-4 mt-3">
@@ -147,37 +219,62 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
             ))}
           </div>
 
-          {/* game rows */}
-          <div className={`grid ${cols} gap-1 text-[10px] text-gray-500 mb-1`}>
-            <span>DATE</span>
-            <span>OPP</span>
-            <span className="text-center">MIN</span>
-            <span className="text-center">PTS</span>
-            <span className="text-center">REB</span>
-            <span className="text-center">AST</span>
-            <span className="text-center">3PM</span>
-          </div>
-          {shown.map((g) => (
-            <div key={g.id} className={`grid ${cols} gap-1 py-1.5 border-t border-zinc-800 text-xs items-center`}>
-              <span className="text-gray-400">
-                {g.date ? `${g.date.slice(5, 7)}/${g.date.slice(8, 10)}` : '–'}
-              </span>
-              <span className="flex items-center gap-1 min-w-0">
-                <span className="text-gray-400">{g.home ? 'vs' : '@'}</span>
-                <span className="font-semibold">{g.opp}</span>
-                {g.result && (
-                  <span className={`font-bold ${g.result === 'W' ? 'text-green-400' : 'text-red-400'}`}>
-                    {g.result}
+                  {/* game rows: full box score, scrolls sideways, date + opponent stay pinned */}
+          <div className="overflow-x-auto -mx-4 px-4">
+            <div className="w-max min-w-full">
+              <div className="flex text-[10px] text-gray-500 mb-1">
+                <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex" style={{ width: 128 }}>
+                  <span style={{ width: 44 }}>DATE</span>
+                  <span>OPP</span>
+                </div>
+                {boxCols.map((l) => (
+                  <span key={l} className="flex-shrink-0 text-center" style={{ width: colW(l) }}>
+                    {l}
                   </span>
-                )}
-              </span>
-              <span className="text-center text-gray-400">{g.min ?? '–'}</span>
-              <span className="text-center font-bold">{g.pts}</span>
-              <span className="text-center">{g.reb}</span>
-              <span className="text-center">{g.ast}</span>
-              <span className="text-center">{g.tpm}</span>
+                ))}
+              </div>
+              {shown.map((g) => (
+                <div key={g.id} className="flex items-center border-t border-zinc-800 text-xs py-1.5">
+                  <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex items-center" style={{ width: 128 }}>
+                    <span className="text-gray-400" style={{ width: 44 }}>
+                      {g.date ? `${g.date.slice(5, 7)}/${g.date.slice(8, 10)}` : '–'}
+                    </span>
+                    <span className="flex items-center gap-1 min-w-0">
+                      <span className="text-gray-400">{g.home ? 'vs' : '@'}</span>
+                      <span className="font-semibold">{g.opp}</span>
+                      {g.result && (
+                        <span className={`font-bold ${g.result === 'W' ? 'text-green-400' : 'text-red-400'}`}>
+                          {g.result}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                                   {boxCols.map((l) => {
+                    if (l === '+/-') {
+                      const raw = g.box?.['+/-'] ?? pm[g.id];
+                      const v = raw == null ? null : parseFloat(raw);
+                      const txt = v == null || Number.isNaN(v) ? '–' : v > 0 ? `+${v}` : String(v);
+                      const cls = v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-400';
+                      return (
+                        <span key={l} className={`flex-shrink-0 text-center font-semibold ${cls}`} style={{ width: colW(l) }}>
+                          {txt}
+                        </span>
+                      );
+                    }
+                    return (
+                      <span
+                        key={l}
+                        className={`flex-shrink-0 text-center ${l === 'PTS' ? 'font-bold' : l === 'MIN' ? 'text-gray-400' : ''}`}
+                        style={{ width: colW(l) }}
+                      >
+                        {g.box?.[l] ?? '–'}
+                      </span>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </>
       )}
     </div>
