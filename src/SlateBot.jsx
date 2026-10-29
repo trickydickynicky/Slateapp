@@ -384,7 +384,7 @@
    /* =====================================================================
       5. PARSER — rule-based entity extraction (no LLM)
       ===================================================================== */
-   const STOP = new Set(('the and for was were are has have had did does how many much what whats who whom when where which with from this that his her him their them they last night game games over under against home away road points point rebounds assists threes steals blocks average avg season career tonight today yesterday playoffs time times first second third fourth quarter line lines spread stats stat about also just than more less most best top lead leads league nba team teams player players ever give show tell please plays play pick picks score scored scoring get got make made make shot shots defend defends defense defensive guards forwards centers bigs wings numbers change production highest biggest lowest smallest closest tightest prop props bet bets edges').split(' '));
+   const STOP = new Set(('the and for was were are has have had did does how many much what whats who whom when where which with from this that his her him their them they last night game games over under against home away road points point rebounds assists threes steals blocks average avg season career tonight today yesterday playoffs time times first second third fourth quarter line lines spread stats stat about also just than more less most best top lead leads league nba team teams player players ever give show tell please plays play pick picks score scored scoring get got make made make shot shots defend defends defense defensive guards forwards centers bigs wings numbers change production highest biggest lowest smallest closest tightest prop props bet bets edges rookie rookies ranking rankings ladder candidates candidate award awards mvp roy draft drafted guy dude').split(' '));
    
    const STATS = {
      pra: { key: 'pra', label: 'PRA', parts: ['pts', 'reb', 'ast'], re: /\bpra\b|pts\+reb\+ast|points rebounds (?:and )?assists/ },
@@ -513,18 +513,23 @@
      let player = found.list?.[0] || null;
      const players = found.list || [];
      let fromCtx = false;
-     if (!player && !found.ask && !found.ambiguous && /\b(he|his|him|himself|they|their|them)\b/.test(n) && ctx?.player) { player = ctx.player; players.push(player); fromCtx = true; }
+     if (!player && !found.ask && !found.ambiguous && /\b(he|his|him|himself|they|their|them|this guy|that guy|this player|that player|this dude|that dude|the guy)\b/.test(n) && ctx?.player) { player = ctx.player; players.push(player); fromCtx = true; }
    
      let stat = null;
      for (const k of STAT_ORDER) if (STATS[k].re.test(n)) { stat = STATS[k]; break; }
    
-     const cmpInfo = parseCmp(nClean) || {};
+     let season = null, sm;
+if (/\b(last|previous|prior) (season|year)\b/.test(n)) season = seasonNow() - 1;
+else if ((sm = n.match(/\b(20\d{2})\s*[-/]\s*(?:20)?(\d{2})\b/))) season = 2000 + Number(sm[2]);
+else if ((sm = n.match(/\b(20\d{2})\b/))) season = Number(sm[1]) + 1; // "2023" = the 2023-24 season
+if (season != null && season >= seasonNow()) season = null;
+const cmpInfo = parseCmp(nClean) || {};
      const home = /\b(at home|home games?|home)\b/.test(n);
      const away = /\b(away|road|on the road)\b/.test(n);
      const scope = /\bcareer\b|all time/.test(n) ? 'career' : /\bthis (season|year)\b|so far this/.test(n) ? 'season' : null;
    
      const p = {
-       raw, n, N, stat, player, players, teams, scope,
+        raw, n, N, stat, player, players, teams, scope, season,
        cmp: cmpInfo.cmp || null, thr: cmpInfo.thr ?? null,
        date: parseDate(n, env.today), loc: home && away ? 'split' : home ? 'home' : away ? 'away' : null,
        note: found.note || null, ask: found.ask ? { player: found.ask, heard: found.heard } : null,
@@ -865,7 +870,40 @@
      return A(`${pl.name} has had **${hits.length} of ${sel.length}** games${vs} with ${crit} (${Math.round((hits.length / sel.length) * 100)}%) over ${scopeText(p)}, regular season and playoffs.`, blocks, { ctx });
    }
    
-   /* ---- 15. career highs / last time ---- */
+ /* ---- 3b. compare another season to this one ---- */
+async function loadSeasonLog(env, id, y) {
+    const base = `${env.EP.common}/athletes/${id}/gamelog`;
+    const cur = seasonNow();
+    try { return parseGamelog(await getJSON(y === cur ? base : `${base}?season=${y}`, { ttl: y === cur ? MIN5 : DAY })); } catch (e) { return []; }
+  }
+  async function hSeasonCompare(p, env) {
+    const pl = p.player;
+    if (!pl) return needPlayer(p);
+    const cur = seasonNow(), y = p.season;
+    const lbl = (yr) => `${yr - 1}-${String(yr).slice(2)}`;
+    const [a, b] = await Promise.all([loadSeasonLog(env, pl.id, y), loadSeasonLog(env, pl.id, cur)]);
+    const ctx = { player: pl, stat: p.stat?.key };
+    if (!a.length) return A(`ESPN has no ${lbl(y)} games on file for ${pl.name}.`, [], { ctx });
+    const S = p.stat ? [p.stat] : [STATS.pts, STATS.reb, STATS.ast, STATS.tpm, STATS.min, STATS.fgp];
+    const cell = (rs, d) => { const v = d.dbl ? rs.filter((r) => rowVal(r, d)).length : aggVal(rs, d); return v == null ? '–' : d.pct ? `${f1(v)}%` : f1(v); };
+    const diff = (d) => {
+      if (d.dbl) return '–';
+      const x = aggVal(a, d), z = aggVal(b, d);
+      if (x == null || z == null) return '–';
+      const v = Math.round((z - x) * 10) / 10;
+      return `${v >= 0 ? '+' : ''}${f1(v)}${d.pct ? '%' : ''}`;
+    };
+    return A(`${pl.name}: ${lbl(y)} vs ${lbl(cur)} per game. Regular season and playoffs combined. ${lbl(cur)} is ${b.length} games in.`, [
+      { t: 'people', rows: [{ id: pl.id, name: pl.name, sub: `${pl.abbr} ${pl.pos}` }] },
+      tbl(['', 'GP', ...S.map((d) => d.label)], [
+        [lbl(y), a.length, ...S.map((d) => cell(a, d))],
+        [lbl(cur), b.length, ...S.map((d) => cell(b, d))],
+        ['Change', '', ...S.map(diff)],
+      ]),
+    ], { ctx });
+  }
+  
+  /* ---- 15. career highs / last time ---- */
    async function hCareerHigh(p, env) {
      const pl = p.player;
      if (!pl) return needPlayer(p);
@@ -975,15 +1013,20 @@
      let pl = p.player;
      if (!pl) return needPlayer(p);
      const t0 = env.idx.teamById[pl.team];
-     if (t0 && !pl.ht && !pl.college && pl.age == null) {
+     if (t0 && (!pl.draft || (!pl.ht && !pl.college && pl.age == null))) {
        try {
          const full = (await rosterOf(env, t0)).players.find((x) => x.id === pl.id);
          if (full) pl = { ...pl, ...Object.fromEntries(Object.entries(full).filter(([, v]) => v !== '' && v != null)) };
        } catch (e) { /* show what we have */ }
      }
-     const t = env.idx.teamById[pl.team];
+     if (!pl.draft) {
+        const fmt = (d) => (d ? (d.displayText || (d.year ? `${d.year}: Round ${d.round}, Pick ${d.selection}` : '')) : '');
+        try { pl = { ...pl, draft: fmt((await getJSON(`${env.EP.core}/athletes/${pl.id}`, { ttl: DAY }))?.draft) }; } catch (e) { /* try the next source */ }
+        if (!pl.draft) { try { pl = { ...pl, draft: fmt((await getJSON(`${env.EP.common}/athletes/${pl.id}`, { ttl: DAY }))?.athlete?.draft) }; } catch (e) { /* none */ } }
+      }
+      const t = env.idx.teamById[pl.team];
      const bits = [['Team', t?.name || pl.abbr], ['Position', pl.pos], ['Number', pl.jersey && `#${pl.jersey}`], ['Height', pl.ht], ['Weight', pl.wt], ['Age', pl.age], ['College', pl.college], ['Experience', pl.exp != null && `${pl.exp} yrs`], ['Draft', pl.draft]].filter(([, v]) => v !== '' && v != null && v !== false);
-     return A(`Here is what ESPN's roster lists for ${pl.name}.`, [{ t: 'people', rows: [{ id: pl.id, name: pl.name, sub: t?.name || '' }] }, tbl(['', ''], bits)], { ctx: { player: pl } });
+     return A(/\bdraft/.test(p.n) ? (pl.draft ? `**${pl.name}** was drafted: ${pl.draft}.` : `ESPN doesn't list draft info for ${pl.name}. He may be undrafted, or ESPN just doesn't have it.`) : `Here is what ESPN's roster lists for ${pl.name}.`, [{ t: 'people', rows: [{ id: pl.id, name: pl.name, sub: t?.name || '' }] }, tbl(['', ''], bits)], { ctx: { player: pl } });
    }
    
    /* ---- 6. league leaders (core v2 leaders) ---- */
@@ -1368,7 +1411,33 @@
      return A(`Title odds, favorites first (${y} season).`, [tbl(['Team', 'Odds'], rows.map((r) => [r.t.name, price(r.n)]))], { ...foot, provider: entry?.provider?.name || 'ESPN' });
    }
    
-   async function recordRows(items) {
+   async function hAwards(p, env) {
+    const roy = /\brookie|\broy\b/.test(p.n);
+    const label = roy ? 'Rookie of the Year' : 'MVP';
+    const re = roy ? /rookie/i : /(^|\s)mvp|most valuable/i;
+    const bad = /finals|defensive|sixth|improved|clutch|coach|executive/i;
+    const y = seasonNow();
+    const gap = () => A(`ESPN isn't posting ${label} odds I can read right now, and it has no official rankings. I can show league leaders or title odds instead.`, [], { chips: [{ label: 'Who leads in points?', q: 'Who leads the league in points?' }, { label: 'Title odds', q: 'Who\'s favored to win the title?' }] });
+    let j = null;
+    try { j = await getJSON(`${env.EP.core}/seasons/${y}/futures`, { ttl: MIN5 * 6 }); } catch (e) { return gap(); }
+    const items = (await Promise.all((j?.items || []).slice(0, 30).map(async (it) => {
+      try { return it?.$ref && !it.futures ? await getJSON(it.$ref, { ttl: MIN5 * 6 }) : it; } catch (e) { return null; }
+    }))).filter(Boolean);
+    const fut = items.find((f) => { const s = `${f.name || ''} ${f.displayName || ''}`; return re.test(s) && !bad.test(s); });
+    const entry = (fut?.futures || []).find((x) => (x.books || []).length) || null;
+    const rows = (entry?.books || []).map((b) => {
+      const aid = idFromRef(b.athlete?.$ref, 'athletes') || (b.athlete?.id != null ? String(b.athlete.id) : null);
+      const n = american(b.value ?? b.odds ?? b.american);
+      return aid && n != null ? { aid, ref: b.athlete?.$ref, n } : null;
+    }).filter(Boolean).sort((a, b) => impliedProb(b.n) - impliedProb(a.n)).slice(0, 10);
+    if (!rows.length) return gap();
+    await pool(rows.filter((r) => !env.idx.byId[r.aid] && r.ref), 4, async (r) => { const a = await getJSON(r.ref, { ttl: DAY }); r.name = a?.displayName || a?.fullName; });
+    return A(`${label} odds, favorites first (${y} season). ESPN has no official rankings, so this is the sportsbook order.`,
+      [{ t: 'people', rows: rows.map((r) => { const pl = env.idx.byId[r.aid]; return { id: r.aid, name: pl?.name || r.name || `Player ${r.aid}`, sub: pl ? `${pl.abbr} ${pl.pos}` : '', val: price(r.n) }; }) }],
+      { betting: true, provider: entry?.provider?.name || 'ESPN', stamp: fmtTime(Date.now()) });
+  }
+  
+  async function recordRows(items) {
      const out = [];
      for (const raw of (items || []).slice(0, 12)) {
        let it = raw;
@@ -1482,20 +1551,24 @@
       9. INTENT REGISTRY — one small entry per question type, tested in order
       ===================================================================== */
    const INTENTS = [
-     { id: 'help', cat: 'Help', ex: ['/help'], test: (p) => /^\/?help$|^\/\?$|what can (i|you)|what do you do/.test(p.n), run: hHelp },
+    { id: 'seasonCompare', cat: 'History', ex: ['Brunson last season vs this season', 'Curry 2023-24 stats'], test: (p) => p.player && p.season != null && !p.cmp, run: hSeasonCompare },
+    { id: 'help', cat: 'Help', ex: ['/help'], test: (p) => /^\/?help$|^\/\?$|what can (i|you)|what do you do/.test(p.n), run: hHelp },
+     { id: 'draft', cat: 'Player background', ex: ['When was Wemby drafted?'], test: (p) => /\bdraft(ed)?\b/.test(p.n) && !/\bfirst overall\b/.test(p.n), run: hBio },
      { id: 'propLine', cat: 'Prop lines', ex: ['What was his set line?', 'Jaylen Brown points line tonight'], test: (p) => p.player && /\blines?\b|\bprops?\b|\bo\/u\b|over\/under/.test(p.n), run: hPropLine },
      { id: 'topProps', cat: 'Betting context', ex: ['What\'s the best prop tonight?'], test: (p) => !p.player && (/\b(best|top|strongest|safest|smartest|good)\b.*\b(props?|bets?|picks?|edges?)\b|\b(props?|bets?|picks?)\b.*\b(best|top|worth)\b/.test(p.n)), run: hTopProps },
      { id: 'topLines', cat: 'Betting context', ex: ['Which games tonight have the highest lines?'], test: (p) => !p.player && /\b(highest|biggest|largest|lowest|smallest|closest|tightest|most)\b.*\b(lines?|totals?|spreads?|over under|odds)\b/.test(p.n), run: hTopLines },
-     { id: 'without', cat: 'With and without', ex: ['If Embiid is out, how do Maxey\'s numbers change?'], test: (p) => p.players.length >= 1 && /\b(if|when|without)\b/.test(p.n) && /\b(out|without|sits?|sitting|misses|missing|injured|absent)\b/.test(p.n) && /\b(numbers?|stats?|averages?|change|production|perform\w*|do|does|better|worse|points|rebounds|assists|scor\w*)\b/.test(p.n), run: hWithout },
+     { id: 'without', cat: 'With and without', ex: ['If Embiid is out, how do Maxey\'s numbers change?'], test: (p) => p.players.length >= 1 && /\bwithout\b/.test(p.n) || p.players.length >= 1 && /\b(if|when|without)\b/.test(p.n) && /\b(out|without|sits?|sitting|misses|missing|injured|absent)\b/.test(p.n) && /\b(numbers?|stats?|averages?|change|production|perform\w*|do|does|better|worse|points|rebounds|assists|scor\w*)\b/.test(p.n), run: hWithout },
      { id: 'defense', cat: 'Team', ex: ['How does Miami defend?'], test: (p) => p.teams.length > 0 && /\b(defen[sc]e|defend\w*|defensive)\b/.test(p.n), run: hDefense },
      { id: 'injuries', cat: 'Injuries', ex: ['Who\'s injured on the Warriors?', 'Is Embiid injured?'], test: (p) => /\binjur\w*|\bhurt\b|\bquestionable\b|\bout tonight\b/.test(p.n), run: hInjuries },
      { id: 'plays', cat: 'Play-by-play', ex: ['Last 5 plays of the Celtics game', 'Latest scoring plays Lakers'], test: (p) => !/\b(who|teams?)\b.*\bplays?\b/.test(p.n) && /\bplays?\b|play by play|pbp/.test(p.n), run: hPlays },
      { id: 'winProb', cat: 'Live game', ex: ['Win probability in the Nuggets game'], test: (p) => /win prob\w*|chances? (of|to) win/.test(p.n), run: hWinProb },
+     { id: 'awards', cat: 'Betting context', ex: ['MVP odds', 'Rookie of the Year rankings'], test: (p) => /\b(mvp|roy|rookie of the year|rookie)\b/.test(p.n) && /\b(rank\w*|ladder|odds|favou?r\w*|candidates?|race|leads?|top|who|best)\b/.test(p.n), run: hAwards },
      { id: 'futures', cat: 'Betting context', ex: ['Who\'s favored to win the title?'], test: (p) => /\b(futures|favou?red to win|favou?rites? to win|title (odds|favou?rites?|contenders?)|championship (odds|favou?rites?)|(win|winning) the (title|championship|finals)|who wins the (title|championship|finals))\b/.test(p.n), run: hFutures },
      { id: 'ats', cat: 'Betting context', ex: ['Celtics ATS record'], test: (p) => /\bats\b|against the spread|cover(s|ed|ing)? the spread|\b(over under|o\/u) record/.test(p.n), run: hAts },
      { id: 'contract', cat: 'Player background', ex: ['Jokic\'s contract'], test: (p) => /\bcontracts?\b|\bsalary\b|\bcap hit\b/.test(p.n), run: hContract },
      { id: 'odds', cat: 'Betting context', ex: ['What\'s the spread on the Knicks game tonight?', 'Tonight\'s odds'], test: (p) => !p.player && /\b(spread|moneyline|money line|odds|point spread|total points|over under|favored by|line on)\b/.test(p.n), run: hOdds },
      { id: 'broadcast', cat: 'Broadcast', ex: ['What channel is the Lakers game on?', 'What time is the Heat game?'], test: (p) => /\b(channel|network|tv|broadcast|stream|tip ?off|what time|start time)\b/.test(p.n), run: hBroadcast },
+     { id: 'seasonCompare', cat: 'History', ex: ['Brunson last season vs this season', 'Curry 2023-24 stats'], test: (p) => p.player && p.season != null && !p.cmp, run: hSeasonCompare },
      { id: 'threshold', cat: 'History', ex: ['How many times has LeBron scored over 28 against the Cavs?', 'Jokic triple-doubles this season'], test: (p) => p.player && ((p.cmp && /\b(times|how often|how many|games|against|vs|versus)\b/.test(p.n)) || (p.stat?.dbl && /\b(how many|times|count)\b/.test(p.n))), run: hThreshold },
      { id: 'careerHigh', cat: 'History', ex: ['What was Wemby\'s career high in points?', 'Last time Curry scored 40+'], test: (p) => p.player && /career high|season high|best game|career best|personal best|highest|last time/.test(p.n), run: hCareerHigh },
      { id: 'boxscore', cat: 'Box score', ex: ['Celtics quarter scores', 'Lakers box score'], test: (p) => (p.teams.length || p.player) && /box ?score|line ?score|by quarter|quarter scores?/.test(p.n), run: hBoxscore },
@@ -1503,7 +1576,12 @@
      { id: 'splits', cat: 'Splits', ex: ['Lakers home vs away splits', 'Brunson home vs away'], test: (p) => (p.player || p.teams.length) && /\bsplits?\b|home (vs|versus|and|or) (away|road)|home\/away/.test(p.n), run: hSplits },
      { id: 'lastN', cat: 'Recent form', ex: ['LeBron last 10 games', 'How\'s Brunson been playing?'], test: (p) => p.player && (p.N || /\b(recent|recently|lately|form|performance|been (playing|doing|performing))\b/.test(p.n)), run: hLastN },
      { id: 'seasonStats', cat: 'Season stats', ex: ['Brunson stats this season', 'Curry shooting percentages'], test: (p) => p.player && (/\b(stats?|averag\w*|avg|ppg|rpg|apg|shooting|percentage|pct|per game|this season|season|usage)\b/.test(p.n) || p.stat?.pct), run: hSeasonStats },
-     { id: 'bio', cat: 'Player background', ex: ['How tall is Wemby?', 'What college did Brunson go to?'], test: (p) => p.player && /\b(how tall|height|weight|how old|age|college|drafted|born|jersey|number|bio|experience)\b/.test(p.n), run: hBio },
+     { id: 'bio', cat: 'Player background', ex: ['How tall is Wemby?',
+    'When was Wemby drafted?',
+    'Brunson last season vs this season',
+    'MVP odds',
+    'Rookie of the Year rankings',
+    'LeBron games without Jaylen Brown', 'What college did Brunson go to?'], test: (p) => p.player && /\b(how tall|height|weight|how old|age|college|drafted|born|jersey|number|bio|experience)\b/.test(p.n), run: hBio },
      { id: 'unsupported', cat: 'Not available yet', ex: [], test: (p) => /\b(power index|bpi|picked first|first overall|playoffs start|when (do|does|is|are) the (playoffs|season|finals))\b/.test(p.n), run: hUnsupported },
      { id: 'starters', cat: 'Lineups', ex: ['Who starts at center for the Heat?', 'Knicks starting lineup'], test: (p) => p.teams.length && /\b(starts?|starting|starters?)\b/.test(p.n), run: hStarters },
      { id: 'roster', cat: 'Team', ex: ['Heat roster'], test: (p) => p.teams.length && /\broster\b/.test(p.n), run: hRoster },
@@ -1941,7 +2019,6 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
      const inputRef = useRef(null);
-     const ghostRef = useRef(null); // invisible input that opens the iOS keyboard during the tap
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -2095,8 +2172,7 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
    
      return (
        <div style={{ '--sb-bottom': `${bottomOffset}px` }}>
-                  <style>{KEYFRAMES}</style>
-                  <input ref={ghostRef} aria-hidden="true" tabIndex={-1} readOnly={false} className="fixed left-0 top-0 w-px h-px opacity-0 pointer-events-none" style={{ fontSize: 16 }} />
+         <style>{KEYFRAMES}</style>
    
          {/* dim backdrop (phones only); tap to close */}
          <div
@@ -2109,7 +2185,7 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
          <button
            type="button"
            aria-label={open ? 'Close Slate assistant' : 'Open Slate assistant'}
-           onClick={() => { if (!open) ghostRef.current?.focus(); setOpen((o) => !o); }}
+           onClick={() => setOpen((o) => !o)}
            className={`fixed z-[160] ${sideBubble} w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-[0_0_12px_rgba(37,99,235,0.7)] active:scale-95 transition-transform duration-150 ${open ? 'max-sm:hidden' : ''}`}
            style={{ bottom: 'calc(var(--sb-bottom) + env(safe-area-inset-bottom, 0px))' }}
          >
