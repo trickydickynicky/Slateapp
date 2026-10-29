@@ -280,7 +280,7 @@ export default function GameLineups({ gameId }) {
             <div className="text-xs text-gray-500 text-center py-4 border-t border-zinc-800">No lineups match</div>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-4 px-4">
+                           <div className="overflow-x-auto -mx-4 pl-2 pr-4">
                 <div className="w-max min-w-full">
                   <div className="flex items-center text-[10px] text-gray-500 mb-1">
                     <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W }}>LINEUP</span>
