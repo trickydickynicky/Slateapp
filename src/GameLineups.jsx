@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 
 const SUMMARY_URL = id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
-const PREFIX = 'lineups:v2:';
+const PREFIX = 'lineups:v3:';
 const memCache = new Map();
 const pending = new Map();
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
@@ -139,12 +139,20 @@ export function computeLineups(j) {
   }
   tids.forEach(tid => close(tid, last.t, last.a, last.h));
 
-  return tids.map(tid => ({
-    id: tid,
-    abbr: teams[tid].abbr,
-    players: teams[tid].players,
-    lineups: Object.values(teams[tid].stints).sort((x, y) => y.sec - x.sec),
-  }));
+   // away first, home second (header's homeAway flag, falling back to the scoring-play inference)
+   const homeId = String(
+    (j?.header?.competitions?.[0]?.competitors || []).find(c => c.homeAway === 'home')?.team?.id ?? ''
+  );
+  const isHome = id => (homeId ? id === homeId : side[id] === 'home');
+
+  return tids
+    .map(tid => ({
+      id: tid,
+      abbr: teams[tid].abbr,
+      players: teams[tid].players,
+      lineups: Object.values(teams[tid].stints).sort((x, y) => y.sec - x.sec),
+    }))
+    .sort((a, b) => Number(isHome(a.id)) - Number(isHome(b.id)));
 }
 
 /* ── per-game fetch + cache (shared by the game view and the season view) ── */
