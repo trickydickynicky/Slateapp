@@ -14,7 +14,7 @@ import TeamSchedule from './TeamSchedule';
 import TeamStatsPage from './TeamStatsPage';
 
 import Momentum from './Momentum';
-const backBtnStyle = { position: 'fixed', top: 'calc(env(safe-area-inset-top) + 8px)', left: 12, zIndex: 70, width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(24,24,27,0.7)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.08)', color: 'white', fontSize: 22, lineHeight: 1 };
+
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -3752,8 +3752,11 @@ onClick={(e) => {
   >
      <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto">
-        <button style={backBtnStyle} aria-label="Back" onClick={() => { trigger('light'); closeTeamModal(); }}>‹</button>
-<div style={{ height: 44 }} />
+        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
+  <button onClick={() => { trigger('light'); closeTeamModal(); }}
+ className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+
+</div>
   
              <TeamStatsPage
             key={selectedTeamInfo.abbr}
