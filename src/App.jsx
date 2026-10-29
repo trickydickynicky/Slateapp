@@ -11,6 +11,8 @@ import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
 import PlayerStatsPage from './PlayerStatsPage';
 import TeamSchedule from './TeamSchedule';
+import TeamStatsPage from './TeamStatsPage';
+
 import Momentum from './Momentum';
 function SportsApp() {
 
@@ -2423,7 +2425,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   }}
   className="text-gray-400 hover:text-white text-2xl font-light mr-4"
 >‹</button>
-<h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>NBA Standings</h2>
+
 </div>
 
         <div className="flex gap-2 mb-6">
@@ -2529,7 +2531,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
           >
             ‹
           </button>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Game Details</h2>
+          
         </div>
         <div
   className="bg-black rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
@@ -3752,575 +3754,44 @@ onClick={(e) => {
         <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
   <button onClick={() => { trigger('light'); closeTeamModal(); }}
  className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
-  <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Team Stats</h2>
+
 </div>
   
-          {loadingTeamStats ? (
-            <div className="text-center py-12 text-gray-400">Loading team stats...</div>
-          ) : teamStats ? (
-            <div>
-     {/* Team Header */}
-<div
-  className="rounded-2xl p-5 mb-4 relative overflow-hidden"
-  style={{
-    background: `linear-gradient(135deg, ${teamColors[selectedTeamInfo.abbr]}33 0%, #18181b 55%)`,
-    border: `1px solid ${teamColors[selectedTeamInfo.abbr]}55`,
-  }}
->
-  {/* Glow blob */}
-  <div
-    className="absolute -top-8 -left-8 w-40 h-40 rounded-full blur-3xl opacity-25 pointer-events-none"
-    style={{ background: teamColors[selectedTeamInfo.abbr] }}
-  />
+             <TeamStatsPage
+            key={selectedTeamInfo.abbr}
+            teamInfo={selectedTeamInfo}
+            stats={teamStats}
+            loading={loadingTeamStats}
+            leagueRankings={leagueRankings}
+            isFavorite={favoriteTeams.includes(selectedTeamInfo.abbr)}
+            onToggleFavorite={() => toggleFavorite(selectedTeamInfo.abbr)}
+            onHaptic={trigger}
+            onTeamClick={handleTeamClick}
+            onRecentGameClick={handleRecentGameClick}
+            loadTeamStats={getTeamStatsData}
+            onOpenRoster={async () => {
+              setShowRoster(true);
+              if (!rosterData) {
+                const id = espnTeamIds[selectedTeamInfo.abbr];
+                try {
+                  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/roster`);
+                  const data = await res.json();
+                  setRosterData(data.athletes || []);
+                } catch (e) {
+                  setRosterData([]);
+                }
+              }
+            }}
+            onOpenStandings={() => {
+              setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo, stats: teamStats }]);
+              setSelectedConference(teamStats?.conference === 'Eastern' ? 'Eastern' : 'Western');
+              setSelectedTeamInfo(null);
+              setTeamStats(null);
+              setShowStandings(true);
+              if (standings.eastern.length === 0) fetchStandings();
+            }}
+          />
 
-  {/* Top row: logo + info + star */}
-  <div className="flex items-start gap-4 relative z-10 mb-4">
-    <div className="flex flex-col items-center gap-2">
-  <img
-    src={selectedTeamInfo.logo}
-    alt={selectedTeamInfo.abbr}
-    className="w-20 h-20 drop-shadow-lg"
-  />
-  <button
-   onClick={() => { trigger('light'); setIsCompareMode(true); }}
-    className="bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded-lg font-semibold text-xs transition-colors"
-  >
-    Compare
-  </button>
-</div>
-    <div className="flex-1 pt-1">
-      <div className="flex items-start justify-between">
-        <div>
-        <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamFullNames[selectedTeamInfo.abbr]}</h3>
-        <div className="flex items-center gap-2 mt-0.5">
-  <div 
-    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
-    onClick={() => {
-      setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo, stats: teamStats }]);
-      setSelectedConference(teamStats.conference === 'Eastern' ? 'Eastern' : 'Western');
-      setSelectedTeamInfo(null);
-      setTeamStats(null);
-      setShowStandings(true);
-      if (standings.eastern.length === 0) {
-        fetchStandings();
-      }
-    }}
-  >
-    {getOrdinalSuffix(teamStats.conferenceRank)} {teamStats.conference === 'Eastern' ? 'EC' : 'WC'} ›
-  </div>
-  <span className="text-gray-600">|</span>
-  <div
-    className="text-gray-400 text-sm cursor-pointer hover:text-white transition-colors"
-    onClick={async () => {
-      setShowRoster(true);
-      if (!rosterData) {
-        const abbr = selectedTeamInfo.abbr;
-        const id = espnTeamIds[abbr];
-        try {
-          const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${id}/roster`);
-          const data = await res.json();
-          setRosterData(data.athletes || []);
-        } catch (e) {
-          setRosterData([]);
-        }
-      }
-    }}
-  >
-    Roster ›
-  </div>
-</div>
-        </div>
-        <button
-         onClick={() => { trigger('success'); toggleFavorite(selectedTeamInfo.abbr); }}
-          className="mt-0.5"
-        >
-          <Star className={`w-5 h-5 transition-all ${favoriteTeams.includes(selectedTeamInfo.abbr) ? 'fill-white text-white' : 'text-gray-500'}`} />
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2 mt-2">
-        <span className="text-2xl font-bold">{teamStats.record.wins}-{teamStats.record.losses}</span>
-        <span className="text-gray-400 text-sm">{teamStats.record.pct}</span>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-          teamStats.record.streak.startsWith('W') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
-        }`}>
-          {teamStats.record.streak}
-        </span>
-      </div>
-    </div>
-  </div>
-
-  {/* Win/Loss bar */}
-  <div className="relative z-10 mb-3">
-    <div className="flex h-1.5 bg-zinc-700 rounded-full overflow-hidden">
-      <div
-        className="h-full rounded-full"
-        style={{
-          width: `${(teamStats.record.wins / (parseInt(teamStats.record.wins) + parseInt(teamStats.record.losses))) * 100}%`,
-          backgroundColor: teamColors[selectedTeamInfo.abbr],
-        }}
-      />
-    </div>
-    <div className="flex justify-between mt-1">
-      <span className="text-[10px] text-gray-500">{teamStats.record.wins}W</span>
-      <span className="text-[10px] text-gray-500">{teamStats.record.losses}L</span>
-    </div>
-  </div>
-
-  {/* Home/Away split */}
-  <div className="relative z-10 flex gap-3">
-  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
-    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Home</span>
-    <span className="text-sm font-bold">{teamStats.record.home}</span>
-  </div>
-  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
-    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">Away</span>
-    <span className="text-sm font-bold">{teamStats.record.away}</span>
-  </div>
-  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
-    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">L10</span>
-    <span className="text-sm font-bold">{teamStats.record.l10}</span>
-  </div>
-  <div className="flex-1 rounded-xl px-2 py-2 flex flex-col items-center bg-zinc-800 border border-zinc-700">
-    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">GB</span>
-    <span className="text-sm font-bold">{teamStats.record.gb}</span>
-  </div>
-</div>
-</div>
-
-
-
-  {/* Team Comparison Selector */}
-{isCompareMode && !compareTeam && (
-  <div className="fixed inset-0 bg-black bg-opacity-90 z-[120] overflow-y-auto">
-    <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-      <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6">
-          <button 
-            onClick={() => setIsCompareMode(false)}
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >
-            ✕
-          </button>
-          <h2 className="text-2xl font-bold">Select Team to Compare</h2>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3">
-          {Object.entries(teamFullNames)
-            .filter(([abbr]) => abbr !== selectedTeamInfo.abbr) // Don't show current team
-            .map(([abbr, fullName]) => (
-              <button
-                key={abbr}
-                onClick={() => {
-                  setCompareTeam({ abbr, logo: `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png` });
-                  fetchTeamStatsForComparison(abbr);
-                }}
-                className="bg-black hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
-              >
-                <img 
-                  src={`https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`}
-                  alt={abbr}
-                  className="w-12 h-12"
-                />
-                <div className="text-left">
-                  <div className="font-semibold">{abbr}</div>
-                  <div className="text-xs text-gray-400">{fullName}</div>
-                </div>
-              </button>
-            ))}
-        </div>
-      </div>
-    </div>
-  </div>
-)}            
-  
-     {/* Team Stats - Comparison or Single */}
-
-     {compareTeam && (
-  <button
-    onClick={() => { setCompareTeam(null); setCompareTeamStats(null); setIsCompareMode(false); }}
-    className="w-full mb-4 py-2.5 rounded-xl bg-black border border-zinc-700 text-sm font-semibold text-gray-300 hover:text-white hover:border-zinc-500 transition-colors flex items-center justify-center gap-2"
-  >
-    <span>✕</span> Clear Comparison
-  </button>
-)}
-  
-  {compareTeam && compareTeamStats ? (
-    /* COMPARISON VIEW */
-    <div>
-      {/* VS header card */}
-      <div className="bg-black rounded-2xl p-4 mb-4 flex items-center">
-        <div className="flex flex-col items-center flex-1">
-          <img src={selectedTeamInfo.logo} alt={selectedTeamInfo.abbr} className="w-12 h-12 mb-1" />
-          <span className="font-bold text-sm" style={{ color: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }}>{selectedTeamInfo.abbr}</span>
-          <span className="text-xs text-gray-400">{teamStats.record.wins}-{teamStats.record.losses}</span>
-        </div>
-        <div className="text-gray-500 text-xs font-bold uppercase tracking-widest px-3">VS</div>
-        <div className="flex flex-col items-center flex-1">
-          <img src={compareTeam.logo} alt={compareTeam.abbr} className="w-12 h-12 mb-1" />
-          <span className="font-bold text-sm" style={{ color: teamColors[compareTeam.abbr] || '#EF4444' }}>{compareTeam.abbr}</span>
-          <span className="text-xs text-gray-400">{compareTeamStats.record.wins}-{compareTeamStats.record.losses}</span>
-        </div>
-      </div>
-
-      {/* Offense card */}
-      <div className="bg-black rounded-2xl p-4 mb-4">
-        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
-        <div className="space-y-4">
-          {(() => {
-            const team1Offense = teamStats.stats.find(cat => cat.name === 'offensive');
-            const team2Offense = compareTeamStats.stats.find(cat => cat.name === 'offensive');
-            if (!team1Offense || !team2Offense) return <div className="text-gray-400 text-center">No data available</div>;
-            const getStat = (cat, name) => parseFloat(cat.stats.find(s => s.name === name)?.displayValue || '0') || 0;
-            return [
-              { name: 'avgPoints', label: 'PPG' },
-              { name: 'fieldGoalPct', label: 'FG%' },
-              { name: 'threePointFieldGoalPct', label: '3P%' },
-              { name: 'freeThrowPct', label: 'FT%' },
-              { name: 'avgAssists', label: 'AST' },
-              { name: 'avgTurnovers', label: 'TO', inverse: true },
-            ].map(({ name, label, inverse }, idx) => {
-              const v1 = getStat(team1Offense, name);
-              const v2 = getStat(team2Offense, name);
-              const better1 = inverse ? v1 < v2 : v1 > v2;
-              const better2 = inverse ? v2 < v1 : v2 > v1;
-              const total = v1 + v2;
-              const p1 = total > 0 ? (v1 / total) * 100 : 50;
-              const p2 = total > 0 ? (v2 / total) * 100 : 50;
-              return (
-                <div key={idx}>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className={`text-base font-bold w-14 ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
-                    <span className="text-gray-400 text-xs font-semibold flex-1 text-center">{label}</span>
-                    <span className={`text-base font-bold w-14 text-right ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
-                  </div>
-                  <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
-                  <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }} />
-                  <div style={{ width: `${p2}%`, backgroundColor: teamColors[compareTeam.abbr] || '#EF4444' }} />
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
-      </div>
-
-      {/* Defense card */}
-      <div className="bg-black rounded-2xl p-4 mb-4">
-        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
-        <div className="space-y-4">
-          {(() => {
-            const team1Defense = teamStats.stats.find(cat => cat.name === 'defensive');
-            const team2Defense = compareTeamStats.stats.find(cat => cat.name === 'defensive');
-            const getStat1 = (name) => parseFloat(team1Defense?.stats?.find(s => s.name === name)?.displayValue || '0') || 0;
-            const getStat2 = (name) => parseFloat(team2Defense?.stats?.find(s => s.name === name)?.displayValue || '0') || 0;
-            return [
-              { label: 'OPPG', getValue: () => [parseFloat(teamStats.record.oppg) || 0, parseFloat(compareTeamStats.record.oppg) || 0], inverse: true },
-              { name: 'avgDefensiveRebounds', label: 'DREB' },
-              { name: 'avgBlocks', label: 'BLK' },
-              { name: 'avgSteals', label: 'STL' },
-            ].map(({ name, label, getValue, inverse }, idx) => {
-              const v1 = getValue ? getValue()[0] : getStat1(name);
-              const v2 = getValue ? getValue()[1] : getStat2(name);
-              const better1 = inverse ? v1 < v2 : v1 > v2;
-              const better2 = inverse ? v2 < v1 : v2 > v1;
-              const total = v1 + v2;
-              const p1 = total > 0 ? (v1 / total) * 100 : 50;
-              const p2 = total > 0 ? (v2 / total) * 100 : 50;
-              return (
-                <div key={idx}>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className={`text-base font-bold w-14 ${better1 ? 'text-white' : 'text-gray-500'}`}>{v1.toFixed(1)}</span>
-                    <span className="text-gray-400 text-xs font-semibold flex-1 text-center">{label}</span>
-                    <span className={`text-base font-bold w-14 text-right ${better2 ? 'text-white' : 'text-gray-500'}`}>{v2.toFixed(1)}</span>
-                  </div>
-                  <div className="flex h-2 rounded-full overflow-hidden bg-zinc-800">
-                  <div style={{ width: `${p1}%`, backgroundColor: teamColors[selectedTeamInfo.abbr] || '#3B82F6' }} />
-                  <div style={{ width: `${p2}%`, backgroundColor: teamColors[compareTeam.abbr] || '#EF4444' }} />
-                  </div>
-                </div>
-              );
-            });
-          })()}
-        </div>
-      </div>
-    </div>
-  ) : (
-    /* ORIGINAL SINGLE TEAM VIEW */
-/* ORIGINAL SINGLE TEAM VIEW */
-<div>
-  <div className="bg-black rounded-2xl p-4 mb-4">
-    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Offense</h4>
-    <div className="grid grid-cols-4 gap-2 mb-2">
-      {(() => {
-        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-        const getStat = (name) => {
-          const stat = offenseCategory?.stats?.find(s => s.name === name);
-          return stat ? stat.displayValue : '-';
-        };
-        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-        const cards = [
-          { label: 'PPG', value: getStat('avgPoints'), rank: teamRanks.ppg },
-          { label: 'FG%', value: getStat('fieldGoalPct'), rank: teamRanks.fgPct },
-          { label: '3P%', value: getStat('threePointFieldGoalPct'), rank: teamRanks.threePct },
-          { label: 'FT%', value: getStat('freeThrowPct'), rank: teamRanks.ftPct },
-        ];
-        return cards.map(({ label, value, rank }) => (
-          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-            'border-red-500/20 bg-red-500/5'
-          }`}>
-            <div className="text-lg font-bold text-white">{value}</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-            {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                #{rank}
-              </div>
-            )}
-          </div>
-        ));
-      })()}
-    </div>
-    <div className="grid grid-cols-3 gap-2">
-      {(() => {
-        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-        const getStat = (name) => {
-          const stat = offenseCategory?.stats?.find(s => s.name === name);
-          return stat ? stat.displayValue : '-';
-        };
-        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-        const cards = [
-          { label: 'AST', value: getStat('avgAssists'), rank: teamRanks.ast },
-          { label: 'OREB', value: getStat('avgOffensiveRebounds'), rank: teamRanks.oreb },
-          { label: 'TO', value: getStat('avgTurnovers'), rank: teamRanks.to },
-        ];
-        return cards.map(({ label, value, rank }) => (
-          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-            'border-red-500/20 bg-red-500/5'
-          }`}>
-            <div className="text-lg font-bold text-white">{value}</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-            {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                #{rank}
-              </div>
-            )}
-          </div>
-        ));
-      })()}
-    </div>
-  </div>
-
-  <div className="bg-black rounded-2xl p-4 mb-4">
-    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Defense</h4>
-    <div className="grid grid-cols-4 gap-2">
-      {(() => {
-        const offenseCategory = teamStats.stats.find(cat => cat.name === 'offensive');
-        const defenseCategory = teamStats.stats.find(cat => cat.name === 'defensive');
-        const getStat = (name, cat = 'defensive') => {
-          const primary = cat === 'defensive' ? defenseCategory : offenseCategory;
-          const secondary = cat === 'defensive' ? offenseCategory : defenseCategory;
-          let stat = primary?.stats?.find(s => s.name === name);
-          if (!stat) stat = secondary?.stats?.find(s => s.name === name);
-          return stat ? stat.displayValue : '-';
-        };
-        const teamRanks = leagueRankings?.[selectedTeamInfo?.abbr] || {};
-        const cards = [
-          { label: 'OPPG', value: teamStats.record.oppg || '-', rank: teamRanks.oppg },
-          { label: 'BLK', value: getStat('avgBlocks'), rank: teamRanks.blk },
-          { label: 'STL', value: getStat('avgSteals'), rank: teamRanks.stl },
-          { label: 'DREB', value: getStat('avgDefensiveRebounds'), rank: teamRanks.dreb },
-        ];
-        return cards.map(({ label, value, rank }) => (
-          <div key={label} className={`rounded-xl border p-2 flex flex-col items-center justify-center ${
-            !rank ? 'border-zinc-700 bg-zinc-800/50' :
-            rank <= 10 ? 'border-green-500/30 bg-green-500/5' :
-            rank <= 20 ? 'border-zinc-700 bg-zinc-800/50' :
-            'border-red-500/20 bg-red-500/5'
-          }`}>
-            <div className="text-lg font-bold text-white">{value}</div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{label}</div>
-            {rank && (
-              <div className={`text-[10px] font-bold mt-0.5 ${rank <= 10 ? 'text-green-400' : rank <= 20 ? 'text-gray-400' : 'text-red-400'}`}>
-                #{rank}
-              </div>
-            )}
-          </div>
-        ));
-      })()}
-    </div>
-  </div>
-</div>
-)}
-
-{/* Recent Differentials */}
-<div className="bg-black rounded-2xl p-4">
-<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Recent Differentials</h4>
-  <div className="flex gap-2 justify-between">
-    {teamStats.recentGames.map((game, idx) => {
-      // Calculate bar height percentage
-      const barHeightPercent = Math.min((Math.abs(game.differential) / 40) * 50, 50);
-      
-      return (
-        <div key={idx} className="flex flex-col items-center flex-1">
-  {/* Bar chart container - NOW CLICKABLE */}
-  <div 
-    className="relative h-24 w-full flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
-    onClick={() => handleRecentGameClick(game)}
-  >
-            {/* Horizon line in middle */}
-            <div className="absolute w-full h-0.5 bg-zinc-700" style={{ top: '50%' }}></div>
-            
-            {/* Vertical line from bottom to horizon */}
-            <div 
-              className="absolute bg-zinc-700 w-0.5"
-              style={{ 
-                bottom: '0',
-                height: '50%',
-                left: '50%',
-                transform: 'translateX(-50%)'
-              }}
-            />
-            
-            {game.differential > 0 ? (
-              <>
-                {/* Win bar growing upward */}
-                <div 
-                  className="absolute bg-blue-500"
-                  style={{ 
-                    bottom: '50%',
-                    height: `${barHeightPercent}%`,
-                    width: '100%',
-                    maxWidth: '32px',
-                    borderTopLeftRadius: '4px',
-                    borderTopRightRadius: '4px'
-                  }}
-                />
-                {/* Number on TOP of upward bar */}
-                <div 
-                  className="absolute text-xs font-bold text-green-500 w-full text-center"
-                  style={{ 
-                    bottom: `${50 + barHeightPercent}%`,
-                    transform: 'translateY(-4px)'
-                  }}
-                >
-                  +{game.differential}
-                </div>
-              </>
-            ) : (
-              <>
-                {/* Loss bar growing downward */}
-                <div 
-                  className="absolute bg-blue-900"
-                  style={{ 
-                    top: '50%',
-                    height: `${barHeightPercent}%`,
-                    width: '100%',
-                    maxWidth: '32px',
-                    borderBottomLeftRadius: '4px',
-                    borderBottomRightRadius: '4px'
-                  }}
-                />
-                {/* Number on TOP of downward bar */}
-                <div 
-                  className="absolute text-xs font-bold text-red-500 w-full text-center"
-                  style={{ 
-                    top: '50%',
-                    transform: 'translateY(-18px)'
-                  }}
-                >
-                  {game.differential}
-                </div>
-              </>
-            )}
-          </div>
-          
-          {/* Opponent info */}
-          <div className="text-xs text-gray-400 mt-1">
-            {game.isHome ? 'vs' : '@'} {game.opponent}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-</div>
-
-<TeamSchedule games={teamStats.fullSchedule} onTeamClick={handleTeamClick} />
-{false && (
-<div className="bg-black rounded-2xl p-4 mt-4">
-<h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Upcoming Schedule</h4>
-  <div className="space-y-2">
-    {teamStats.upcomingGames && teamStats.upcomingGames.length > 0 ? (
-      <>
-        {teamStats.upcomingGames.slice(0, showAllUpcoming ? teamStats.upcomingGames.length : 5).map((game, idx) => (
-  <div 
-    key={idx} 
-    className="flex items-center justify-between py-1.5 border-b border-zinc-800 last:border-0"
-  >
-    <div className="flex items-center gap-3">
-    <div className="text-xs text-gray-400 w-16">
-  <div>{new Date(game.date).toLocaleDateString('en-US', { weekday: 'short' })},</div>
-  <div>{new Date(game.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-</div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-400">{game.isHome ? 'vs' : '@'}</span>
-        <img 
-          src={game.opponentLogo} 
-          alt={game.opponent} 
-          className="w-6 h-6 cursor-pointer hover:opacity-80 transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleTeamClick(game.opponent, game.opponentLogo);
-          }}
-        />
-        <span 
-          className="font-semibold cursor-pointer hover:text-blue-500 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleTeamClick(game.opponent, game.opponentLogo);
-          }}
-        >
-          {game.opponent}
-        </span>
-        {game.opponentRecord && (
-          <span className="text-sm text-gray-400">
-            ({game.opponentRecord})
-          </span>
-        )}
-      </div>
-    </div>
-    <div className="flex flex-col items-end">
-      <div className="text-sm">{game.time}</div>
-      
-    </div>
-  </div>
-))}
-        
-{/* Show More/Less Arrow */}
-{teamStats.upcomingGames.length > 5 && (
-  <button
-    onClick={() => setShowAllUpcoming(!showAllUpcoming)}
-    className="w-full py-0 flex items-center justify-center text-gray-400 hover:text-white transition-colors"
-  >
-<span className="text-2xl font-light" style={{ transform: showAllUpcoming ? 'rotate(90deg)' : 'rotate(-90deg)' }}>      ‹
-    </span>
-  </button>
-)}
-      </>
-    ) : (
-      <div className="text-gray-400 text-sm">No upcoming games</div>
-    )}
-  </div>
-</div>
-)}
-            </div>
-          ) : null}
         </div>
       </div>
     </div>
@@ -4346,7 +3817,7 @@ onClick={(e) => {
                   }}
             className="text-gray-400 hover:text-white text-2xl font-light mr-4"
           >‹</button>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
+
         </div>
 
         <PlayerStatsPage
