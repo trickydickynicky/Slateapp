@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 
 const SUMMARY_URL = id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
+const PREFIX = 'lineups:v2:';
 const memCache = new Map();
+const pending = new Map();
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
 
 const clockSecs = v => {
@@ -112,7 +114,6 @@ export function computeLineups(j) {
     const mine = away ? a - s.a0 : h - s.h0;
     const opp = away ? h - s.h0 : a - s.a0;
     const dur = t - s.t0;
-    // possessions in this stint = average of both teams' counts while this lineup was on
     const dp = ((possOf(tid) - s.pm0) + (possOf(oppOf(tid)) - s.po0)) / 2;
     if (dur <= 0 && !mine && !opp && dp <= 0) return;
     const ids = [...s.on].sort();
@@ -146,6 +147,40 @@ export function computeLineups(j) {
   }));
 }
 
+/* ── per-game fetch + cache (shared by the game view and the season view) ── */
+
+function saveLocal(key, d) {
+  const s = JSON.stringify(d);
+  try { localStorage.setItem(key, s); return; } catch (e) { /* storage full: evict old lineup entries */ }
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith(PREFIX) && k !== key).slice(0, 40).forEach(k => localStorage.removeItem(k));
+    localStorage.setItem(key, s);
+  } catch (e) { /* give up; it will just refetch next time */ }
+}
+
+export function getGameLineups(gameId) {
+  const key = `${PREFIX}${gameId}`;
+  if (memCache.has(key)) return Promise.resolve(memCache.get(key));
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) { const d = JSON.parse(raw); memCache.set(key, d); return Promise.resolve(d); }
+  } catch (e) { /* ignore */ }
+  if (pending.has(key)) return pending.get(key);
+  const p = fetch(SUMMARY_URL(gameId))
+    .then(r => { if (!r.ok) throw new Error(`ESPN ${r.status}`); return r.json(); })
+    .then(j => {
+      const d = computeLineups(j);
+      const done = j?.header?.competitions?.[0]?.status?.type?.completed === true;
+      if (done && d.length) { memCache.set(key, d); saveLocal(key, d); }   // live games are never cached
+      return d;
+    })
+    .finally(() => pending.delete(key));
+  pending.set(key, p);
+  return p;
+}
+
+/* ── shared table ── */
+
 const COLS = [['MIN', 44], ['PTS', 40], ['OPP', 40], ['+/-', 44], ['POSS', 46], ['OFF', 44], ['DEF', 44], ['NET', 46]];
 const NAME_W = 168;
 
@@ -166,39 +201,13 @@ const statCells = (sec, pts, opp, poss) => {
   ];
 };
 
-export default function GameLineups({ gameId }) {
-    const { trigger } = useWebHaptics();
-  const [data, setData] = useState(null);      // null = loading, [] = failed
+function LineupsView({ title, teams, loading = false, progress = '', emptyText = "Lineup data isn't available for this game" }) {
+  const { trigger } = useWebHaptics();
   const [teamIdx, setTeamIdx] = useState(0);
   const [filter, setFilter] = useState({});    // playerId -> 'in' | 'out'
   const [showAll, setShowAll] = useState(false);
 
-  useEffect(() => {
-    if (!gameId) return undefined;
-    let dead = false;
-    setData(null); setFilter({}); setTeamIdx(0); setShowAll(false);
-    const key = `lineups:v2:${gameId}`;
-    if (memCache.has(key)) { setData(memCache.get(key)); return undefined; }
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) { const d = JSON.parse(raw); memCache.set(key, d); setData(d); return undefined; }
-    } catch (e) { /* ignore */ }
-    fetch(SUMMARY_URL(gameId))
-      .then(r => r.json())
-      .then(j => {
-        const d = computeLineups(j);
-        const done = j?.header?.competitions?.[0]?.status?.type?.completed === true;
-        if (done && d.length) {
-          memCache.set(key, d);
-          try { localStorage.setItem(key, JSON.stringify(d)); } catch (e) { /* ignore */ }
-        }
-        if (!dead) setData(d);
-      })
-      .catch(() => { if (!dead) setData([]); });
-    return () => { dead = true; };
-  }, [gameId]);
-
-  const team = data?.[teamIdx];
+  const team = teams?.[teamIdx];
 
   const chips = useMemo(() => {
     if (!team) return [];
@@ -232,21 +241,24 @@ export default function GameLineups({ gameId }) {
       <span key={i} className={`flex-shrink-0 text-center ${c.c}`} style={{ width: COLS[i][1] }}>{c.t}</span>
     ));
 
+  const hasRows = !!team && team.lineups.length > 0;
+
   return (
     <div className="bg-black rounded-2xl p-4 mt-3">
       <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-        Lineups
+        {title}
       </h5>
+      {progress && <div className="text-[11px] text-gray-500 mb-3">{progress}</div>}
 
-      {data === null ? (
+      {teams === null || (loading && !hasRows) ? (
         <div className="skeleton rounded-2xl" style={{ height: 160 }} />
-      ) : data.length === 0 || !team || team.lineups.length === 0 ? (
-        <div className="text-xs text-gray-500 text-center py-4">Lineup data isn't available for this game</div>
+      ) : !hasRows ? (
+        <div className="text-xs text-gray-500 text-center py-4">{emptyText}</div>
       ) : (
         <>
-          {data.length > 1 && (
+          {teams.length > 1 && (
             <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5 mb-3 w-max">
-              {data.map((t, i) => (
+              {teams.map((t, i) => (
                 <button
                   key={t.id}
                   onClick={() => { trigger('selection'); setTeamIdx(i); setFilter({}); setShowAll(false); }}
@@ -282,7 +294,7 @@ export default function GameLineups({ gameId }) {
             <div className="text-xs text-gray-500 text-center py-4 border-t border-zinc-800">No lineups match</div>
           ) : (
             <>
-                           <div className="overflow-x-auto -mx-4 pl-2 pr-4">
+              <div className="overflow-x-auto -mx-4 pl-2 pr-4">
                 <div className="w-max min-w-full">
                   <div className="flex items-center text-[10px] text-gray-500 mb-1">
                     <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W }}>LINEUP</span>
@@ -309,7 +321,7 @@ export default function GameLineups({ gameId }) {
                 </div>
               </div>
               {rows.length > LIMIT && (
-                              <button onClick={() => { trigger('light'); setShowAll(v => !v); }} className="w-full text-xs font-bold text-blue-500 pt-3">
+                <button onClick={() => { trigger('light'); setShowAll(v => !v); }} className="w-full text-xs font-bold text-blue-500 pt-3">
                   {showAll ? 'Show less' : `Show all ${rows.length}`}
                 </button>
               )}
@@ -318,5 +330,84 @@ export default function GameLineups({ gameId }) {
         </>
       )}
     </div>
+  );
+}
+
+/* ── single game (postgame view) ── */
+
+export default function GameLineups({ gameId }) {
+  const [data, setData] = useState(null);   // null = loading, [] = failed
+  useEffect(() => {
+    if (!gameId) return undefined;
+    let dead = false;
+    setData(null);
+    getGameLineups(gameId).then(d => { if (!dead) setData(d); }).catch(() => { if (!dead) setData([]); });
+    return () => { dead = true; };
+  }, [gameId]);
+  return <LineupsView key={gameId} title="Lineups" teams={data} />;
+}
+
+/* ── whole season (team page) ── */
+
+function aggregate(perGame, abbr) {
+  const players = {};
+  const map = {};
+  perGame.forEach(d => {
+    const t = (d || []).find(x => x.abbr === abbr);
+    if (!t) return;
+    Object.assign(players, t.players);
+    t.lineups.forEach(l => {
+      const e = map[l.key] || (map[l.key] = { key: l.key, ids: l.ids, sec: 0, pts: 0, opp: 0, poss: 0 });
+      e.sec += l.sec; e.pts += l.pts; e.opp += l.opp; e.poss += l.poss;
+    });
+  });
+  return { id: abbr, abbr, players, lineups: Object.values(map).sort((a, b) => b.sec - a.sec) };
+}
+
+export function SeasonLineups({ teamAbbr, schedule }) {
+  const ready = Array.isArray(schedule);
+  const ids = useMemo(
+    () => (ready ? schedule.filter(g => g.completed && !g.isPre).map(g => g.id) : []),
+    [ready, schedule]
+  );
+  const idsKey = ids.join(',');
+  const [teams, setTeams] = useState(null);
+  const [done, setDone] = useState(0);
+
+  useEffect(() => {
+    if (!ready) return undefined;
+    let dead = false;
+    setDone(0);
+    if (ids.length === 0) { setTeams([aggregate([], teamAbbr)]); return undefined; }
+    setTeams(null);
+    const results = new Array(ids.length).fill(null);
+    let next = 0, finished = 0;
+    const worker = async () => {
+      while (!dead) {
+        const i = next++;
+        if (i >= ids.length) return;
+        try { results[i] = await getGameLineups(ids[i]); } catch (e) { results[i] = null; }
+        finished++;
+        if (!dead && (finished <= 2 || finished % 3 === 0 || finished === ids.length)) {
+          setTeams([aggregate(results, teamAbbr)]);
+          setDone(finished);
+        }
+      }
+    };
+    Promise.all([worker(), worker(), worker(), worker()]);
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, teamAbbr, ready]);
+
+  const loading = ready && ids.length > 0 && done < ids.length;
+  return (
+    <LineupsView
+      key={teamAbbr}
+      title="Season Lineups"
+      teams={ready ? teams : null}
+      loading={loading}
+      progress={loading ? `Loading games… ${done} of ${ids.length}` : ''}
+      emptyText="No completed games yet"
+    />
   );
 }

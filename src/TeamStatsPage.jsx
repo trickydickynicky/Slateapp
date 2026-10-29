@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Star } from 'lucide-react';
 import TeamSchedule from './TeamSchedule';
+import { SeasonLineups } from './GameLineups';
 
 /* ────────────────────────────────────────────────────────────────────────────
    Constants
@@ -426,7 +427,9 @@ export default function TeamStatsPage({
         onGameClick={g => { haptic('light'); onRecentGameClick && onRecentGameClick(g); }}
       />
 
-      <TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
+<TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
+
+<SeasonLineups teamAbbr={abbr} schedule={stats.fullSchedule} />
 
       {pickerOpen && (
         <ComparePicker currentAbbr={abbr} onPick={pickCompare} onClose={() => setPickerOpen(false)} />
