@@ -191,7 +191,7 @@ function parseProps(items, gameId) {
   return out;
 }
 
-/* ESPN gamelog -> [{id,date,opp,oppId,pts,reb,ast,tpm}] newest first */
+/* ESPN gamelog -> [{id,date,opp,oppId,pts,reb,ast,tpm,fga,tpa,fta,stl,blk,to,pf,min}] newest first */
 function parseGamelog(json) {
   const names = json?.names || json?.labels || [];
   const find = (...needles) =>
@@ -201,6 +201,12 @@ function parseGamelog(json) {
   const iAst = find('assists', 'ast');
   const iTpm = find('threePointFieldGoalsMade-threePointFieldGoalsAttempted', '3PT', 'threePointFieldGoalsMade');
   const iMin = find('minutes', 'min');
+  const iFg = find('fieldGoalsMade-fieldGoalsAttempted', 'FG');
+  const iFt = find('freeThrowsMade-freeThrowsAttempted', 'FT');
+  const iStl = find('steals', 'stl');
+  const iBlk = find('blocks', 'blk');
+  const iTo = find('turnovers', 'to');
+  const iPf = find('fouls', 'personalFouls', 'pf');
   const evMeta = json?.events || {};
   const rows = [];
   for (const st of json?.seasonTypes || []) {
@@ -211,6 +217,12 @@ function parseGamelog(json) {
         const mins = iMin >= 0 ? Number(s[iMin]) : 1;
         if (iMin >= 0 && !mins) continue; // DNP
         const num = (i) => (i >= 0 ? Number(String(s[i]).split('-')[0]) || 0 : 0);
+        const att = (i) => {
+          if (i < 0) return null;
+          const p = String(s[i]).split('-');
+          return p.length > 1 ? Number(p[1]) || 0 : null;
+        };
+        const one = (i) => (i >= 0 ? Number(s[i]) || 0 : null);
         rows.push({
           id: ev.eventId,
           date: meta.gameDate || '',
@@ -221,6 +233,13 @@ function parseGamelog(json) {
           reb: num(iReb),
           ast: num(iAst),
           tpm: num(iTpm),
+          fga: att(iFg),
+          tpa: att(iTpm),
+          fta: att(iFt),
+          stl: one(iStl),
+          blk: one(iBlk),
+          to: one(iTo),
+          pf: one(iPf),
           min: iMin >= 0 ? Math.round(mins) : null,
         });
       }
@@ -229,6 +248,22 @@ function parseGamelog(json) {
   rows.sort((a, b) => (a.date < b.date ? 1 : -1));
   return rows;
 }
+
+/* columns in the "vs opponent" game table (the prop stat is pulled out to the left) */
+const VS_COLS = [
+  { key: 'pts', label: 'PTS' },
+  { key: 'reb', label: 'REB' },
+  { key: 'ast', label: 'AST' },
+  { key: 'tpm', label: '3PM' },
+  { key: 'tpa', label: '3PA' },
+  { key: 'min', label: 'MIN', muted: true },
+  { key: 'fga', label: 'FGA' },
+  { key: 'fta', label: 'FTA' },
+  { key: 'stl', label: 'STL' },
+  { key: 'blk', label: 'BLK' },
+  { key: 'to', label: 'TO' },
+  { key: 'pf', label: 'PF' },
+];
 
 /* =====================================================================
    DATA HOOKS — swap these to upgrade v1 without touching the UI
@@ -1178,36 +1213,56 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
                      </span>
                      <span className="text-gray-500 text-xs ml-2">{showVs ? '▲' : '▼'}</span>
                    </button>
-                   {showVs && (
-                     <div className="mt-2 text-xs">
-          <div className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 text-[10px] text-gray-500 mb-1">
-                         <span>DATE</span>
-                         <span className="text-center">PTS</span>
-                         <span className="text-center">REB</span>
-                         <span className="text-center">AST</span>
-                         <span className="text-center">3PM</span>
-                         <span className="text-center">MIN</span>
-                         <span className="text-center">{type.unit.toUpperCase()}</span>
-                       </div>
-                       {vsOpp.map((g) => {
-                         const v = sumStats(g, type.stats);
-                         const hit = isOver ? v > c.line : v < c.line;
-                         return (
-                            <div key={g.id} className="grid grid-cols-[1.8fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-1 py-0.5 border-t border-zinc-800">
-                                  <span className="text-gray-400">
-                          {g.date ? `${g.date.slice(5, 7)}-${g.date.slice(8, 10)}-${g.date.slice(2, 4)}` : '–'}
-                        </span>
-                             <span className="text-center">{g.pts}</span>
-                             <span className="text-center">{g.reb}</span>
-                             <span className="text-center">{g.ast}</span>
-                             <span className="text-center">{g.tpm}</span>
-                             <span className="text-center text-gray-400">{g.min ?? '–'}</span>
-                             <span className={`text-center font-bold ${hit ? 'text-green-400' : 'text-red-400'}`}>{v}</span>
+                                  {showVs && (() => {
+                     const skip = type.stats.length === 1 ? type.stats[0] : null;
+                     const cols = VS_COLS.filter((col) => col.key !== skip);
+                     const dateLabel = (g) =>
+                       g.date ? `${g.date.slice(5, 7)}-${g.date.slice(8, 10)}-${g.date.slice(2, 4)}` : '–';
+                     return (
+                       <div className="mt-2 text-xs flex">
+                         {/* fixed: date + the prop stat */}
+                         <div className="flex-shrink-0 pr-2">
+                           <div className="flex items-end h-5 text-[10px] text-gray-500">
+                             <span className="w-[60px]">DATE</span>
+                             <span className="w-[52px] text-center">{type.unit.toUpperCase()}</span>
                            </div>
-                         );
-                       })}
-                     </div>
-                   )}
+                           {vsOpp.map((g) => {
+                             const v = sumStats(g, type.stats);
+                             const color =
+                               v === c.line ? 'text-gray-400' : (isOver ? v > c.line : v < c.line) ? 'text-green-400' : 'text-red-400';
+                             return (
+                               <div key={g.id} className="flex items-center h-7 border-t border-zinc-800">
+                                 <span className="w-[60px] text-gray-400">{dateLabel(g)}</span>
+                                 <span className={`w-[52px] text-center text-sm font-bold ${color}`}>{v}</span>
+                               </div>
+                             );
+                           })}
+                         </div>
+                         {/* scrolls sideways: everything else */}
+                         <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide border-l border-zinc-800">
+                           <div style={{ minWidth: cols.length * 40 }}>
+                             <div className="flex items-end h-5 text-[10px] text-gray-500">
+                               {cols.map((col) => (
+                                 <span key={col.key} className="w-10 text-center flex-shrink-0">{col.label}</span>
+                               ))}
+                             </div>
+                             {vsOpp.map((g) => (
+                               <div key={g.id} className="flex items-center h-7 border-t border-zinc-800">
+                                 {cols.map((col) => (
+                                   <span
+                                     key={col.key}
+                                     className={`w-10 text-center flex-shrink-0 ${col.muted ? 'text-gray-400' : ''}`}
+                                   >
+                                     {g[col.key] ?? '–'}
+                                   </span>
+                                 ))}
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       </div>
+                     );
+                   })()}
                  </>
           ) : (
             <span className="text-xs text-gray-500">No recent games vs {c.opp?.abbr || 'this opponent'}</span>
