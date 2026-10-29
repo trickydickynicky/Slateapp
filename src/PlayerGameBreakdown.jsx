@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSwipeBack } from './useSwipeBack';
+import BackButton from './BackButton';
 
 /* ────────────────────────────────────────────────────────────────────────────
    Constants
@@ -732,18 +733,9 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       className="fixed inset-0 bg-black z-[200] overflow-y-auto"
       style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
     >
-      <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto">
+        <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
 
-        {/* Back */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 50, padding: '10px 0', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
-          <button
-            onClick={onClose}
-            aria-label="Back"
-            style={{ color: MUTED, fontSize: 28, fontWeight: 300, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
-          >
-            ‹
-          </button>
-        </div>
+        <BackButton onClick={onClose} />
 
         {/* Header */}
         <div className="flex items-center" style={{ gap: 12, marginTop: 4 }}>

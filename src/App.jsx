@@ -12,9 +12,10 @@ import PlayerComparison from './PlayerComparison';
 import PlayerStatsPage from './PlayerStatsPage';
 import TeamSchedule from './TeamSchedule';
 import TeamStatsPage from './TeamStatsPage';
-
-import Momentum from './Momentum';
 import GameLineups from './GameLineups';
+import Momentum from './Momentum';
+import BackButton from './BackButton';
+
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -2409,25 +2410,19 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 >
 <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-6xl mx-auto">
-      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-      <button 
-  onClick={() => {
-    trigger('light');
-    setShowStandings(false);
-    if (navigationStack.length > 0) {
-      const previous = navigationStack[navigationStack.length - 1];
-      setNavigationStack(prev => prev.slice(0, -1));
-      if (previous.type === 'teamStats') {
-        setSlideDirection('left');
-        setSelectedTeamInfo(previous.teamInfo);
-        setTeamStats(previous.stats);
-      }
-    }
-  }}
-  className="text-gray-400 hover:text-white text-2xl font-light mr-4"
->‹</button>
-
-</div>
+      <BackButton onClick={() => {
+        trigger('light');
+        setShowStandings(false);
+        if (navigationStack.length > 0) {
+          const previous = navigationStack[navigationStack.length - 1];
+          setNavigationStack(prev => prev.slice(0, -1));
+          if (previous.type === 'teamStats') {
+            setSlideDirection('left');
+            setSelectedTeamInfo(previous.teamInfo);
+            setTeamStats(previous.stats);
+          }
+        }
+      }} />
 
         <div className="flex gap-2 mb-6">
           <button
@@ -2524,16 +2519,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   >
   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
-      <div className="flex items-center mb-6 sticky top-0 z-10 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button 
-            onClick={() => { trigger('light'); closeModal(); }}
-
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >
-            ‹
-          </button>
-          
-        </div>
+      <BackButton onClick={() => { trigger('light'); closeModal(); }} />
         <div
   className="bg-black rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
   style={{
@@ -3753,11 +3739,7 @@ onClick={(e) => {
   >
      <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto">
-        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-  <button onClick={() => { trigger('light'); closeTeamModal(); }}
- className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
-
-</div>
+        <BackButton onClick={() => { trigger('light'); closeTeamModal(); }} />
   
              <TeamStatsPage
             key={selectedTeamInfo.abbr}
@@ -3807,20 +3789,13 @@ onClick={(e) => {
   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
 
-        {/* Back button */}
-        <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button
-                   onClick={() => {
-                    trigger('light');
-                    setSelectedNBAPlayer(null);
-                    setNbaPlayerStats(null);
-                    setSelectedStatSeason(null);
-                    setAvailableSeasons([]);
-                  }}
-            className="text-gray-400 hover:text-white text-2xl font-light mr-4"
-          >‹</button>
-
-        </div>
+      <BackButton onClick={() => {
+          trigger('light');
+          setSelectedNBAPlayer(null);
+          setNbaPlayerStats(null);
+          setSelectedStatSeason(null);
+          setAvailableSeasons([]);
+        }} />
 
         <PlayerStatsPage
           player={selectedNBAPlayer}
@@ -3869,10 +3844,10 @@ onClick={(e) => {
   <div ref={favoritesRef} className="fixed inset-0 bg-black bg-opacity-100 z-[100] overflow-y-auto">
    <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
-      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button onClick={() => { trigger('light'); setShowFavorites(false); }} className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
-          <h2 className="text-2xl font-bold">Teams</h2>
-        </div>
+      <BackButton
+        onClick={() => { trigger('light'); setShowFavorites(false); }}
+        title={<h2 className="text-2xl font-bold">Teams</h2>}
+      />
 
         {favoriteTeams.length > 0 && (
           <div className="mb-6">
@@ -3931,13 +3906,14 @@ onClick={(e) => {
   <div ref={rosterRef} className="fixed inset-0 bg-black bg-opacity-100 z-[170] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
-      <div className="flex items-center mb-6 sticky top-0 z-50 py-3 px-1 backdrop-blur-md border-b border-white/5" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)' }}>
-          <button onClick={() => { trigger('light'); setShowRoster(false); setRosterData(null); }}
- className="text-gray-400 hover:text-white text-2xl font-light mr-4">‹</button>
+      <BackButton
+        onClick={() => { trigger('light'); setShowRoster(false); setRosterData(null); }}
+        title={
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
             {teamFullNames[selectedTeamInfo?.abbr]} Roster
           </h2>
-        </div>
+        }
+      />
 
         {!rosterData ? (
           <div className="text-center py-12 text-gray-400">Loading roster...</div>
