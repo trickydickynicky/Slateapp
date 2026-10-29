@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useWebHaptics } from 'web-haptics/react';
 
 const SUMMARY_URL = id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
 const memCache = new Map();
@@ -166,6 +167,7 @@ const statCells = (sec, pts, opp, poss) => {
 };
 
 export default function GameLineups({ gameId }) {
+    const { trigger } = useWebHaptics();
   const [data, setData] = useState(null);      // null = loading, [] = failed
   const [teamIdx, setTeamIdx] = useState(0);
   const [filter, setFilter] = useState({});    // playerId -> 'in' | 'out'
@@ -247,7 +249,7 @@ export default function GameLineups({ gameId }) {
               {data.map((t, i) => (
                 <button
                   key={t.id}
-                  onClick={() => { setTeamIdx(i); setFilter({}); setShowAll(false); }}
+                  onClick={() => { trigger('selection'); setTeamIdx(i); setFilter({}); setShowAll(false); }}
                   className={`px-4 py-1 rounded-full text-xs font-bold transition-all ${i === teamIdx ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
                 >
                   {t.abbr}
@@ -262,7 +264,7 @@ export default function GameLineups({ gameId }) {
               return (
                 <button
                   key={id}
-                  onClick={() => cycle(id)}
+                  onClick={() => { trigger('selection'); cycle(id); }}
                   className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-semibold border ${
                     m === 'in' ? 'bg-blue-600 border-blue-600 text-white'
                       : m === 'out' ? 'bg-red-950 border-red-800 text-red-300 line-through'
@@ -307,7 +309,7 @@ export default function GameLineups({ gameId }) {
                 </div>
               </div>
               {rows.length > LIMIT && (
-                <button onClick={() => setShowAll(v => !v)} className="w-full text-xs font-bold text-blue-500 pt-3">
+                              <button onClick={() => { trigger('light'); setShowAll(v => !v); }} className="w-full text-xs font-bold text-blue-500 pt-3">
                   {showAll ? 'Show less' : `Show all ${rows.length}`}
                 </button>
               )}
