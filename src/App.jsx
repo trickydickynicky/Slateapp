@@ -9,7 +9,7 @@ import SlateBot from "./SlateBot";
 
 import PlayerGameBreakdown from './PlayerGameBreakdown';
 import PlayerComparison from './PlayerComparison';
-import PlayerRecentGames from './PlayerRecentGames';
+import PlayerStatsPage from './PlayerStatsPage';
 import TeamSchedule from './TeamSchedule';
 import Momentum from './Momentum';
 function SportsApp() {
@@ -4349,302 +4349,43 @@ onClick={(e) => {
           <h2 className="text-2xl font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Player Stats</h2>
         </div>
 
-        {/* HERO HEADER */}
-        {(() => {
-         const teamAbbr = selectedNBAPlayer?.teamAbbr || (selectedTeam === 'away' ? selectedGame?.awayTeam : selectedGame?.homeTeam);
-         const teamLogo = selectedNBAPlayer?.teamLogo || (selectedTeam === 'away' ? selectedGame?.awayLogo : selectedGame?.homeLogo);
-          const color = teamColors[teamAbbr] || '#3B82F6';
-
-          const boxscorePlayer = gameDetails?.boxscore?.players?.[selectedTeam === 'away' ? 0 : 1]?.statistics?.[0]?.athletes?.find(
-            a => a.athlete.id === selectedNBAPlayer.id
-          );
-          const roster = selectedTeam === 'away' ? gameDetails?.awayRoster : gameDetails?.homeRoster;
-          const rosterPlayer = roster?.find(p => p.id === selectedNBAPlayer.id);
-          
-          const headshot = boxscorePlayer?.athlete?.headshot?.href || rosterPlayer?.headshot?.href || rosterPlayer?.headshot || selectedNBAPlayer?.headshot;
-          const jersey = boxscorePlayer?.athlete?.jersey || rosterPlayer?.jersey || selectedNBAPlayer?.jersey || '-';
-          const position = boxscorePlayer?.athlete?.position?.abbreviation || rosterPlayer?.position?.abbreviation || selectedNBAPlayer?.position || 'N/A';
-
-          return (
-            <div
-              className="rounded-2xl p-5 mb-4 relative overflow-hidden"
-              style={{
-                background: `linear-gradient(135deg, ${color}33 0%, #18181b 55%)`,
-                border: `1px solid ${color}44`,
-              }}
-            >
-              {/* Glow */}
-              <div
-                className="absolute -top-10 -right-10 w-48 h-48 rounded-full blur-3xl opacity-20 pointer-events-none"
-                style={{ background: color }}
-              />
-
-              {/* Top row */}
-              <div className="flex items-center gap-4 relative z-10 mb-4">
-                <img
-                  src={headshot}
-                  alt={selectedNBAPlayer.name}
-                  className="w-20 h-20 rounded-2xl object-cover"
-                  style={{ border: `2px solid ${color}66` }}
-                />
-                <div className="flex-1">
-                <h3 className="text-xl font-bold leading-tight" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{selectedNBAPlayer.name}</h3>
-                <div
-                    className={`flex items-center gap-2 mt-1 ${teamAbbr ? 'cursor-pointer active:opacity-70' : ''}`}
-                    onClick={() => {
-                      if (!teamAbbr) return;
-                      trigger('light');
-                      const logo = teamLogo || `https://a.espncdn.com/i/teamlogos/nba/500/${teamAbbr}.png`;
-                      const returnTo = { player: selectedNBAPlayer, prevInfo: selectedTeamInfo };
-                      setSelectedNBAPlayer(null);
-                      setNbaPlayerStats(null);
-                      setSelectedStatSeason(null);
-                      setAvailableSeasons([]);
-                      setShowRoster(false);
-                      setRosterData(null);
-                      setCompareTeam(null);
-                      setCompareTeamStats(null);
-                      setIsCompareMode(false);
-                      setSlideDirection('right');
-                      setSelectedTeamInfo({ abbr: teamAbbr, logo, returnTo });
-                      setTeamStats(null);
-                      fetchTeamStats(teamAbbr);
-                    }}
-                  >
-                    <img src={teamLogo} alt={teamAbbr} className="w-4 h-4" />
-                    <span className="text-gray-400 text-xs">{teamFullNames[teamAbbr]} ›</span>
-                  </div>
-                  <div className="text-gray-500 text-xs mt-0.5">#{jersey} • {position}</div>
-                </div>
-              </div>
-
-              {/* Key stats */}
-              {nbaPlayerStats?.currentSeason && (
-                <div className="relative z-10 grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'PPG', value: nbaPlayerStats.currentSeason.pts },
-                    { label: 'RPG', value: nbaPlayerStats.currentSeason.reb },
-                    { label: 'APG', value: nbaPlayerStats.currentSeason.ast },
-                  ].map(({ label, value }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center py-2 rounded-xl"
-                      style={{ background: `${color}22`, border: `1px solid ${color}33` }}
-                    >
-                      <span className="text-2xl font-bold">{value}</span>
-                      <span className="text-[11px] text-gray-400 mt-0.5">{label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
-<button
-  onClick={() => setShowPlayerComparison(true)}
-  className="w-full bg-zinc-900 hover:bg-zinc-800 rounded-xl py-2.5 text-sm font-semibold text-blue-400 transition-colors mb-4"
->
-  Compare Player
-</button>
-        {/* Season selector */}
-        {availableSeasons.length > 0 && (
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Season Stats</h4>
-            <select
-              value={selectedStatSeason || ''}
-              onFocus={() => trigger('selection')}
-              onChange={(e) => {
-                trigger('selection');
-                const newSeason = parseInt(e.target.value);
-                setSelectedStatSeason(newSeason);
-                if (nbaPlayerStats?.allSeasonsData?.[newSeason]) {
-                  setNbaPlayerStats(prev => ({
-                    ...prev,
-                    currentSeason: prev.allSeasonsData[newSeason]
-                  }));
-                } else {
-                  fetchNBAPlayerStats(selectedNBAPlayer.name, selectedNBAPlayer.id, newSeason);
-                }
-              }}
-              className="bg-transparent text-blue-400 text-sm font-semibold outline-none appearance-none cursor-pointer pr-4"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234B9EF4' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right center',
-              }}
-            >
-              {availableSeasons.map(season => (
-                <option key={season.year} value={season.year} className="bg-zinc-900">
-                  {season.displayName}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {loadingNBAStats ? (
-          <div className="text-center py-12 text-gray-400">Loading stats...</div>
-        ) : nbaPlayerStats?.error ? (
-          <div className="bg-zinc-900 rounded-2xl p-6 text-center text-red-500">
-            {nbaPlayerStats.error}
-          </div>
-        ) : nbaPlayerStats?.currentSeason ? (
-          <div>
-
-           {/* Shooting */}
-<div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-  <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Shooting</h5>
-  <div className="grid grid-cols-3 gap-2 mb-3">
-    {(() => {
-      const pts = parseFloat(nbaPlayerStats.currentSeason.pts) || 0;
-      const fgParts = (nbaPlayerStats.currentSeason.fg || '0-0').split('-');
-      const fgm = parseFloat(fgParts[0]) || 0;
-      const fga = parseFloat(fgParts[1]) || 0;
-      const ftParts = (nbaPlayerStats.currentSeason.ft || '0-0').split('-');
-      const fta = parseFloat(ftParts[1]) || 0;
-      const threeParts = (nbaPlayerStats.currentSeason.three_pt || '0-0').split('-');
-      const tpm = parseFloat(threeParts[0]) || 0;
-      const ts = fga + fta > 0 ? ((pts / (2 * (fga + 0.44 * fta))) * 100).toFixed(1) : '0';
-      const efg = fga > 0 ? (((fgm + 0.5 * tpm) / fga) * 100).toFixed(1) : '0';
-      const ftr = fga > 0 ? ((fta / fga) * 100).toFixed(1) : '0';
-      return [
-        { label: 'FG%', value: nbaPlayerStats.currentSeason.fg_pct, made: nbaPlayerStats.currentSeason.fg },
-        { label: '3P%', value: nbaPlayerStats.currentSeason.three_p_pct, made: nbaPlayerStats.currentSeason.three_pt },
-        { label: 'FT%', value: nbaPlayerStats.currentSeason.ft_pct, made: nbaPlayerStats.currentSeason.ft },
-        { label: 'TS%', value: ts, made: null },
-        { label: 'eFG%', value: efg, made: null },
-        
-        { label: 'FTr', value: ftr, made: null },
-      ];
-    })().map(({ label, value, made }) => {
-      const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
-      const parts = (made || '0-0').split('-');
-      const madePerGame = parseFloat(parts[0]) || 0;
-      const attemptedPerGame = parseFloat(parts[1]) || 0;
-      const totalMade = Math.round(madePerGame * gp);
-      const totalAttempted = Math.round(attemptedPerGame * gp);
-      return (
-        <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-          <span className="text-lg font-bold">{value}%</span>
-          {made && <span className="text-[10px] text-gray-500 -mt-1">{totalMade}/{totalAttempted}</span>}
-          <span className="text-[10px] text-gray-400 -mt-0">{label}</span>
-        </div>
-      );
-    })}
-  </div>
-  {(() => {
-    const fgParts = (nbaPlayerStats.currentSeason.fg || '0-0').split('-');
-    const fgm = parseFloat(fgParts[0]) || 0;
-    const fga = parseFloat(fgParts[1]) || 0;
-    const tpParts = (nbaPlayerStats.currentSeason.three_pt || '0-0').split('-');
-    const tpm = parseFloat(tpParts[0]) || 0;
-    const tpa = parseFloat(tpParts[1]) || 0;
-    const ftParts = (nbaPlayerStats.currentSeason.ft || '0-0').split('-');
-    const ftm = parseFloat(ftParts[0]) || 0;
-    const fta = parseFloat(ftParts[1]) || 0;
-    const fgPct = parseFloat(nbaPlayerStats.currentSeason.fg_pct) || 0;
-    const tpPct = parseFloat(nbaPlayerStats.currentSeason.three_p_pct) || 0;
-    const ftPct = parseFloat(nbaPlayerStats.currentSeason.ft_pct) || 0;
-    const color = teamColors[selectedNBAPlayer?.teamAbbr || (selectedTeam === 'away' ? selectedGame?.awayTeam : selectedGame?.homeTeam)] || '#3B82F6';
-    const size = 80;
-    const rings = [
-      { pct: fgPct, made: fgm, att: fga, label: 'FG' },
-      { pct: tpPct, made: tpm, att: tpa, label: '3PT' },
-      { pct: ftPct, made: ftm, att: fta, label: 'FT' },
-    ];
-    return (
-      <div className="flex justify-around mt-1">
-        {rings.map(({ pct, made, att, label }) => {
-          const r = (size / 2) - 5;
-          const circ = 2 * Math.PI * r;
-          const dash = (pct / 100) * circ;
-          const gp = parseInt(nbaPlayerStats.currentSeason.gp) || 1;
-          const totalMade = Math.round(made * gp);
-          const totalAtt = Math.round(att * gp);
-          return (
-            <div key={label} className="flex flex-col items-center">
-              <div style={{ position: 'relative', width: size, height: size }}>
-                <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#27272a" strokeWidth="3.5" />
-                  {att > 0 && (
-                    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color}
-                      strokeWidth="3.5" strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
-                  )}
-                </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#3f3f46', fontFamily: 'Rajdhani, sans-serif' }}>
-                    {att > 0 ? `${pct}%` : '—'}
-                  </span>
-                </div>
-              </div>
-              <span style={{ fontSize: 10, color: '#71717a', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
-              <span style={{ fontSize: 9, color: '#52525b', marginTop: 1 }}>{totalMade}/{totalAtt}</span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  })()}
-</div>
-{/* Per Game */}
-            <div className="bg-zinc-900 rounded-2xl p-4 mb-3">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Per Game</h5>
-              <div className="grid grid-cols-4 gap-2 mb-2">
-                {[
-                  { label: 'STL', value: nbaPlayerStats.currentSeason.stl },
-                  { label: 'BLK', value: nbaPlayerStats.currentSeason.blk },
-                  { label: 'TO', value: nbaPlayerStats.currentSeason.to },
-                  { label: 'PF', value: nbaPlayerStats.currentSeason.pf },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                    <span className="text-lg font-bold">{value}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'OREB', value: nbaPlayerStats.currentSeason.or },
-                  { label: 'DREB', value: nbaPlayerStats.currentSeason.dr },
-                  { label: 'REB', value: nbaPlayerStats.currentSeason.reb },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                    <span className="text-lg font-bold">{value}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Availability */}
-            <div className="bg-zinc-900 rounded-2xl p-4">
-              <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>Availability</h5>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'GP', value: nbaPlayerStats.currentSeason.gp },
-                  { label: 'GS', value: nbaPlayerStats.currentSeason.gs },
-                  { label: 'MIN', value: nbaPlayerStats.currentSeason.min },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-2 flex flex-col items-center">
-                    <span className="text-lg font-bold">{value}</span>
-                    <span className="text-[10px] text-gray-400 mt-0.5">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-          </div>
-            ) : (
-              <div className="bg-zinc-900 rounded-2xl p-6 text-center text-gray-400">
-                No stats available
-              </div>
-            )}
-    
-            <PlayerRecentGames
-              key={selectedNBAPlayer.id}
-              playerId={selectedNBAPlayer.id}
-              color={teamColors[selectedNBAPlayer.teamAbbr] || '#3B82F6'}
-            />
+        <PlayerStatsPage
+          player={selectedNBAPlayer}
+          selectedGame={selectedGame}
+          gameDetails={gameDetails}
+          selectedTeam={selectedTeam}
+          stats={nbaPlayerStats}
+          loading={loadingNBAStats}
+          seasons={availableSeasons}
+          season={selectedStatSeason}
+          onHaptic={trigger}
+          onCompare={() => setShowPlayerComparison(true)}
+          onSeasonChange={(newSeason) => {
+            setSelectedStatSeason(newSeason);
+            if (nbaPlayerStats?.allSeasonsData?.[newSeason]) {
+              setNbaPlayerStats(prev => ({ ...prev, currentSeason: prev.allSeasonsData[newSeason] }));
+            } else {
+              fetchNBAPlayerStats(selectedNBAPlayer.name, selectedNBAPlayer.id, newSeason);
+            }
+          }}
+          onTeamClick={(teamAbbr, teamLogo) => {
+            const logo = teamLogo || `https://a.espncdn.com/i/teamlogos/nba/500/${teamAbbr}.png`;
+            const returnTo = { player: selectedNBAPlayer, prevInfo: selectedTeamInfo };
+            setSelectedNBAPlayer(null);
+            setNbaPlayerStats(null);
+            setSelectedStatSeason(null);
+            setAvailableSeasons([]);
+            setShowRoster(false);
+            setRosterData(null);
+            setCompareTeam(null);
+            setCompareTeamStats(null);
+            setIsCompareMode(false);
+            setSlideDirection('right');
+            setSelectedTeamInfo({ abbr: teamAbbr, logo, returnTo });
+            setTeamStats(null);
+            fetchTeamStats(teamAbbr);
+          }}
+        />
 
       </div>
     </div>

@@ -1,5 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSwipeBack } from './useSwipeBack';
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Constants
+──────────────────────────────────────────────────────────────────────────── */
 
 const teamColors = {
   ATL:'#E03A3E',BOS:'#007A33',BKN:'#000000',CHA:'#1D1160',CHI:'#CE1141',
@@ -10,134 +14,717 @@ const teamColors = {
   SAC:'#5A2D81',SA:'#C4CED4',TOR:'#CE1141',UTAH:'#002B5C',WSH:'#002B5C',
 };
 
-// Arc ring for shooting %
-function Ring({ pct, made, att, label, color, size = 70 }) {
-  const r = (size / 2) - 5;
-  const circ = 2 * Math.PI * r;
-  const val = parseFloat(pct) || 0;
-  const dash = (val / 100) * circ;
+const ACCENT = '#2563eb';   // blue-600, the app accent
+const MUTED = '#6b7280';
+const GREEN = '#22c55e';
+const RED = '#ef4444';
+const POLL_MS = 12000;
+const SUMMARY_URL = id =>
+  `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
 
+const DEFAULT_LABELS = ['MIN','PTS','FG','3PT','FT','REB','AST','TO','STL','BLK','OREB','DREB','PF','+/-'];
+
+const IS_DEV = (() => {
+  try { if (typeof import.meta !== 'undefined' && import.meta.env) return !!import.meta.env.DEV; } catch (e) { /* ignore */ }
+  try { return typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'; } catch (e) { return false; }
+})();
+
+// Processed results for finished games: key = `${gameId}:${playerId}`. Never expires.
+const finalCache = new Map();
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Pure transform logic (exported so it can be unit tested)
+──────────────────────────────────────────────────────────────────────────── */
+
+const num = v => {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export const splitMadeAtt = str => {
+  const p = String(str ?? '0-0').split('-');
+  return [num(p[0]), num(p[1])];
+};
+
+export const pctOf = (made, att) => (att > 0 ? (made / att) * 100 : null);
+
+export const tsPct = (pts, fga, fta) => {
+  const d = 2 * (fga + 0.44 * fta);
+  return d > 0 ? (pts / d) * 100 : null;
+};
+
+export const fmtPct = p => (p == null ? '—' : p.toFixed(1));
+
+export const quarterLabel = (period, maxPeriod) => {
+  if (period <= 4) return `Q${period}`;
+  return maxPeriod === 5 ? 'OT' : `OT${period - 4}`;
+};
+
+const playerIdOf = p => {
+  const a = p?.athlete;
+  if (!a) return null;
+  if (a.id != null) return String(a.id);
+  const m = typeof a.$ref === 'string' ? a.$ref.match(/athletes\/(\d+)/) : null;
+  return m ? m[1] : null;
+};
+
+export const emptyStat = () => ({
+  pts: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0,
+  oreb: 0, dreb: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, pf: 0,
+});
+
+const THREE_RE = /three point|three-point|3-pt|3pt/i;
+
+/**
+ * Applies one play to a stat line for `pid`. Mutates and returns `stat`.
+ * participants[0] is the primary player; on an assisted make, participants[1] is the assister.
+ */
+export function applyPlay(stat, play, pid) {
+  const parts = Array.isArray(play?.participants) ? play.participants : [];
+  const ids = parts.map(playerIdOf);
+  const typeText = play?.type?.text || '';
+  const text = play?.text || '';
+  const blob = `${typeText} ${text}`;
+  const isP0 = ids[0] === pid;
+  const isP1 = ids[1] === pid;
+  if (!isP0 && !isP1) return stat;
+
+  const made = !!play.scoringPlay;
+  const isFT = /free throw/i.test(blob);
+  const isThree = THREE_RE.test(blob);
+  const isBlock = /block/i.test(typeText) || /\bblocks\b/i.test(text);
+
+  if (isBlock) {
+    // "A blocks B's shot": A (participants[0]) gets the block, B (participants[1]) the missed attempt.
+    if (isP0) stat.blk += 1;
+    if (isP1 && play.shootingPlay !== false) {
+      stat.fga += 1;
+      if (isThree) stat.tpa += 1;
+    }
+    return stat;
+  }
+
+  if (isP0) {
+    if (play.shootingPlay || isFT) {
+      if (isFT) {
+        stat.fta += 1;
+        if (made) { stat.ftm += 1; stat.pts += num(play.scoreValue) || 1; }
+      } else {
+        stat.fga += 1;
+        if (isThree) stat.tpa += 1;
+        if (made) {
+          stat.fgm += 1;
+          if (isThree) stat.tpm += 1;
+          stat.pts += num(play.scoreValue) || (isThree ? 3 : 2);
+        }
+      }
+    } else if (/rebound/i.test(typeText)) {
+      if (/offensive/i.test(typeText)) stat.oreb += 1; else stat.dreb += 1;
+    } else {
+      if (/turnover/i.test(typeText)) stat.to += 1;
+      if (/foul/i.test(typeText) && !/technical/i.test(typeText)) stat.pf += 1;
+    }
+  }
+
+  if (isP1) {
+    if (made && !isFT && (!text || /assist/i.test(text))) stat.ast += 1;
+    if (/steal/i.test(text)) stat.stl += 1;
+  }
+
+  return stat;
+}
+
+const finalizeStat = s => ({ ...s, reb: s.oreb + s.dreb });
+
+/** Plays -> { [periodNumber]: stat line } */
+export function buildQuarterStats(plays, pid) {
+  const byPeriod = {};
+  let maxPeriod = 0;
+  (plays || []).forEach(p => {
+    const n = p?.period?.number;
+    if (Number.isFinite(n) && n > maxPeriod) maxPeriod = n;
+  });
+  maxPeriod = Math.max(maxPeriod, 4);
+  for (let i = 1; i <= maxPeriod; i++) byPeriod[i] = emptyStat();
+  (plays || []).forEach(p => {
+    const n = p?.period?.number;
+    if (byPeriod[n]) applyPlay(byPeriod[n], p, pid);
+  });
+  Object.keys(byPeriod).forEach(k => { byPeriod[k] = finalizeStat(byPeriod[k]); });
+  return { byPeriod, maxPeriod };
+}
+
+/** Points + assist count per teammate off this player's assists. */
+export function buildAssistBreakdown(plays, pid, roster = new Map()) {
+  const map = new Map();
+  (plays || []).forEach(p => {
+    if (!p?.scoringPlay) return;
+    const parts = Array.isArray(p.participants) ? p.participants : [];
+    const ids = parts.map(playerIdOf);
+    const blob = `${p?.type?.text || ''} ${p?.text || ''}`;
+    if (ids[1] !== pid || !ids[0] || ids[0] === pid) return;
+    if (/free throw/i.test(blob)) return;
+    if (p.text && !/assist/i.test(p.text)) return;
+    const pts = num(p.scoreValue) || (THREE_RE.test(blob) ? 3 : 2);
+    const row = map.get(ids[0]) || { id: ids[0], pts: 0, ast: 0 };
+    row.pts += pts;
+    row.ast += 1;
+    map.set(ids[0], row);
+  });
+  const rows = [...map.values()]
+    .map(r => ({ ...r, name: roster.get(r.id)?.name || 'Teammate', headshot: roster.get(r.id)?.headshot || null }))
+    .sort((a, b) => b.pts - a.pts || b.ast - a.ast);
+  return { total: rows.reduce((s, r) => s + r.pts, 0), rows };
+}
+
+const isSubPlay = p => /substitution/i.test(p?.type?.text || '') || /enters the game/i.test(p?.text || '');
+
+/**
+ * Plus/minus per period, from the running score and substitution plays.
+ * Substitution participants: [0] enters, [1] leaves. `starter` says who is on court at tip-off.
+ */
+export function buildQuarterPlusMinus(plays, pid, isHome, starter) {
+  const list = Array.isArray(plays) ? plays : [];
+  const idsOf = p => (Array.isArray(p?.participants) ? p.participants : []).map(playerIdOf);
+
+  let on;
+  if (typeof starter === 'boolean') {
+    on = starter;
+  } else {
+    const firstSub = list.find(p => isSubPlay(p) && idsOf(p).includes(pid));
+    on = firstSub ? idsOf(firstSub)[1] === pid : false;
+  }
+
+  const out = {};
+  let prevMy = 0;
+  let prevOpp = 0;
+  list.forEach(p => {
+    const n = p?.period?.number;
+    if (!Number.isFinite(n)) return;
+    if (isSubPlay(p)) {
+      const ids = idsOf(p);
+      if (ids[0] === pid) on = true;
+      else if (ids[1] === pid) on = false;
+    }
+    if (p.awayScore == null || p.homeScore == null) return;
+    const my = num(isHome ? p.homeScore : p.awayScore);
+    const opp = num(isHome ? p.awayScore : p.homeScore);
+    if (on) out[n] = (out[n] || 0) + (my - prevMy) - (opp - prevOpp);
+    prevMy = my;
+    prevOpp = opp;
+  });
+  return out;
+}
+
+/** One boxscore athlete row -> numeric stat line (uses the labels array when ESPN provides it). */
+export function parseBoxRow(row, labels) {
+  const stats = row?.stats;
+  if (!Array.isArray(stats) || stats.length === 0) return null;
+  const L = Array.isArray(labels) && labels.length ? labels : DEFAULT_LABELS;
+  const get = l => {
+    const i = L.indexOf(l);
+    return i >= 0 ? stats[i] : undefined;
+  };
+  const [fgm, fga] = splitMadeAtt(get('FG'));
+  const [tpm, tpa] = splitMadeAtt(get('3PT'));
+  const [ftm, fta] = splitMadeAtt(get('FT'));
+  const oreb = num(get('OREB'));
+  const dreb = num(get('DREB'));
+  return {
+    min: get('MIN') ?? '—',
+    pts: num(get('PTS')), fgm, fga, tpm, tpa, ftm, fta,
+    oreb, dreb, reb: get('REB') != null ? num(get('REB')) : oreb + dreb,
+    ast: num(get('AST')), stl: num(get('STL')), blk: num(get('BLK')),
+    to: num(get('TO')), pf: num(get('PF')),
+    pm: num(get('+/-')),
+  };
+}
+
+export function sumStats(list) {
+  return finalizeStat(list.reduce((acc, s) => {
+    Object.keys(acc).forEach(k => { acc[k] += s[k] || 0; });
+    return acc;
+  }, emptyStat()));
+}
+
+const CHECK_KEYS = ['pts', 'reb', 'ast', 'stl', 'blk', 'to', 'pf', 'fga'];
+
+/** Returns the stats where the quarter totals don't match the box score. */
+export function findTotalMismatches(box, byPeriod) {
+  if (!box) return [];
+  const total = sumStats(Object.values(byPeriod));
+  return CHECK_KEYS
+    .filter(k => num(total[k]) !== num(box[k]))
+    .map(k => ({ stat: k, quarters: total[k], box: box[k] }));
+}
+
+/** Whole summary -> everything the view needs for one player. */
+export function processSummary(summary, playerId, teamIdx = 0) {
+  const pid = String(playerId);
+  const teams = Array.isArray(summary?.boxscore?.players) ? summary.boxscore.players : [];
+  const athletesOf = t => t?.statistics?.[0]?.athletes || [];
+  const teamEntry =
+    teams.find(t => athletesOf(t).some(a => String(a?.athlete?.id) === pid)) || teams[teamIdx] || null;
+  const statBlock = teamEntry?.statistics?.[0];
+  const row = athletesOf(teamEntry).find(a => String(a?.athlete?.id) === pid) || null;
+
+  const roster = new Map();
+  athletesOf(teamEntry).forEach(a => {
+    const id = a?.athlete?.id;
+    if (id == null) return;
+    roster.set(String(id), {
+      name: a.athlete.displayName || a.athlete.shortName || 'Teammate',
+      headshot: a.athlete.headshot?.href || null,
+    });
+  });
+
+  const box = parseBoxRow(row, statBlock?.labels);
+  const plays = Array.isArray(summary?.plays) ? summary.plays : [];
+  const hasPlays = plays.length > 0;
+
+  const teamId = teamEntry?.team?.id != null ? String(teamEntry.team.id) : null;
+  const competitors = summary?.header?.competitions?.[0]?.competitors || [];
+  const mine = competitors.find(c => teamId && (String(c?.id) === teamId || String(c?.team?.id) === teamId));
+  const isHome = mine ? mine.homeAway === 'home' : teamIdx === 1;
+
+  let byPeriod = {};
+  let maxPeriod = 4;
+  let assists = { total: 0, rows: [] };
+  let pmOk = false;
+  if (hasPlays) {
+    ({ byPeriod, maxPeriod } = buildQuarterStats(plays, pid));
+    assists = buildAssistBreakdown(plays, pid, roster);
+
+    const pmByPeriod = buildQuarterPlusMinus(plays, pid, isHome, row?.starter);
+    Object.keys(byPeriod).forEach(k => { byPeriod[k].pm = pmByPeriod[k] || 0; });
+    const pmSum = Object.values(byPeriod).reduce((t, s) => t + s.pm, 0);
+    // Only trust quarter +/- when it adds up to the box score +/-.
+    pmOk = !!box && pmSum === box.pm;
+    if (IS_DEV && box && !pmOk) {
+      // eslint-disable-next-line no-console
+      console.warn(`[PlayerGameBreakdown] +/- mismatch: quarters sum to ${pmSum}, box score says ${box.pm}. Quarter +/- hidden.`);
+    }
+    if (IS_DEV) {
+      findTotalMismatches(box, byPeriod).forEach(m =>
+        // eslint-disable-next-line no-console
+        console.warn(`[PlayerGameBreakdown] ${m.stat.toUpperCase()} mismatch: quarters sum to ${m.quarters}, box score says ${m.box}`)
+      );
+    }
+  }
+
+  const comp = summary?.header?.competitions?.[0];
+  return {
+    box,
+    boxAthlete: row?.athlete || null,
+    hasBoxscore: teams.length > 0,
+    hasPlays,
+    pmOk,
+    byPeriod,
+    maxPeriod,
+    assists,
+    completed: comp?.status?.type?.completed === true,
+    inProgress: comp?.status?.type?.state === 'in',
+  };
+}
+
+/* Season stats + league rank (ESPN core API, no key) */
+
+const SEASON_STATS = [
+  { label: 'PTS', names: ['avgPoints'] },
+  { label: 'REB', names: ['avgRebounds'] },
+  { label: 'AST', names: ['avgAssists'] },
+  { label: 'STL', names: ['avgSteals'] },
+  { label: 'BLK', names: ['avgBlocks'] },
+  { label: 'TO', names: ['avgTurnovers'] },
+  { label: '3PM', names: ['avgThreePointFieldGoalsMade'] },
+  { label: 'FG%', names: ['fieldGoalPct'] },
+];
+
+export const ordinal = n => {
+  const v = Math.abs(n) % 100;
+  const sfx = v >= 11 && v <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[v % 10] || 'th');
+  return `${n}${sfx}`;
+};
+
+/** ESPN season statistics response -> [{ label, value, rank }]; skips anything missing. */
+export function parseSeasonStats(json) {
+  const byName = {};
+  (json?.splits?.categories || []).forEach(c =>
+    (c?.stats || []).forEach(s => { if (s?.name && !byName[s.name]) byName[s.name] = s; })
+  );
+  const items = [];
+  SEASON_STATS.forEach(({ label, names }) => {
+    const st = names.map(n => byName[n]).find(Boolean);
+    const value = st?.displayValue ?? (st?.value != null ? String(st.value) : null);
+    if (value == null || value === '') return;
+    const rank = st.rankDisplayValue || (Number.isFinite(st.rank) ? ordinal(st.rank) : null);
+    items.push({ label, value, rank });
+  });
+  return items;
+}
+
+const seasonCache = new Map();   // `${playerId}:${season}` -> { at, items }
+const SEASON_TTL = 30 * 60 * 1000;
+const nbaSeasonYear = (d = new Date()) => (d.getMonth() >= 8 ? d.getFullYear() + 1 : d.getFullYear());
+const SEASON_URL = (id, yr) =>
+  `https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/seasons/${yr}/types/2/athletes/${id}/statistics`;
+
+function useSeasonStats(playerId) {
+  const [items, setItems] = useState(null);
+  useEffect(() => {
+    if (playerId == null) return undefined;
+    const yr = nbaSeasonYear();
+    const key = `${playerId}:${yr}`;
+    const hit = seasonCache.get(key);
+    if (hit && Date.now() - hit.at < SEASON_TTL) { setItems(hit.items); return undefined; }
+    setItems(null);
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(SEASON_URL(playerId, yr), { signal: controller.signal });
+        if (!res.ok) throw new Error(`ESPN ${res.status}`);
+        const parsed = parseSeasonStats(await res.json());
+        seasonCache.set(key, { at: Date.now(), items: parsed });
+        setItems(parsed);
+      } catch (err) {
+        if (err?.name !== 'AbortError') setItems([]);
+      }
+    })();
+    return () => controller.abort();
+  }, [playerId]);
+  return items;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Data hook: reuse the loaded summary, cache finals, poll live games
+──────────────────────────────────────────────────────────────────────────── */
+
+function usePlayerBreakdown({ gameId, playerId, teamIdx, isFinal, isLive, detailsRef }) {
+  const [data, setData] = useState(null);   // { key, ...processed }
+  const [failed, setFailed] = useState(false);
+  const key = `${gameId}:${playerId}`;
+
+  useEffect(() => {
+    if (playerId == null) return undefined;
+    setFailed(false);
+
+    const cached = finalCache.get(key);
+    if (cached) { setData(cached); return undefined; }
+
+    let ignore = false;
+    let done = false;
+    let timer = null;
+    let controller = null;
+
+    const clear = () => { clearTimeout(timer); timer = null; if (controller) controller.abort(); };
+    const schedule = () => {
+      if (ignore || done || (typeof document !== 'undefined' && document.hidden)) return;
+      clearTimeout(timer);
+      timer = setTimeout(load, POLL_MS);
+    };
+    const accept = summary => {
+      const processed = { key, ...processSummary(summary, playerId, teamIdx) };
+      const finished = isFinal || processed.completed;
+      if (finished) {
+        done = true;
+        if (processed.hasPlays) finalCache.set(key, processed);
+      }
+      if (!ignore) setData(processed);
+      return processed;
+    };
+
+    async function load() {
+      if (ignore) return;
+      if (gameId == null) { setFailed(true); return; }
+      if (controller) controller.abort();
+      controller = new AbortController();
+      try {
+        const res = await fetch(SUMMARY_URL(gameId), { signal: controller.signal });
+        if (!res.ok) throw new Error(`ESPN ${res.status}`);
+        const summary = await res.json();
+        if (ignore) return;
+        const processed = accept(summary);
+        if (!done && (isLive || processed.inProgress)) schedule();
+      } catch (err) {
+        if (ignore || err?.name === 'AbortError') return;
+        setFailed(true);
+        if (!done && isLive) schedule();
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.hidden) clear();
+      else if (!done && isLive) load();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // Reuse the game detail summary if it's already loaded.
+    const seed = detailsRef.current;
+    if (seed?.boxscore) {
+      const processed = accept(seed);
+      if (processed.hasPlays) {
+        if (!done && isLive) schedule();   // already have plays, so don't refetch right away
+      } else {
+        load();                            // boxscore only; need plays for quarters
+      }
+    } else {
+      load();
+    }
+
+    return () => {
+      ignore = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      clear();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, teamIdx, isFinal, isLive]);
+
+  return { data: data && data.key === key ? data : null, failed };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Presentational pieces
+──────────────────────────────────────────────────────────────────────────── */
+
+const heading = { fontFamily: 'Rajdhani, sans-serif' };
+
+function Initials({ name, size }) {
   return (
-    <div className="flex flex-col items-center">
-      <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1f1f1f" strokeWidth="3.5" />
-          {att > 0 && (
-            <circle
-              cx={size/2} cy={size/2} r={r}
-              fill="none"
-              stroke={color}
-              strokeWidth="3.5"
-              strokeDasharray={`${dash} ${circ}`}
-              strokeLinecap="round"
-            />
-          )}
-        </svg>
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <span style={{
-            fontSize: 13, fontWeight: 800, color: att > 0 ? 'white' : '#6b7280',
-            fontFamily: 'Rajdhani, sans-serif',
-          }}>
-            {att > 0 ? `${val}%` : '—'}
-          </span>
-        </div>
-      </div>
-      <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>{label}</span>
-      <span style={{ fontSize: 9, color: '#6b7280', marginTop: 1 }}>{made}/{att}</span>
+    <div
+      className="bg-zinc-900 flex items-center justify-center text-gray-500 font-bold flex-shrink-0"
+      style={{ width: size, height: size, borderRadius: size, fontSize: size * 0.3 }}
+    >
+      {(name || '?').split(' ').map(n => n[0]).join('').slice(0, 2)}
     </div>
   );
 }
 
-// Compact stat tile
-function Tile({ value, label, accent, large }) {
+function Headshot({ src, name, size, ring }) {
+  if (!src) return <Initials name={name} size={size} />;
   return (
-    <div
-      className="flex flex-col items-center justify-center rounded-xl"
+    <img
+      src={src}
+      alt={name}
+      className="object-cover flex-shrink-0"
       style={{
-        background: accent ? `${accent}12` : '#0f0f0f',
-        border: `1px solid ${accent ? accent + '30' : '#1c1c1c'}`,
-        paddingTop: 10,
-        paddingBottom: 10,
+        width: size, height: size, borderRadius: size, background: '#18181b',
+        border: ring ? `2px solid ${ring}` : 'none',
       }}
-    >
-      <span style={{
-        fontSize: large ? 26 : 20,
-        fontWeight: 900,
-        color: accent || 'white',
-        lineHeight: 1,
-        fontFamily: 'Rajdhani, sans-serif',
-        letterSpacing: '-0.01em',
-      }}>
+    />
+  );
+}
+
+function StatCell({ value, label, color, small }) {
+  return (
+    <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
+      <span
+        style={{
+          fontSize: small ? 16 : 19, fontWeight: 800, lineHeight: 1,
+          color: color || 'white', whiteSpace: 'nowrap', letterSpacing: '-0.02em',
+        }}
+      >
         {value}
       </span>
-      <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>
+      <span style={{ fontSize: 8.5, color: MUTED, fontWeight: 700, letterSpacing: '0.06em', marginTop: 4 }}>
         {label}
       </span>
     </div>
   );
 }
 
+function StatGrid({ view, isAll, showPm }) {
+  const fgPct = fmtPct(pctOf(view.fgm, view.fga));
+  const ts = fmtPct(tsPct(view.pts, view.fga, view.fta));
+  const pm = view.pm;
+  const pmStr = pm == null ? '—' : pm > 0 ? `+${pm}` : `${pm}`;
+  const pmColor = pm > 0 ? GREEN : pm < 0 ? RED : null;
+  const pmCell = { v: pmStr, l: '+/-', c: pmColor };
+
+  const row1 = isAll
+    ? [
+        { v: view.min, l: 'MIN' }, { v: view.pts, l: 'PTS' }, { v: view.reb, l: 'REB' },
+        { v: view.ast, l: 'AST' }, { v: view.stl, l: 'STL' }, { v: view.blk, l: 'BLK' },
+        pmCell, { v: fgPct, l: 'FG%' },
+      ]
+    : [
+        { v: view.pts, l: 'PTS' }, { v: view.reb, l: 'REB' }, { v: view.ast, l: 'AST' },
+        { v: view.stl, l: 'STL' }, { v: view.blk, l: 'BLK' },
+        ...(showPm ? [pmCell] : []),
+        { v: fgPct, l: 'FG%' },
+      ];
+  const row2 = [
+    { v: `${view.fgm}-${view.fga}`, l: 'FG', s: true },
+    { v: `${view.tpm}-${view.tpa}`, l: '3FG', s: true },
+    { v: `${view.ftm}-${view.fta}`, l: 'FT', s: true },
+    { v: view.to, l: 'TO' }, { v: view.pf, l: 'PF' },
+    { v: view.oreb, l: 'OREB' }, { v: view.dreb, l: 'DREB' }, { v: ts, l: 'TS%' },
+  ];
+
+  const gridStyle = n => ({
+    display: 'grid', gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, columnGap: 2, rowGap: 14,
+  });
+
+  return (
+    <div style={{ marginTop: 22 }}>
+      <div style={gridStyle(row1.length)}>
+        {row1.map(c => <StatCell key={c.l} value={c.v} label={c.l} color={c.c} />)}
+      </div>
+      <div style={{ ...gridStyle(8), marginTop: 18 }}>
+        {row2.map(c => <StatCell key={c.l} value={c.v} label={c.l} small={c.s} />)}
+      </div>
+    </div>
+  );
+}
+
+function QuarterTabs({ periods, maxPeriod, tab, onChange }) {
+  const items = [{ id: 'all', label: 'All' }, ...periods.map(p => ({ id: p, label: quarterLabel(p, maxPeriod) }))];
+  return (
+    <div className="flex" style={{ gap: 20, marginTop: 26, borderBottom: '1px solid #171717' }}>
+      {items.map(({ id, label }) => {
+        const active = tab === id;
+        return (
+          <button
+            key={id}
+            onClick={() => onChange(id)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 14, fontWeight: 700, padding: '0 0 8px',
+              color: active ? ACCENT : MUTED,
+              borderBottom: `2px solid ${active ? ACCENT : 'transparent'}`,
+              marginBottom: -1,
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function QuarterBars({ periods, maxPeriod, byPeriod, color, tab }) {
+  const values = periods.map(p => byPeriod[p]?.pts || 0);
+  const best = Math.max(...values, 0);
+  const MAX_H = 84;
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div style={{ ...heading, fontSize: 17, fontWeight: 800, color: 'white', marginBottom: 14 }}>
+        Scoring by quarter
+      </div>
+      <div className="flex items-end justify-around" style={{ height: MAX_H + 40 }}>
+        {periods.map((p, i) => {
+          const v = values[i];
+          const h = best > 0 ? Math.max(6, (v / best) * MAX_H) : 6;
+          const dim = tab !== 'all' && tab !== p;
+          return (
+            <div key={p} className="flex flex-col items-center justify-end" style={{ width: 44, opacity: dim ? 0.4 : 1 }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: 'white', marginBottom: 5 }}>{v}</span>
+              <div style={{ width: 30, height: h, borderRadius: 10, background: v > 0 ? color : '#1f1f1f' }} />
+              <span style={{ fontSize: 10, color: MUTED, fontWeight: 700, marginTop: 6 }}>
+                {quarterLabel(p, maxPeriod)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AssistBreakdown({ assists }) {
+  if (!assists || assists.rows.length === 0) return null;
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div className="flex items-baseline justify-between" style={{ marginBottom: 10 }}>
+        <span style={{ ...heading, fontSize: 17, fontWeight: 800, color: 'white' }}>Assist breakdown</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: 'white' }}>{assists.total} pts</span>
+      </div>
+      {assists.rows.map(r => (
+        <div key={r.id} className="flex items-center" style={{ gap: 12, padding: '9px 0' }}>
+          <Headshot src={r.headshot} name={r.name} size={36} />
+          <div className="flex-1 min-w-0">
+            <div className="truncate" style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>{r.name}</div>
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>{r.pts} pts</div>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700, color: '#a1a1aa' }}>{r.ast} ast</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Screen
+──────────────────────────────────────────────────────────────────────────── */
+
 export default function PlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
   const screenRef = useSwipeBack(onClose);
+  const [tab, setTab] = useState('all');
 
-  const teamAbbr = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
+  const detailsRef = useRef(gameDetails);
+  detailsRef.current = gameDetails;
+
+  const isAway = selectedTeam === 'away';
+  const teamIdx = isAway ? 0 : 1;
+  const teamAbbr = isAway ? game.awayTeam : game.homeTeam;
+  const myLogo = isAway ? game.awayLogo : game.homeLogo;
   const color = teamColors[teamAbbr] || '#3B82F6';
+  const gameId = game?.id ?? game?.gameId ?? game?.eventId ?? gameDetails?.header?.id ?? gameDetails?.id ?? null;
 
-  const teamIdx = selectedTeam === 'away' ? 0 : 1;
-  const boxscoreRow = gameDetails?.boxscore?.players?.[teamIdx]?.statistics?.[0]?.athletes?.find(
-    a => a.athlete.id === player.id
-  );
-  const s = boxscoreRow?.stats || [];
+  const seasonStats = useSeasonStats(player?.id);
 
-  const gs = {
-    min:    s[0]  || '-',
-    pts:    s[1]  || '0',
-    fg:     s[2]  || '0-0',
-    three:  s[3]  || '0-0',
-    ft:     s[4]  || '0-0',
-    reb:    s[5]  || '0',
-    ast:    s[6]  || '0',
-    to:     s[7]  || '0',
-    stl:    s[8]  || '0',
-    blk:    s[9]  || '0',
-    oreb:   s[10] || '0',
-    dreb:   s[11] || '0',
-    pf:     s[12] || '0',
-    pm:     s[13] || '0',
-  };
+  const { data, failed } = usePlayerBreakdown({
+    gameId,
+    playerId: player?.id,
+    teamIdx,
+    isFinal: !!game?.isFinal,
+    isLive: !!game?.isLive,
+    detailsRef,
+  });
 
-  const split = str => {
-    const p = (str || '0-0').split('-');
-    return [parseFloat(p[0]) || 0, parseFloat(p[1]) || 0];
-  };
-  const [fgm, fga] = split(gs.fg);
-  const [tpm, tpa] = split(gs.three);
-  const [ftm, fta] = split(gs.ft);
-  const pts = parseFloat(gs.pts) || 0;
+  const periods = data?.hasPlays ? Object.keys(data.byPeriod).map(Number).sort((a, b) => a - b) : [];
+  // Finished games show Q1-Q4 (+OT). Live games hide quarters that haven't started yet.
+  const lastActive = (() => {
+    if (!data?.hasPlays) return 1;
+    let last = 1;
+    periods.forEach(p => {
+      const s = data.byPeriod[p];
+      if (Object.keys(s).some(k => s[k] > 0)) last = p;
+    });
+    return last;
+  })();
+  const shownPeriods = game?.isFinal || data?.completed ? periods : periods.filter(p => p <= lastActive);
 
-  const fgPct  = fga > 0 ? ((fgm / fga) * 100).toFixed(1) : '0';
-  const tpPct  = tpa > 0 ? ((tpm / tpa) * 100).toFixed(1) : '0';
-  const ftPct  = fta > 0 ? ((ftm / fta) * 100).toFixed(1) : '0';
-  const tsPct  = (fga + 0.44 * fta) > 0
-    ? ((pts / (2 * (fga + 0.44 * fta))) * 100).toFixed(1) : '0';
-  const efgPct = fga > 0
-    ? (((fgm + 0.5 * tpm) / fga) * 100).toFixed(1) : '0';
+  useEffect(() => {
+    if (tab !== 'all' && !shownPeriods.includes(tab)) setTab('all');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownPeriods.length]);
 
-  const pm      = parseFloat(gs.pm) || 0;
-  const pmStr   = pm > 0 ? `+${pm}` : `${pm}`;
-  const pmColor = pm > 0 ? '#22c55e' : pm < 0 ? '#ef4444' : '#6b7280';
+  // "All" view = box score; falls back to summed plays if the player has no box row.
+  const allStat = data
+    ? data.box || (data.hasPlays
+        ? { ...sumStats(Object.values(data.byPeriod)), min: '—', pm: null }
+        : { ...emptyStat(), min: '—', pm: null })
+    : null;
+  const view = tab === 'all' ? allStat : data?.byPeriod?.[tab] || emptyStat();
 
-  const myScore  = selectedTeam === 'away' ? parseInt(game.awayScore) || 0 : parseInt(game.homeScore) || 0;
-  const oppScore = selectedTeam === 'away' ? parseInt(game.homeScore) || 0 : parseInt(game.awayScore) || 0;
-  const oppAbbr  = selectedTeam === 'away' ? game.homeTeam : game.awayTeam;
-  const myAbbr   = selectedTeam === 'away' ? game.awayTeam : game.homeTeam;
-  const myLogo   = selectedTeam === 'away' ? game.awayLogo : game.homeLogo;
-  const won      = myScore > oppScore;
+  const athlete = data?.boxAthlete;
+  const pos = player?.position?.abbreviation || player?.position
+    || athlete?.position?.abbreviation || '';
+  const headshot = player?.athlete?.headshot?.href || player?.headshot || athlete?.headshot?.href || null;
 
-  const headshot = player.athlete?.headshot?.href || player.headshot;
+  const awayScore = game?.awayScore;
+  const homeScore = game?.homeScore;
+  const showScore = (game?.isFinal || game?.isLive) && awayScore != null && homeScore != null;
+  // Final: winner bold, loser thin. Live: both medium.
+  const awayWon = !!game?.isFinal && num(awayScore) > num(homeScore);
+  const homeWon = !!game?.isFinal && num(homeScore) > num(awayScore);
+  const awayLost = !!game?.isFinal && num(awayScore) < num(homeScore);
+  const homeLost = !!game?.isFinal && num(homeScore) < num(awayScore);
+  const scoreStyle = (won, lost) => ({
+    fontWeight: won ? 800 : lost ? 300 : 600,
+    color: won ? '#ffffff' : lost ? '#a1a1aa' : '#e4e4e7',
+  });
 
   return (
     <div
@@ -147,270 +734,134 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     >
       <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto">
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
-          <button onClick={onClose} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-          <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Game Breakdown</h2>
-        </div>
-
-        {/* ── HERO ── */}
-        <div
-          className="rounded-2xl p-4 mb-3 relative overflow-hidden"
-          style={{
-            background: `linear-gradient(125deg, ${color}1e 0%, #080808 55%)`,
-            border: `1px solid ${color}28`,
-          }}
-        >
-          <div
-            className="absolute -top-10 -left-10 w-44 h-44 rounded-full pointer-events-none"
-            style={{ background: color, opacity: 0.08, filter: 'blur(40px)' }}
-          />
-          <div className="flex items-center gap-3 relative z-10">
-
-            {headshot ? (
-              <img
-                src={headshot}
-                alt={player.name}
-                className="rounded-xl object-cover flex-shrink-0"
-                style={{ width: 62, height: 62, border: `2px solid ${color}40` }}
-              />
-            ) : (
-              <div
-                className="rounded-xl bg-zinc-900 flex items-center justify-center text-gray-500 font-bold flex-shrink-0"
-                style={{ width: 62, height: 62, fontSize: 18 }}
-              >
-                {player.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </div>
-            )}
-
-            <div className="flex-1 min-w-0">
-              <div
-                className="font-black truncate"
-                style={{
-                  fontSize: 21, fontFamily: 'Rajdhani, sans-serif',
-                  letterSpacing: '-0.01em', lineHeight: 1.1,
-                }}
-              >
-                {player.name}
-              </div>
-
-              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                <img src={myLogo} alt={myAbbr} style={{ width: 15, height: 15 }} />
-                <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 600 }}>
-                  vs {oppAbbr}
-                </span>
-                {(game.isFinal || game.isLive) && (
-                  <>
-                    <span style={{ color: '#6b7280', fontSize: 11 }}>·</span>
-                    {game.isFinal ? (
-                      <>
-                        <span style={{
-                          fontSize: 11, fontWeight: 800,
-                          color: won ? '#22c55e' : '#ef4444',
-                        }}>
-                          {won ? 'W' : 'L'}
-                        </span>
-                        <span style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 700 }}>
-                          {myScore}–{oppScore}
-                        </span>
-                      </>
-                    ) : (
-                      <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 800, letterSpacing: '0.08em' }}>
-                        ● LIVE
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-col items-end flex-shrink-0">
-              <span
-                style={{
-                  fontSize: 58, fontWeight: 900, lineHeight: 0.88,
-                  fontFamily: 'Rajdhani, sans-serif',
-                  color: 'white',
-                  textShadow: `0 0 28px ${color}44`,
-                }}
-              >
-                {gs.min}
-              </span>
-              <span style={{ fontSize: 10, color, fontWeight: 700, letterSpacing: '0.1em', marginTop: 5 }}>
-                MIN
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── BIG 3: PTS / REB / AST ── */}
-        <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-          {[
-            { v: gs.pts, l: 'PTS', hi: parseInt(gs.pts) >= 20 },
-            { v: gs.reb, l: 'REB', hi: parseInt(gs.reb) >= 10 },
-            { v: gs.ast, l: 'AST', hi: parseInt(gs.ast) >= 10 },
-          ].map(({ v, l, hi }) => (
-            <Tile key={l} value={v} label={l} accent={hi ? '#22c55e' : null} large />
-          ))}
-        </div>
-
-        {/* ── SECONDARY ROW 1 ── */}
-        <div className="grid grid-cols-4 gap-1.5 mb-1.5">
-          {[
-            { v: gs.stl,  l: 'STL' },
-            { v: gs.blk,  l: 'BLK' },
-            { v: gs.to,   l: 'TO'  },
-            { v: pmStr,   l: '+/−', a: pmColor },
-          ].map(({ v, l, a }) => (
-            <Tile key={l} value={v} label={l} accent={a} />
-          ))}
-        </div>
-
-        {/* ── SECONDARY ROW 2 ── */}
-        <div className="grid grid-cols-3 gap-1.5 mb-3">
-          {[
-            { v: gs.oreb, l: 'OREB' },
-            { v: gs.dreb, l: 'DREB' },
-            { v: gs.pf,   l: 'PF'   },
-          ].map(({ v, l }) => (
-            <Tile key={l} value={v} label={l} />
-          ))}
-        </div>
-
-        {/* ── SHOOTING ── */}
-        <div
-          className="rounded-2xl p-4"
-          style={{ background: '#0a0a0a', border: '1px solid #171717' }}
-        >
-          <div
-            className="flex items-center justify-between mb-4"
-            style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}
+        {/* Back */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 50, padding: '10px 0', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}>
+          <button
+            onClick={onClose}
+            aria-label="Back"
+            style={{ color: MUTED, fontSize: 28, fontWeight: 300, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}
           >
-            <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>
-              SHOOTING
-            </span>
-            <div className="flex gap-3">
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                TS%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {tsPct}%
-                </span>
-              </span>
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                eFG%&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {efgPct}%
-                </span>
-              </span>
-              <span style={{ fontSize: 10, color: '#6b7280' }}>
-                FTr&nbsp;
-                <span style={{ color: '#e4e4e7', fontWeight: 800, fontFamily: 'Rajdhani, sans-serif' }}>
-                  {fga > 0 ? `${((fta / fga) * 100).toFixed(1)}%` : '—'}
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex justify-around">
-            <Ring pct={fgPct}  made={fgm} att={fga} label="FG"  color={color} />
-            <Ring pct={tpPct}  made={tpm} att={tpa} label="3PT" color={color} />
-            <Ring pct={ftPct}  made={ftm} att={fta} label="FT"  color={color} />
-          </div>
+            ‹
+          </button>
         </div>
 
-        {/* ── ADVANCED ANALYTICS ── */}
-        {parseFloat(gs.min) > 0 && (() => {
-          const min    = parseFloat(gs.min) || 0;
-          const ast    = parseFloat(gs.ast) || 0;
-          const to     = parseFloat(gs.to)  || 0;
-          const stl    = parseFloat(gs.stl) || 0;
-          const blk    = parseFloat(gs.blk) || 0;
-          const pf     = parseFloat(gs.pf)  || 0;
-          const oreb   = parseFloat(gs.oreb)|| 0;
-          const dreb   = parseFloat(gs.dreb)|| 0;
+        {/* Header */}
+        <div className="flex items-center" style={{ gap: 12, marginTop: 4 }}>
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <Headshot src={headshot} name={player?.name} size={60} ring={`${color}66`} />
+            {myLogo && (
+              <img
+                src={myLogo}
+                alt={teamAbbr}
+                style={{
+                  position: 'absolute', right: -4, bottom: -4, width: 22, height: 22,
+                  borderRadius: 22, background: '#000', padding: 2, border: '1px solid #1f1f1f',
+                }}
+              />
+            )}
+          </div>
 
-          const atr    = to > 0 ? (ast / to).toFixed(1) : ast > 0 ? '∞' : '—';
-          const stocks = stl + blk;
-          const pps    = fga > 0 ? (pts / fga).toFixed(2) : '—';
-          const ppr    = ((ast - to) / min).toFixed(2);
-          const sbRate = ((stl + blk) / min).toFixed(2);
-          const foulR  = (pf / min).toFixed(2);
-          const orbPct = (oreb + dreb) > 0 ? ((oreb / (oreb + dreb)) * 100).toFixed(1) + '%' : '—';
-          const usage  = ((fga + 0.44 * fta + to) / min).toFixed(2);
-          const per36  = {
-            pts: ((pts / min) * 36).toFixed(1),
-            reb: (((oreb + dreb) / min) * 36).toFixed(1),
-            ast: ((ast / min) * 36).toFixed(1),
-            stl: ((stl / min) * 36).toFixed(1),
-            blk: ((blk / min) * 36).toFixed(1),
-          };
-          const per48 = {
-            pts: ((pts / min) * 48).toFixed(1),
-            reb: (((oreb + dreb) / min) * 48).toFixed(1),
-            ast: ((ast / min) * 48).toFixed(1),
-            stl: ((stl / min) * 48).toFixed(1),
-            blk: ((blk / min) * 48).toFixed(1),
-          };
-
-          return (
-            <div className="rounded-2xl p-4 mt-3" style={{ background: '#0a0a0a', border: '1px solid #171717' }}>
-              <div className="flex items-center justify-between mb-4" style={{ paddingBottom: 10, borderBottom: '1px solid #171717' }}>
-                <span style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em' }}>ADVANCED</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-                {[
-                  { v: atr,    l: 'AST/TO'  },
-                  { v: stocks, l: 'STOCKS'  },
-                  { v: pps,    l: 'PTS/FGA' },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 20, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-5 gap-1.5 mb-1.5">
-                {[
-                  { v: ppr,    l: 'PPR/MIN' },
-                  { v: sbRate, l: 'S+B/MIN' },
-                  { v: foulR,  l: 'PF/MIN'  },
-                  { v: usage,  l: 'USG/MIN' },
-                  { v: orbPct, l: 'OREB%'   },
-                ].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5"
-                    style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 12, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 36 MIN</div>
-              <div className="grid grid-cols-5 gap-1.5 mb-3">
-                {[{ v: per36.pts, l: 'PTS' }, { v: per36.reb, l: 'REB' }, { v: per36.ast, l: 'AST' }, { v: per36.stl, l: 'STL' }, { v: per36.blk, l: 'BLK' }].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 14, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 2 }}>{l}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ fontSize: 10, color: '#6b7280', fontWeight: 700, letterSpacing: '0.1em', marginBottom: 8 }}>PER 48 MIN</div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[{ v: per48.pts, l: 'PTS' }, { v: per48.reb, l: 'REB' }, { v: per48.ast, l: 'AST' }, { v: per48.stl, l: 'STL' }, { v: per48.blk, l: 'BLK' }].map(({ v, l }) => (
-                  <div key={l} className="flex flex-col items-center justify-center rounded-xl py-2.5" style={{ background: '#0f0f0f', border: '1px solid #1c1c1c' }}>
-                    <span style={{ fontSize: 18, fontWeight: 900, color: 'white', fontFamily: 'Rajdhani, sans-serif', lineHeight: 1 }}>{v}</span>
-                    <span style={{ fontSize: 9, color: '#6b7280', fontWeight: 700, letterSpacing: '0.08em', marginTop: 3 }}>{l}</span>
-                  </div>
-                ))}
-              </div>
+          <div className="flex-1 min-w-0">
+            <div className="truncate" style={{ ...heading, fontSize: 21, fontWeight: 900, lineHeight: 1.1, color: 'white' }}>
+              {player?.name}
             </div>
-          );
-        })()}
+            {pos ? <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, marginTop: 3 }}>{pos}</div> : null}
+          </div>
 
+          {allStat && (
+            <div className="flex flex-shrink-0" style={{ gap: 12 }}>
+              {[['pts', allStat.pts], ['reb', allStat.reb], ['ast', allStat.ast]].map(([l, v]) => (
+                <div key={l} className="flex flex-col items-center">
+                  <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 0.95, color: 'white' }}>{v}</span>
+                  <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, marginTop: 4 }}>{l}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showScore && (
+          <div className="flex items-center justify-center" style={{ gap: 10, marginTop: 18 }}>
+            {game.awayLogo && <img src={game.awayLogo} alt={game.awayTeam} style={{ width: 22, height: 22 }} />}
+            <span style={{ fontSize: 22, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+              <span style={scoreStyle(awayWon, awayLost)}>{awayScore}</span>
+              <span style={{ color: '#52525b', fontWeight: 300 }}>-</span>
+              <span style={scoreStyle(homeWon, homeLost)}>{homeScore}</span>
+            </span>
+            {game.homeLogo && <img src={game.homeLogo} alt={game.homeTeam} style={{ width: 22, height: 22 }} />}
+          </div>
+        )}
+
+        {/* Body */}
+        {!data ? (
+          failed ? (
+            <EmptyState text="Couldn't load this game right now. Go back and try again." />
+          ) : (
+            <div className="skeleton rounded-2xl" style={{ height: 180, marginTop: 24 }} />
+          )
+        ) : (
+          <>
+            {allStat && view && <StatGrid view={view} isAll={tab === 'all'} showPm={data.pmOk} />}
+
+            {data.hasPlays ? (
+              <>
+                <QuarterTabs periods={shownPeriods} maxPeriod={data.maxPeriod} tab={tab} onChange={setTab} />
+                <QuarterBars
+                  periods={shownPeriods}
+                  maxPeriod={data.maxPeriod}
+                  byPeriod={data.byPeriod}
+                  color={color}
+                  tab={tab}
+                />
+                <AssistBreakdown assists={data.assists} />
+              </>
+            ) : (
+              <EmptyState
+                text={failed
+                  ? "Couldn't refresh play-by-play. Showing what we have."
+                  : "Play-by-play isn't available for this game yet, so quarter breakdowns can't be shown."}
+              />
+            )}
+          </>
+        )}
+
+        <SeasonStats items={seasonStats} />
       </div>
+    </div>
+  );
+}
+
+function SeasonStats({ items }) {
+  if (!items || items.length === 0) return null;
+  const asOf = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div className="flex items-baseline" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <span style={{ ...heading, fontSize: 17, fontWeight: 800, color: '#a1a1aa' }}>Regular season stats</span>
+        <span style={{ fontSize: 11, color: MUTED }}>as of {asOf}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', columnGap: 6, rowGap: 18 }}>
+        {items.map(({ label, value, rank }) => (
+          <div key={label} style={{ minWidth: 0 }}>
+            <div className="flex items-baseline" style={{ gap: 3 }}>
+              <span style={{ fontSize: 21, fontWeight: 800, color: '#e4e4e7', lineHeight: 1 }}>{value}</span>
+              <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>{label}</span>
+            </div>
+            {rank && <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>{rank}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ text }) {
+  return (
+    <div
+      className="rounded-2xl text-center"
+      style={{ marginTop: 26, padding: '22px 16px', background: '#0a0a0a', border: '1px solid #171717', color: MUTED, fontSize: 12, fontWeight: 600 }}
+    >
+      {text}
     </div>
   );
 }
