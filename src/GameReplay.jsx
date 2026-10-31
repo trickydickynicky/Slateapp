@@ -647,10 +647,12 @@ function ReplayPlayer({ model, live, away, home, onClose, haptic }) {
 
       {/* Current play */}
       <div
-        className="shrink-0 text-center text-sm text-gray-300"
-        style={{ padding: '8px 24px', minHeight: 48, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        className="shrink-0 flex items-center justify-center text-center text-sm text-gray-300"
+        style={{ height: 56, padding: '0 24px' }}
       >
-        {ev ? ev.text : 'Tip-off'}
+        <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+          {ev ? ev.text : 'Tip-off'}
+        </span>
       </div>
 
       {/* Controls */}
