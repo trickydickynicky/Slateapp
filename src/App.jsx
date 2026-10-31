@@ -105,6 +105,7 @@ const gameDetailRef = useRef(null);
 const teamStatsRef = useRef(null);
 const nbaPlayerRef = useRef(null);
 const rosterRef = useRef(null);
+const salaryRef = useRef(null);
 const { trigger } = useWebHaptics();
 const [showReplay, setShowReplay] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
@@ -297,6 +298,56 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
     return null;
   });
 
+  useEffect(() => {
+    if (!showSalary || !salaryRef.current) return;
+    const el = salaryRef.current;
+    const onClose = () => setShowSalary(false);
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => {
+      if (e.touches[0].clientX > 30) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dragging = false;
+    };
+    const onTouchMove = (e) => {
+      if (startX === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; }
+        if (dx > 10) dragging = true;
+      }
+      if (dragging) {
+        e.preventDefault();
+        el.style.transform = `translateX(${dx}px)`;
+        el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`;
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (!dragging) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx / window.innerWidth > 0.35) {
+        el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease';
+        el.style.transform = 'translateX(100%)';
+        el.style.opacity = '0';
+        setTimeout(onClose, 250);
+      } else {
+        el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease';
+        el.style.transform = 'translateX(0)';
+        el.style.opacity = '1';
+      }
+      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320);
+      startX = null; dragging = false;
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [showSalary, salaryRef.current]);
   // Handle app visibility changes - refresh data when user returns
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -4014,7 +4065,7 @@ onClick={(e) => {
 )}
 
 {showSalary && selectedTeamInfo && (
-  <div className="fixed inset-0 bg-black bg-opacity-100 z-[175] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+  <div ref={salaryRef} className="fixed inset-0 bg-black bg-opacity-100 z-[175] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
     <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <BackButton onClick={() => { trigger('light'); setShowSalary(false); }} />
