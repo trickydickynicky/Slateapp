@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 
 import logo from './assets/slate-logo.png';
@@ -15,6 +15,8 @@ import TeamStatsPage from './TeamStatsPage';
 import GameLineups from './GameLineups';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
+
+const GameReplay = lazy(() => import('./GameReplay'));
 
 function SportsApp() {
 
@@ -101,6 +103,8 @@ const teamStatsRef = useRef(null);
 const nbaPlayerRef = useRef(null);
 const rosterRef = useRef(null);
 const { trigger } = useWebHaptics();
+const [showReplay, setShowReplay] = useState(false);
+useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
 
 useEffect(() => {
   localStorage.setItem('lastSport', sport);
@@ -2786,7 +2790,16 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 </table>
   </div>
 )}
+
 <Momentum
+  action={!selectedGame.isPreGame ? (
+    <button
+      onClick={() => { trigger('light'); setShowReplay(true); }}
+      className="px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold shadow-[0_0_12px_rgba(37,99,235,0.7)]"
+    >
+      {selectedGame.isLive ? 'Watch Live' : 'Watch Replay'}
+    </button>
+  ) : null}
   gameId={selectedGame.id}
   status={selectedGame.isLive ? 'in' : selectedGame.isPreGame ? 'pre' : selectedGame.isFinal ? 'post' : undefined}
   home={{ abbr: selectedGame.homeTeam, logo: selectedGame.homeLogo, color: teamColors[selectedGame.homeTeam] }}
@@ -3963,6 +3976,34 @@ onClick={(e) => {
       </div>
     </div>
   </div>
+)}
+
+{showReplay && selectedGame && (
+  <Suspense fallback={<div className="fixed inset-0 z-[200] bg-black flex items-center justify-center text-gray-400 text-sm">Loading replay…</div>}>
+    <GameReplay
+      key={selectedGame.id}
+      gameId={selectedGame.id}
+      live={selectedGame.isLive}
+      away={{ abbr: selectedGame.awayTeam, logo: selectedGame.awayLogo, color: teamColors[selectedGame.awayTeam] }}
+      home={{ abbr: selectedGame.homeTeam, logo: selectedGame.homeLogo, color: teamColors[selectedGame.homeTeam] }}
+      onClose={() => setShowReplay(false)}
+      onHaptic={trigger}
+    />
+  </Suspense>
+)}
+
+{showReplay && selectedGame && (
+  <Suspense fallback={<div className="fixed inset-0 z-[200] bg-black flex items-center justify-center text-gray-400 text-sm">Loading replay…</div>}>
+    <GameReplay
+      key={selectedGame.id}
+      gameId={selectedGame.id}
+      live={selectedGame.isLive}
+      away={{ abbr: selectedGame.awayTeam, logo: selectedGame.awayLogo, color: teamColors[selectedGame.awayTeam] }}
+      home={{ abbr: selectedGame.homeTeam, logo: selectedGame.homeLogo, color: teamColors[selectedGame.homeTeam] }}
+      onClose={() => setShowReplay(false)}
+      onHaptic={trigger}
+    />
+  </Suspense>
 )}
 
 {/* Player Game Breakdown */}

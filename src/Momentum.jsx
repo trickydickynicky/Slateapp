@@ -468,21 +468,25 @@ function LeadCell({ team, lead }) {
 /* =====================================================================
    COMPONENT
    ===================================================================== */
-const heading = (
-  <h4
-    className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3"
-    style={{ fontFamily: 'Rajdhani, sans-serif' }}
-  >
-    Differential
-  </h4>
-);
+   const Heading = ({ action }) => (
+    <div className="flex items-center justify-between mb-3">
+      <h4
+        className="text-xs font-semibold text-gray-400 uppercase tracking-widest"
+        style={{ fontFamily: 'Rajdhani, sans-serif' }}
+      >
+        Differential
+      </h4>
+      {action}
+    </div>
+  );
 
 /**
  * <Momentum gameId status home away />
  *  status: optional 'pre' | 'in' | 'post' (from the app's game object); the summary's state wins once loaded
  *  home/away: optional { abbr, logo, color } so logos/colors render before the fetch resolves
  */
-export default function Momentum({ gameId, status, home: homeProp, away: awayProp }) {
+export default function Momentum({ gameId, status, home: homeProp, away: awayProp, action }) {
+  const heading = <Heading action={action} />;
   const { trigger } = useWebHaptics();
   const [state, setState] = useState({ gameId: null, phase: 'loading' });
   const [tick, setTick] = useState(0); // bump to retry
