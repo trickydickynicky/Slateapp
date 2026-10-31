@@ -1,22 +1,16 @@
-import React, { useEffect, useReducer, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, X, Minus } from 'lucide-react';
+import salaryData from './salaryData.json';
 
 /* ────────────────────────────────────────────────────────────────────────────
-   SalaryCap.jsx  ·  NBA salary cap screen body (App.jsx owns wrapper + back arrow)
+   SalaryCap.jsx  ·  NBA salary cap screen body (Main.jsx owns wrapper + back arrow)
 
-   WHAT IS ESPN DATA (fetched live, no key):
-     - Team rosters (player ids, names, positions)
-     - Contract salaries per season + any option / extension / minimum flags
-   WHAT IS HARDCODED (edit at the top of this file):
-     - CAP_RULES (cap, tax, aprons), TAX_BRACKETS, APRON_RULES
-     - HARD_CAP_OVERRIDES, DEAD_MONEY, OPTIONAL_FLAGS, REPEATER_TEAMS
-     - ESPN team ids, team colors and full names
-   WHAT IS COMPUTED: team salary, tax bill, payroll/tax ranks, team position.
-
-   IMPORTANT: ESPN's contract JSON field names were NOT verified when this was
-   written. normalizeContract() tries several likely names. Run
-   `window.probeContract(athleteId, 2027)` in the dev console, read the raw
-   JSON, and fix normalizeContract() if a field is named differently.
+   WHERE THE DATA COMES FROM
+     - Contracts, options, extension flags, dead money: salaryData.json, built from
+       saved Spotrac "yearly" pages by build_salary_data.py. No network calls.
+     - Cap / tax / apron lines, tax brackets, apron rules: hardcoded below.
+   Put salaryData.json in the same folder as this file.
+   Teams missing from salaryData.json show "No data yet" and can't be picked.
 ──────────────────────────────────────────────────────────────────────────── */
 
 /* ── Constants ───────────────────────────────────────────────────────────── */
@@ -40,14 +34,7 @@ const teamFullNames = {
   POR:'Portland Trail Blazers',SAC:'Sacramento Kings',SA:'San Antonio Spurs',TOR:'Toronto Raptors',
   UTAH:'Utah Jazz',WSH:'Washington Wizards',
 };
-
-// ESPN team ids (same map App.jsx uses)
-const ESPN_TEAM_IDS = {
-  ATL:'1',BOS:'2',BKN:'17',CHA:'30',CHI:'4',CLE:'5',DAL:'6',DEN:'7',DET:'8',GS:'9',
-  HOU:'10',IND:'11',LAC:'12',LAL:'13',MEM:'29',MIA:'14',MIL:'15',MIN:'16',NO:'3',NY:'18',
-  OKC:'25',ORL:'19',PHI:'20',PHX:'21',POR:'22',SAC:'23',SA:'24',TOR:'28',UTAH:'26',WSH:'27',
-};
-const ABBRS = Object.keys(ESPN_TEAM_IDS);
+const ABBRS = Object.keys(teamFullNames);
 
 const ACCENT = '#2563eb';
 const MUTED = '#6b7280';
@@ -65,63 +52,33 @@ const logoUrl = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`;
 const seasonEndYear = (d = new Date()) => (d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear());
 const CURRENT = seasonEndYear();
 const SEASONS = [0, 1, 2, 3, 4].map(i => CURRENT + i);
-const seasonLabel = y => `${y - 1}-${String(y).slice(2)}`;
+const seasonLabel = yr => `${yr - 1}-${String(yr).slice(2)}`;
 
-// $M. A season past the ones listed is "projected" (italic + *).
-const KNOWN_RULES = {
+// $M. Only 2026-27 is official; later years are projected (italic + *).
+export const CAP_RULES = {
   2027: { min: 148.5, cap: 165.0, tax: 200.4, apron1: 209.0, apron2: 221.7, projected: false },
   2028: { cap: 176.0, tax: 213.0, apron1: 223.0, apron2: 236.0, projected: true },
   2029: { cap: 184.8, tax: 224.5, apron1: 234.2, apron2: 248.3, projected: true },
+  2030: { cap: 194.0, tax: 235.8, apron1: 245.9, apron2: 260.8, projected: true },
+  2031: { cap: 203.7, tax: 247.5, apron1: 258.2, apron2: 273.8, projected: true },
 };
-const PLACEHOLDER_GROWTH = 1.055;   // 5.5% a year, placeholder only
-function buildCapRules() {
-  const out = { ...KNOWN_RULES };
-  let prev = KNOWN_RULES[2029];
-  [2030, 2031].forEach(y => {
-    const g = k => Math.round(prev[k] * PLACEHOLDER_GROWTH * 10) / 10;
-    prev = { cap: g('cap'), tax: g('tax'), apron1: g('apron1'), apron2: g('apron2'), projected: true };
-    out[y] = prev;
-  });
-  return out;
-}
-export const CAP_RULES = buildCapRules();
 
-// Tax rate per $1 over the line, per $5M slice. After the list, +0.50 for each further $5M.
-// NOTE: cavs_db's tax bill may differ (rounding, repeater rules, timing of the calculation).
-export const TAX_BRACKETS = { slice: 5, rates: [1.5, 1.75, 2.5, 3.25], step: 0.5 };
-const REPEATER_TEAMS = new Set([]);          // e.g. new Set(['LAC']); adds REPEATER_ADD per $1
-const REPEATER_ADD = 1.0;
+// Luxury tax. Each bracket is BRACKET_PCT_OF_CAP of the cap wide ($6.064M in 2026-27).
+// Rate per $1 for the first four brackets, then +0.50 for each bracket after.
+// Repeaters pay REPEATER_ADD more per $1. Estimates can differ slightly from the league's bill.
+export const TAX_BRACKETS = { pctOfCap: 0.036761, rates: [1.0, 1.25, 3.5, 4.75], step: 0.5 };
+const REPEATER_TEAMS = new Set([]);   // e.g. new Set(['LAC'])
+const REPEATER_ADD = 2.0;
 
-// null | 'apron1' | 'apron2'. ESPN can't tell us which teams are hard-capped.
+// null | 'apron1' | 'apron2'. Teams hard-capped by earlier moves (data doesn't say).
 const HARD_CAP_OVERRIDES = { CLE: 'apron1' };
-// Dead money in $M, by team then season: { CLE: { 2027: 2.5 } }. Empty = not included.
-const DEAD_MONEY = {};
-// Fallback badges by athlete id then season: { '4066328': { 2028: ['PO'] } }
-const OPTIONAL_FLAGS = {};
-// Future-season salaries in $M by athlete id, since ESPN doesn't list them:
-// { '3908809': { 2028: 54.1 } }
-const CONTRACT_OVERRIDES = {
-    '4576087': { 2027: 20.5 },   // Peyton Watson (estimate from 9.8% share, replace with exact)
-    '3934723': { 2027: 2.5 },    // Thomas Bryant (estimate)
-    '2995706': { 2027: 2.5 },    // Mario Hezonja (estimate)
-    '3992':    { 2027: 30.7 },   // James Harden (cavs_db figure, estimate)
-    'x-tomlin': { 2027: 2.5 },   // Nae'Qwan Tomlin (estimate)
-  };
-  // Players ESPN's roster is missing. The id must start with 'x-' so we never request it from ESPN.
-  const EXTRA_PLAYERS = {
-    CLE: [{ id: 'x-tomlin', name: "Nae'Qwan Tomlin", pos: '' }],
-  };
-
-const MAX_CONCURRENT = 8;
-const CACHE_TTL = 6 * 60 * 60 * 1000;
-const USE_PROXY = false;   // set true if the browser is blocked by CORS (see api/espn.js)
 
 const POSITION_META = {
-  under:  { label: 'UNDER CAP',       color: GREEN },
-  cap:    { label: 'OVER CAP',        color: YELLOW },
-  tax:    { label: 'OVER TAX',        color: ORANGE },
-  apron1: { label: 'OVER 1ST APRON',  color: RED },
-  apron2: { label: 'OVER 2ND APRON',  color: RED },
+  under:  { label: 'UNDER CAP',      color: GREEN },
+  cap:    { label: 'OVER CAP',       color: YELLOW },
+  tax:    { label: 'OVER TAX',       color: ORANGE },
+  apron1: { label: 'OVER 1ST APRON', color: RED },
+  apron2: { label: 'OVER 2ND APRON', color: RED },
 };
 const POSITION_COLUMN = { under: 0, cap: 1, tax: 1, apron1: 2, apron2: 3 };
 
@@ -184,11 +141,12 @@ export function fmtM(m) {
   return `${sign}$${a.toFixed(1)}M`;
 }
 
-/** Luxury tax bill in $M for a payroll, using the bracket table. */
-export function taxBill(payroll, taxLine, repeater = false) {
-  let over = payroll - taxLine;
+/** Luxury tax bill in $M for a payroll and that season's rules. */
+export function taxBill(payroll, rules, repeater = false) {
+  let over = payroll - rules.tax;
   if (!(over > 0)) return 0;
-  const { slice, rates, step } = TAX_BRACKETS;
+  const { pctOfCap, rates, step } = TAX_BRACKETS;
+  const slice = rules.cap * pctOfCap;
   let bill = 0;
   let i = 0;
   while (over > 0) {
@@ -219,215 +177,33 @@ export function rankDesc(values, abbr) {
   return 1 + Object.values(values).filter(v => v > mine).length;
 }
 
-const firstNum = (...vals) => {
-  for (const v of vals) {
-    const x = typeof v === 'string' ? parseFloat(v.replace(/[^0-9.-]/g, '')) : v;
-    if (typeof x === 'number' && Number.isFinite(x)) return x;
-  }
-  return null;
-};
+/* ── Data helpers (read salaryData.json; dollars -> $M) ──────────────────── */
 
-/**
- * ONE place that maps ESPN's raw contract JSON to what the UI needs.
- * Field names below are best guesses; verify with window.probeContract().
- * Returns null when there is no usable salary (the UI shows "—").
- */
-export function normalizeContract(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-  const dollars = firstNum(raw.salary, raw.amount, raw.baseSalary, raw.totalSalary);
-  if (dollars === null) return null;
-  const optText = String(raw.optionType ?? raw.option?.type ?? raw.option ?? '').toLowerCase();
-  let option = null;
-  if (raw.playerOption === true || /player/.test(optText)) option = 'PO';
-  else if (raw.teamOption === true || /team/.test(optText)) option = 'TO';
-  return {
-    salary: dollars / 1e6,
-    option,
-    ext: false,   // ESPN has no extension field; use OPTIONAL_FLAGS
-    vm: raw.minimumSalaryException === true,
-    yearsRemaining: firstNum(raw.yearsRemaining),
-    bird: null,
-  };
+const teamData = abbr => salaryData[abbr] || null;
+const deadFor = (abbr, season) => (teamData(abbr)?.dead?.[String(season)] || 0) / 1e6;
+
+/** Standard (non two-way) players with a salary this season, biggest first. */
+function playersFor(abbr, season) {
+  return (teamData(abbr)?.players || [])
+    .filter(p => !p.twoWay && p.salaries?.[String(season)] != null)
+    .sort((a, b) => b.salaries[String(season)] - a.salaries[String(season)]);
 }
 
-/* ────────────────────────────────────────────────────────────────────────────
-   Data layer: one fetch helper, a request queue, caches
-──────────────────────────────────────────────────────────────────────────── */
-
-const IS_DEV = (() => {
-  try { if (typeof import.meta !== 'undefined' && import.meta.env) return !!import.meta.env.DEV; } catch (e) { /* ignore */ }
-  return false;
-})();
-
-/** Every request goes through here, so the Vercel proxy is a one-line switch (USE_PROXY). */
-async function espnFetch(url) {
-  const target = USE_PROXY ? `/api/espn?url=${encodeURIComponent(url)}` : url;
-  const res = await fetch(target);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`ESPN ${res.status}`);
-  return res.json();
+/** Team salary ($M): standard contracts + dead money. null if the team has no data. */
+function teamTotal(abbr, season) {
+  if (!teamData(abbr)) return null;
+  const sum = playersFor(abbr, season).reduce((t, p) => t + p.salaries[String(season)], 0);
+  return sum / 1e6 + deadFor(abbr, season);
 }
 
-const withRetry = async fn => { try { return await fn(); } catch (e) { return fn(); } };
-
-// Tiny queue: at most MAX_CONCURRENT requests at once
-let active = 0;
-const waiting = [];
-function pump() {
-  while (active < MAX_CONCURRENT && waiting.length) {
-    const job = waiting.shift();
-    active += 1;
-    job.fn().then(job.res, job.rej).finally(() => { active -= 1; pump(); });
-  }
-}
-const queued = fn => new Promise((res, rej) => { waiting.push({ fn, res, rej }); pump(); });
-
-// Caches: memory Map + sessionStorage (6h expiry)
-const store = new Map();      // `${athleteId}:${season}` -> normalized contract | null
-const rosters = new Map();    // abbr -> [{ id, name, pos }]
-const rosterJobs = new Map(); // abbr -> Promise
-const progress = { done: 0, total: 0 };
-const listeners = new Set();
-let timer = null;
-const notify = () => {
-  if (timer) return;
-  timer = setTimeout(() => { timer = null; listeners.forEach(f => f()); }, 120);
-};
-
-const ssKey = (id, season) => `contract2:${id}:${season}`;
-function readSession(id, season) {
-  try {
-    const raw = sessionStorage.getItem(ssKey(id, season));
-    if (!raw) return undefined;
-    const { t, v } = JSON.parse(raw);
-    return Date.now() - t < CACHE_TTL ? v : undefined;
-  } catch (e) { return undefined; }
-}
-function writeSession(id, season, v) {
-  try { sessionStorage.setItem(ssKey(id, season), JSON.stringify({ t: Date.now(), v })); } catch (e) { /* full or blocked */ }
-}
-
-const CORE = 'https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba';
-const contractUrl = (id, season) => `${CORE}/athletes/${id}/contracts/${season}?lang=en&region=us`;
-const indexUrl = id => `${CORE}/athletes/${id}/contracts?lang=en&region=us`;
-
-async function fetchContract(id, season) {
-  const direct = await espnFetch(contractUrl(id, season));
-  if (direct) return normalizeContract(direct);
-  // Direct URL missed: follow the $ref links in the index instead
-  const index = await espnFetch(indexUrl(id));
-  const ref = (index?.items || []).map(i => i?.$ref).find(r => typeof r === 'string' && new RegExp(`/contracts/${season}(\\?|$)`).test(r));
-  if (!ref) return null;
-  return normalizeContract(await espnFetch(ref.replace(/^http:/, 'https:')));
-}
-
-/** Loads one athlete-season, using caches. Resolves to the normalized contract or null. */
-function getContract(id, season) {
-    const key = `${id}:${season}`;
-    if (String(id).startsWith('x-')) { store.set(key, null); return Promise.resolve(null); }
-  if (store.has(key)) return Promise.resolve(store.get(key));
-  const cached = readSession(id, season);
-  if (cached !== undefined) { store.set(key, cached); return Promise.resolve(cached); }
-  progress.total += 1;
-  return queued(() => withRetry(() => fetchContract(id, season))).then(v => {
-    store.set(key, v);
-    writeSession(id, season, v);
-    progress.done += 1;
-    notify();
-    return v;
-  });
-}
-
-function fetchRoster(abbr) {
-  if (rosters.has(abbr)) return Promise.resolve(rosters.get(abbr));
-  if (!rosterJobs.has(abbr)) {
-    const job = queued(() => withRetry(() =>
-      espnFetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${ESPN_TEAM_IDS[abbr]}/roster`)
-    )).then(data => {
-      const list = (data?.athletes || []).map(a => ({
-        id: String(a.id), name: a.displayName || a.shortName || 'Player', pos: a.position?.abbreviation || '',
-      }));
-      rosters.set(abbr, [...list, ...(EXTRA_PLAYERS[abbr] || [])]);
-      notify();
-      return list;
-    }).finally(() => rosterJobs.delete(abbr));
-    rosterJobs.set(abbr, job);
-  }
-  return rosterJobs.get(abbr);
-}
-
-async function loadTeam(abbr, seasons) {
-  const list = await fetchRoster(abbr);
-  await Promise.all(list.flatMap(p => seasons.map(s => getContract(p.id, s))));
-}
-
-/** Dev only: log ONE athlete's raw contract index + season JSON. Use from the console. */
-export async function probeContract(athleteId, season = CURRENT) {
-  /* eslint-disable no-console */
-  const index = await espnFetch(indexUrl(athleteId));
-  console.log('[salary] contract index', index);
-  const one = await espnFetch(contractUrl(athleteId, season));
-  console.log(`[salary] contract ${season}`, one);
-  console.log('[salary] normalized', normalizeContract(one));
-  /* eslint-enable no-console */
-}
-if (IS_DEV && typeof window !== 'undefined') window.probeContract = probeContract;
-if (IS_DEV && typeof window !== 'undefined') {
-    window.salaryDebug = abbr => console.table((rosters.get(abbr) || []).map(p => ({
-      id: p.id, name: p.name, salaryM: store.get(`${p.id}:${CURRENT}`)?.salary ?? null,
-    })));
-  }
-  if (IS_DEV && typeof window !== 'undefined') {
-    window.salaryGaps = () => {
-      const out = [];
-      ABBRS.forEach(a => (rosters.get(a) || []).forEach(p => {
-        if (!String(p.id).startsWith('x-') && contractFor(p.id, CURRENT) === null) out.push({ team: a, id: p.id, name: p.name });
-      }));
-      console.table(out);
-    };
-  }
-/** Flags for one cell: ESPN's first, then the OPTIONAL_FLAGS fallback. */
-function badgesFor(id, season, c) {
-  const fb = OPTIONAL_FLAGS[id]?.[season] || [];
+/** Badges for one player-season cell: TO / PO / NG (option or non-guaranteed), EXT. */
+function badgesFor(p, season) {
   const out = [];
-  const opt = c?.option || (fb.includes('PO') ? 'PO' : fb.includes('TO') ? 'TO' : null);
-  if (opt) out.push(opt);
-  if (c?.ext || fb.includes('EXT')) out.push('EXT');
-  if (c?.vm || fb.includes('VM')) out.push('VM');
+  const o = p.options?.[String(season)];
+  if (o) out.push(o);
+  if (p.ext?.includes(season)) out.push('EXT');
   return out;
 }
-
-const deadFor = (abbr, season) => DEAD_MONEY[abbr]?.[season] || 0;
-// Team payroll in $M, used only for league ranks. Fill all 30, or ranks will be wrong.
-const TEAM_PAYROLL_OVERRIDES = { CLE: 209.0 };
-/** ESPN lists only the current season. Future years come from CONTRACT_OVERRIDES.
- *  Returns an object, null (no contract), or undefined (still loading). */
-function contractFor(id, season) {
-    const o = CONTRACT_OVERRIDES[id]?.[season];
-    if (o != null) return { salary: o, option: null, ext: false, vm: false };
-    if (season === CURRENT) return store.get(`${id}:${season}`);
-    return store.get(`${id}:${CURRENT}`) === undefined ? undefined : null;
-  }
-  
-  /** Team salary ($M) for a season, or null if any part of it is unknown. */
-  function teamTotal(abbr, season) {
-    const list = rosters.get(abbr);
-    if (!list) return null;
-    let sum = deadFor(abbr, season);
-    for (const p of list) {
-      const c = contractFor(p.id, season);
-      if (c === undefined) return null;
-      if (season > CURRENT && !c) {
-        const cur = store.get(`${p.id}:${CURRENT}`);
-        const expired = !cur || (Number.isFinite(cur.yearsRemaining) && cur.yearsRemaining < season - CURRENT);
-        if (!expired) return null;   // still under contract but salary unknown: total would be wrong
-      }
-      sum += c?.salary || 0;
-    }
-    return sum;
-  }
-
-
 
 /* ────────────────────────────────────────────────────────────────────────────
    Small presentational pieces (same patterns as TeamStatsPage)
@@ -478,16 +254,20 @@ function TeamPicker({ current, onPick, onClose }) {
             <h2 style={{ ...heading, fontSize: 24, fontWeight: 900, color: 'white', margin: 0 }}>Choose a team</h2>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {Object.entries(teamFullNames).map(([abbr, name]) => (
-              <button key={abbr} onClick={() => onPick(abbr)} aria-label={name}
-                className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors">
-                <img src={logoUrl(abbr)} alt={abbr} className="w-12 h-12" />
-                <div className="text-left min-w-0">
-                  <div className="font-semibold" style={{ color: abbr === current ? ACCENT : undefined }}>{abbr}</div>
-                  <div className="text-xs text-gray-400 truncate">{name}</div>
-                </div>
-              </button>
-            ))}
+            {ABBRS.map(abbr => {
+              const has = !!teamData(abbr);
+              return (
+                <button key={abbr} onClick={() => has && onPick(abbr)} disabled={!has} aria-label={teamFullNames[abbr]}
+                  className="bg-zinc-900 hover:bg-zinc-800 rounded-2xl p-4 flex items-center gap-3 transition-colors"
+                  style={{ opacity: has ? 1 : 0.35 }}>
+                  <img src={logoUrl(abbr)} alt={abbr} className="w-12 h-12" />
+                  <div className="text-left min-w-0">
+                    <div className="font-semibold" style={{ color: abbr === current ? ACCENT : undefined }}>{abbr}</div>
+                    <div className="text-xs text-gray-400 truncate">{has ? teamFullNames[abbr] : 'No data yet'}</div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -537,74 +317,57 @@ function ThresholdBar({ salary, rules, color }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
-   Screen body. App.jsx keeps the fixed wrapper and the back header.
+   Screen body. Main.jsx keeps the fixed wrapper and the back arrow.
 ──────────────────────────────────────────────────────────────────────────── */
 
-export default function SalaryCap({ teamInfo, onHaptic, onTeamClick }) { // eslint-disable-line no-unused-vars
+export default function SalaryCap({ teamInfo, onHaptic }) {
   const haptic = typeof onHaptic === 'function' ? onHaptic : () => {};
-  const [abbr, setAbbr] = useState(teamInfo?.abbr && ESPN_TEAM_IDS[teamInfo.abbr] ? teamInfo.abbr : 'CLE');
+  const [abbr, setAbbr] = useState(teamInfo?.abbr && teamFullNames[teamInfo.abbr] ? teamInfo.abbr : 'CLE');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [, rerender] = useReducer(x => x + 1, 0);
-  const firstAbbr = useRef(abbr);
 
-  // Re-render whenever new contract data lands (throttled in notify())
-  useEffect(() => { listeners.add(rerender); return () => listeners.delete(rerender); }, []);
-
-  // Selected team: current season first, then the other four seasons
-  useEffect(() => {
-    let off = false;
-    setFailed(false);
-    (async () => {
-      try { await loadTeam(abbr, [CURRENT]); } catch (e) { if (!off) setFailed(true); return; }
-      loadTeam(abbr, SEASONS.slice(1)).catch(() => {});
-    })();
-    return () => { off = true; };
-  }, [abbr, attempt]);
-
-  // League payroll for ranks: starts after the first team has loaded
-  useEffect(() => {
-    (async () => {
-      await loadTeam(firstAbbr.current, [CURRENT]).catch(() => {});
-      await Promise.all(ABBRS.map(a => loadTeam(a, [CURRENT]).catch(() => {})));
-    })();
-  }, [attempt]);
-
-  const roster = rosters.get(abbr) || null;
+  const d = teamData(abbr);
   const color = lift(teamColors[abbr] || '#3B82F6');
   const rulesNow = CAP_RULES[CURRENT];
+  const repeater = REPEATER_TEAMS.has(abbr);
+
   const totals = {};
   SEASONS.forEach(s => { totals[s] = teamTotal(abbr, s); });
   const payroll = totals[CURRENT];
   const ready = payroll !== null;
 
-  // League ranks (only once all 30 teams are loaded)
+  // League ranks need all 30 teams in salaryData.json
+  const leagueReady = ABBRS.every(a => teamData(a));
   const league = {};
-  ABBRS.forEach(a => { league[a] = TEAM_PAYROLL_OVERRIDES[a] ?? teamTotal(a, CURRENT); });
-  const leagueReady = ABBRS.every(a => league[a] !== null);
   const bills = {};
-  if (leagueReady) ABBRS.forEach(a => { bills[a] = taxBill(league[a], rulesNow.tax, REPEATER_TEAMS.has(a)); });
+  if (leagueReady) {
+    ABBRS.forEach(a => {
+      league[a] = teamTotal(a, CURRENT);
+      bills[a] = taxBill(league[a], rulesNow, REPEATER_TEAMS.has(a));
+    });
+  }
   const payrollRank = leagueReady ? rankDesc(league, abbr) : null;
   const taxTeams = leagueReady ? ABBRS.filter(a => bills[a] > 0).length : 0;
   const taxRank = leagueReady && bills[abbr] > 0 ? rankDesc(bills, abbr) : null;
 
-  const bill = ready ? taxBill(payroll, rulesNow.tax, REPEATER_TEAMS.has(abbr)) : null;
+  const bill = ready ? taxBill(payroll, rulesNow, repeater) : null;
   const overTax = ready ? Math.max(0, payroll - rulesNow.tax) : null;
   const apronGap = ready ? payroll - rulesNow.apron1 : null;
   const hard = HARD_CAP_OVERRIDES[abbr] || null;
   const position = ready ? getPosition(payroll, rulesNow) : null;
   const posCol = position ? POSITION_COLUMN[position] : -1;
 
-  // Rows for the cap sheet, biggest current salary first
-  const rows = (roster || []).map(p => ({ ...p, cells: SEASONS.map(s => contractFor(p.id, s)) }))
-    .sort((a, b) => (b.cells[0]?.salary || 0) - (a.cells[0]?.salary || 0));
-  const seasonLoaded = s => totals[s] !== null;
+  // Cap sheet rows: any standard player with a contract in any shown season
+  const rows = d
+    ? d.players.filter(p => !p.twoWay && SEASONS.some(s => p.salaries?.[String(s)] != null))
+        .sort((a, b) => (b.salaries?.[String(CURRENT)] || 0) - (a.salaries?.[String(CURRENT)] || 0))
+    : [];
+  const twoWays = d ? d.players.filter(p => p.twoWay) : [];
+  const hasDead = SEASONS.some(s => deadFor(abbr, s) > 0);
   const usedBadges = new Set();
-  rows.forEach(r => r.cells.forEach((c, i) => badgesFor(r.id, SEASONS[i], c).forEach(b => usedBadges.add(b))));
+  rows.forEach(p => SEASONS.forEach(s => badgesFor(p, s).forEach(b => usedBadges.add(b))));
 
-  // Money segments
-  const segs = rows.filter(r => r.cells[0]?.salary > 0).map(r => ({ name: r.name, v: r.cells[0].salary }));
+  // Money segments (current season)
+  const segs = playersFor(abbr, CURRENT).map(p => ({ name: p.name, v: p.salaries[String(CURRENT)] / 1e6 }));
   const dead = deadFor(abbr, CURRENT);
   if (dead > 0) segs.push({ name: 'Dead money', v: dead, hatched: true });
   segs.sort((a, b) => b.v - a.v);
@@ -617,28 +380,15 @@ export default function SalaryCap({ teamInfo, onHaptic, onTeamClick }) { // esli
       sub: hard && ready && apronGap <= 0 ? 'Under hard cap' : ready ? (apronGap <= 0 ? 'Under 1st apron' : 'Over 1st apron') : '' },
     { l: 'OVER TAX', v: ready ? fmtM(overTax) : '—', sub: 'Over the tax line' },
     { l: 'TAX BILL', v: ready ? fmtM(bill) : '—', sub: 'Estimated bill' },
-    { l: 'PAYROLL', v: payrollRank ? ordinal(payrollRank) : '—', sub: 'Highest payroll of 30' },
-    { l: 'TAX RANK', v: taxRank ? ordinal(taxRank) : '—', sub: taxRank ? `Largest tax bill of ${taxTeams}` : leagueReady ? 'Not over the tax' : '' },
+    { l: 'PAYROLL', v: payrollRank ? ordinal(payrollRank) : '—', sub: payrollRank ? 'Highest payroll of 30' : 'Needs all 30 teams' },
+    { l: 'TAX RANK', v: taxRank ? ordinal(taxRank) : '—',
+      sub: taxRank ? `Largest tax bill of ${taxTeams}` : leagueReady ? 'Not over the tax' : 'Needs all 30 teams' },
   ];
   const grid = cols => ({ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: 2, rowGap: 6 });
 
   const th = { fontSize: 10, color: MUTED, fontWeight: 600, padding: '10px 8px', textAlign: 'center', borderBottom: `1px solid ${HAIR}`, whiteSpace: 'nowrap' };
   const stickyCell = { position: 'sticky', left: 0, background: '#0a0a0a', zIndex: 1 };
   const tint = 'rgba(37,99,235,0.12)';
-
-  if (failed) {
-    return (
-      <div className="rounded-2xl text-center" style={{ ...CARD, marginTop: 8, padding: '22px 16px', color: MUTED, fontSize: 13, fontWeight: 600 }}>
-        Salary data is not available right now.
-        <div>
-          <button onClick={() => { haptic('light'); setAttempt(a => a + 1); }} aria-label="Retry"
-            style={{ ...textBtn, fontSize: 15, fontWeight: 700, padding: '14px 20px' }}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ animation: 'fadeIn 0.5s ease-out both' }}>
@@ -655,95 +405,83 @@ export default function SalaryCap({ teamInfo, onHaptic, onTeamClick }) { // esli
         </div>
       </div>
 
-      {!leagueReady && (
-        <div style={{ fontSize: 11, color: MUTED, marginTop: -4 }}>
-          Loading league payroll… {progress.done}/{progress.total}
+      {!d ? (
+        <div className="rounded-2xl text-center" style={{ ...CARD, marginTop: 16, padding: '22px 16px', color: MUTED, fontSize: 13, fontWeight: 600 }}>
+          Salary data for this team isn't loaded yet.
         </div>
-      )}
-
-      {/* Stat grid */}
-      {!ready ? (
-        <div className="skeleton rounded-2xl" style={{ height: 150, marginTop: 24 }} />
       ) : (
-        <div style={{ ...grid(3), rowGap: 16, marginTop: 24 }}>
-          {strip.map(c => <Stat key={c.l} label={c.l} value={c.v} sub={c.sub} valueColor={c.color} />)}
-        </div>
-      )}
-
-      {/* Thresholds */}
-      <div style={{ marginTop: 30 }}>
-        <div style={{ marginBottom: 12 }}><SectionTitle>Thresholds</SectionTitle></div>
-        {!ready ? <div className="skeleton rounded-2xl" style={{ height: 130 }} /> : (
-          <div className="rounded-2xl" style={{ ...CARD, padding: '16px 6px 6px' }}>
-            <ThresholdBar key={abbr} salary={payroll} rules={rulesNow} color={color} />
+        <>
+          {/* Stat grid */}
+          <div style={{ ...grid(3), rowGap: 16, marginTop: 24 }}>
+            {strip.map(c => <Stat key={c.l} label={c.l} value={c.v} sub={c.sub} valueColor={c.color} />)}
           </div>
-        )}
-      </div>
 
-      {/* Where the money goes */}
-      <div style={{ marginTop: 30 }}>
-        <div style={{ marginBottom: 12 }}><SectionTitle>Where the {seasonLabel(CURRENT)} money goes</SectionTitle></div>
-        {!ready ? <div className="skeleton rounded-2xl" style={{ height: 160 }} /> : (
-          <div className="rounded-2xl" style={{ ...CARD, padding: 16 }}>
-            <div className="flex" style={{ height: 18, borderRadius: 9, overflow: 'hidden', background: '#18181b', gap: 1 }}>
-              {segs.map((s, i) => (
-                <div key={s.name} title={s.name} style={{
-                  width: `${(s.v / segTotal) * 100}%`,
-                  background: s.hatched
-                    ? `repeating-linear-gradient(45deg, ${color} 0 3px, #0a0a0a 3px 6px)`
-                    : color,
-                  opacity: s.hatched ? 0.7 : opacityAt(i), transition: 'width 200ms',
-                }} />
-              ))}
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 14, rowGap: 8, marginTop: 16 }}>
-              {segs.map((s, i) => (
-                <div key={s.name} className="flex items-center" style={{ gap: 8, minWidth: 0 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 2, flexShrink: 0, background: color, opacity: s.hatched ? 0.7 : opacityAt(i) }} />
-                  <span className="truncate flex-1" style={{ fontSize: 13, color: 'white' }}>{s.name}</span>
-                  <span style={{ ...nums, fontSize: 13, color: 'white' }}>{Math.round((s.v / segTotal) * 100)}%</span>
-                </div>
-              ))}
+          {/* Thresholds */}
+          <div style={{ marginTop: 30 }}>
+            <div style={{ marginBottom: 12 }}><SectionTitle>Thresholds</SectionTitle></div>
+            <div className="rounded-2xl" style={{ ...CARD, padding: '16px 6px 6px' }}>
+              <ThresholdBar key={abbr} salary={payroll} rules={rulesNow} color={color} />
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Cap sheet */}
-      <div style={{ marginTop: 30 }}>
-        <div style={{ marginBottom: 12 }}><SectionTitle>Cap sheet</SectionTitle></div>
-        {!roster ? <div className="skeleton rounded-2xl" style={{ height: 260 }} /> : (
-          <div className="rounded-2xl" style={{ ...CARD, overflow: 'hidden' }}>
-            <div className="overflow-x-auto">
-              <table aria-label="Cap sheet" style={{ borderCollapse: 'collapse', width: '100%', minWidth: 540 }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...th, ...stickyCell, textAlign: 'left', minWidth: 120 }}>Player</th>
-                    {SEASONS.map((s, i) => (
-                      <th key={s} style={{ ...th, background: i === 0 ? tint : undefined, minWidth: 84 }}>
-                        {seasonLabel(s)}{CAP_RULES[s].projected ? '*' : ''}
-                        {i === 0 && <div style={{ fontSize: 8, color: ACCENT, fontWeight: 800, letterSpacing: '0.06em' }}>CURRENT</div>}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(r => {
+          {/* Where the money goes */}
+          <div style={{ marginTop: 30 }}>
+            <div style={{ marginBottom: 12 }}><SectionTitle>Where the {seasonLabel(CURRENT)} money goes</SectionTitle></div>
+            <div className="rounded-2xl" style={{ ...CARD, padding: 16 }}>
+              <div className="flex" style={{ height: 18, borderRadius: 9, overflow: 'hidden', background: '#18181b', gap: 1 }}>
+                {segs.map((s, i) => (
+                  <div key={s.name} title={s.name} style={{
+                    width: `${(s.v / segTotal) * 100}%`,
+                    background: s.hatched ? `repeating-linear-gradient(45deg, ${color} 0 3px, #0a0a0a 3px 6px)` : color,
+                    opacity: s.hatched ? 0.7 : opacityAt(i), transition: 'width 200ms',
+                  }} />
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', columnGap: 14, rowGap: 8, marginTop: 16 }}>
+                {segs.map((s, i) => (
+                  <div key={s.name} className="flex items-center" style={{ gap: 8, minWidth: 0 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 2, flexShrink: 0, background: color, opacity: s.hatched ? 0.7 : opacityAt(i) }} />
+                    <span className="truncate flex-1" style={{ fontSize: 13, color: 'white' }}>{s.name}</span>
+                    <span style={{ ...nums, fontSize: 13, color: 'white' }}>{Math.round((s.v / segTotal) * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                    return (
-                      <tr key={r.id} style={{ borderBottom: `1px solid ${HAIR}` }}>
+          {/* Cap sheet */}
+          <div style={{ marginTop: 30 }}>
+            <div style={{ marginBottom: 12 }}><SectionTitle>Cap sheet</SectionTitle></div>
+            <div className="rounded-2xl" style={{ ...CARD, overflow: 'hidden' }}>
+              <div className="overflow-x-auto">
+                <table aria-label="Cap sheet" style={{ borderCollapse: 'collapse', width: '100%', minWidth: 540 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, ...stickyCell, textAlign: 'left', minWidth: 120 }}>Player</th>
+                      {SEASONS.map((s, i) => (
+                        <th key={s} style={{ ...th, background: i === 0 ? tint : undefined, minWidth: 84 }}>
+                          {seasonLabel(s)}{CAP_RULES[s].projected ? '*' : ''}
+                          {i === 0 && <div style={{ fontSize: 8, color: ACCENT, fontWeight: 800, letterSpacing: '0.06em' }}>CURRENT</div>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(p => (
+                      <tr key={p.name} style={{ borderBottom: `1px solid ${HAIR}` }}>
                         <td style={{ ...stickyCell, padding: '10px 8px', minWidth: 120 }}>
-                          <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: 'white', maxWidth: 130 }}>{r.name}</div>
-                          {r.pos && <div style={{ fontSize: 10, color: MUTED }}>{r.pos}</div>}
+                          <div className="truncate" style={{ fontSize: 13, fontWeight: 600, color: 'white', maxWidth: 130 }}>{p.name}</div>
+                          {p.pos && <div style={{ fontSize: 10, color: MUTED }}>{p.pos}</div>}
                         </td>
-                        {r.cells.map((c, i) => {
-                          const loaded = c !== undefined;
-                          const badges = badgesFor(r.id, SEASONS[i], c);
+                        {SEASONS.map((s, i) => {
+                          const sal = p.salaries?.[String(s)];
+                          const fa = p.fa?.[String(s)];
+                          const badges = badgesFor(p, s);
                           return (
-                            <td key={SEASONS[i]} style={{ textAlign: 'center', padding: '8px 4px', background: i === 0 ? tint : undefined }}>
-                              {!loaded ? <span style={{ color: '#27272a' }}>…</span>
-                                : c ? <span style={{ ...nums, fontSize: 13, color: 'white' }}>{fmtM(c.salary)}</span>
-                                : <span style={{ fontSize: 12, color: MUTED }}>{r.cells[0] && Number.isFinite(r.cells[0].yearsRemaining) && r.cells[0].yearsRemaining < i ? 'UFA' : '—'}</span>}
+                            <td key={s} style={{ textAlign: 'center', padding: '8px 4px', background: i === 0 ? tint : undefined }}>
+                              {sal != null
+                                ? <span style={{ ...nums, fontSize: 13, color: 'white' }}>{fmtM(sal / 1e6)}</span>
+                                : <span style={{ fontSize: 12, color: MUTED }}>{fa || '—'}</span>}
                               {badges.length > 0 && (
                                 <div className="flex justify-center" style={{ gap: 3, marginTop: 3 }}>
                                   {badges.map(b => <Badge key={b}>{b}</Badge>)}
@@ -753,122 +491,139 @@ export default function SalaryCap({ teamInfo, onHaptic, onTeamClick }) { // esli
                           );
                         })}
                       </tr>
-                    );
-                  })}
-
-                  {/* Team total */}
-                  <tr style={{ borderTop: `1px solid ${HAIR}` }}>
-                    <td style={{ ...stickyCell, padding: '12px 8px' }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>Team total</div>
-                      <div style={{ fontSize: 10, color: MUTED }}>{rows.length} players + dead</div>
-                    </td>
-                    {SEASONS.map((s, i) => (
-                      <td key={s} style={{ textAlign: 'center', background: i === 0 ? tint : undefined }}>
-                        <span style={{ ...nums, fontSize: 13, color: 'white' }}>{fmtM(totals[s])}</span>
-                      </td>
                     ))}
-                  </tr>
 
-                  {/* Team position pills */}
-                  <tr>
-                    <td style={{ ...stickyCell, padding: '8px', fontSize: 12, color: MUTED }}>Team position</td>
-                    {SEASONS.map((s, i) => {
-                      const p = seasonLoaded(s) ? getPosition(totals[s], CAP_RULES[s]) : null;
-                      const meta = p ? POSITION_META[p] : null;
-                      return (
-                        <td key={s} style={{ textAlign: 'center', padding: '6px 3px', background: i === 0 ? tint : undefined }}>
-                          {meta ? (
-                            <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 800, color: meta.color, background: `${meta.color}24`, borderRadius: 6, padding: '3px 5px', lineHeight: '11px' }}>
-                              {meta.label}
-                            </span>
-                          ) : <span style={{ color: MUTED }}>—</span>}
+                    {hasDead && (
+                      <tr style={{ borderBottom: `1px solid ${HAIR}` }}>
+                        <td style={{ ...stickyCell, padding: '10px 8px', fontSize: 13, color: MUTED }}>Dead money</td>
+                        {SEASONS.map((s, i) => (
+                          <td key={s} style={{ textAlign: 'center', background: i === 0 ? tint : undefined }}>
+                            <span style={{ ...nums, fontSize: 13, color: MUTED }}>{deadFor(abbr, s) > 0 ? fmtM(deadFor(abbr, s)) : '—'}</span>
+                          </td>
+                        ))}
+                      </tr>
+                    )}
+
+                    {/* Team total */}
+                    <tr style={{ borderTop: `1px solid ${HAIR}` }}>
+                      <td style={{ ...stickyCell, padding: '12px 8px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: 'white' }}>Team total</div>
+                        <div style={{ fontSize: 10, color: MUTED }}>{playersFor(abbr, CURRENT).length} players{hasDead ? ' + dead' : ''}</div>
+                      </td>
+                      {SEASONS.map((s, i) => (
+                        <td key={s} style={{ textAlign: 'center', background: i === 0 ? tint : undefined }}>
+                          <span style={{ ...nums, fontSize: 13, color: 'white' }}>{fmtM(totals[s])}</span>
                         </td>
-                      );
-                    })}
-                  </tr>
+                      ))}
+                    </tr>
 
-                  {/* League thresholds */}
-                  <tr>
-                    <td colSpan={SEASONS.length + 1} style={{ ...stickyCell, padding: '14px 8px 6px', fontSize: 10, color: MUTED, fontWeight: 600, borderTop: `1px solid ${HAIR}` }}>
-                      League thresholds · team committed salary vs.
-                    </td>
-                  </tr>
-                  {[['Salary cap', 'cap'], ['Luxury tax', 'tax'], ['First apron', 'apron1'], ['Second apron', 'apron2']].map(([label, k]) => (
-                    <tr key={k}>
-                      <td style={{ ...stickyCell, padding: '8px', fontSize: 12, color: 'white' }}>{label}</td>
+                    {/* Team position pills */}
+                    <tr>
+                      <td style={{ ...stickyCell, padding: '8px', fontSize: 12, color: MUTED }}>Team position</td>
                       {SEASONS.map((s, i) => {
-                        const line = CAP_RULES[s][k];
-                        const t = totals[s];
-                        const diff = t === null ? null : t - line;
+                        const p = getPosition(totals[s], CAP_RULES[s]);
+                        const meta = p ? POSITION_META[p] : null;
                         return (
-                          <td key={s} style={{ textAlign: 'center', padding: '6px 2px', background: i === 0 ? tint : undefined }}>
-                            <div style={{ ...nums, fontSize: 12, color: 'white', fontStyle: CAP_RULES[s].projected ? 'italic' : 'normal' }}>
-                              {fmtM(line)}{CAP_RULES[s].projected ? '*' : ''}
-                            </div>
-                            {diff !== null && (
-                              <div style={{ ...nums, fontSize: 10, color: diff > 0 ? RED : GREEN }}>
-                                {fmtM(Math.abs(diff))} {diff > 0 ? 'over' : 'under'}
-                              </div>
-                            )}
+                          <td key={s} style={{ textAlign: 'center', padding: '6px 3px', background: i === 0 ? tint : undefined }}>
+                            {meta ? (
+                              <span style={{ display: 'inline-block', fontSize: 9, fontWeight: 800, color: meta.color, background: `${meta.color}24`, borderRadius: 6, padding: '3px 5px', lineHeight: '11px' }}>
+                                {meta.label}
+                              </span>
+                            ) : <span style={{ color: MUTED }}>—</span>}
                           </td>
                         );
                       })}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                    {/* League thresholds */}
+                    <tr>
+                      <td colSpan={SEASONS.length + 1} style={{ ...stickyCell, padding: '14px 8px 6px', fontSize: 10, color: MUTED, fontWeight: 600, borderTop: `1px solid ${HAIR}` }}>
+                        League thresholds · team committed salary vs.
+                      </td>
+                    </tr>
+                    {[['Salary cap', 'cap'], ['Luxury tax', 'tax'], ['First apron', 'apron1'], ['Second apron', 'apron2']].map(([label, k]) => (
+                      <tr key={k}>
+                        <td style={{ ...stickyCell, padding: '8px', fontSize: 12, color: 'white' }}>{label}</td>
+                        {SEASONS.map((s, i) => {
+                          const line = CAP_RULES[s][k];
+                          const diff = totals[s] === null ? null : totals[s] - line;
+                          return (
+                            <td key={s} style={{ textAlign: 'center', padding: '6px 2px', background: i === 0 ? tint : undefined }}>
+                              <div style={{ ...nums, fontSize: 12, color: 'white', fontStyle: CAP_RULES[s].projected ? 'italic' : 'normal' }}>
+                                {fmtM(line)}{CAP_RULES[s].projected ? '*' : ''}
+                              </div>
+                              {diff !== null && (
+                                <div style={{ ...nums, fontSize: 10, color: diff > 0 ? RED : GREEN }}>
+                                  {fmtM(Math.abs(diff))} {diff > 0 ? 'over' : 'under'}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            {usedBadges.size > 0 && (
+              <div className="flex flex-wrap" style={{ gap: '6px 14px', marginTop: 10, fontSize: 11, color: MUTED }}>
+                {[['PO', 'Player option'], ['TO', 'Team option'], ['NG', 'Non-guaranteed'], ['EXT', 'Extension eligible']]
+                  .filter(([b]) => usedBadges.has(b))
+                  .map(([b, t]) => <span key={b}><Badge>{b}</Badge> {t}</span>)}
+              </div>
+            )}
+            {twoWays.length > 0 && (
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 8 }}>
+                Two-way (not counted): {twoWays.map(p => p.name).join(', ')}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: MUTED, marginTop: 8 }}>
+              * Projected. Future seasons use estimated cap lines. Contract data: Spotrac.
             </div>
           </div>
-        )}
-        {usedBadges.size > 0 && (
-          <div className="flex flex-wrap" style={{ gap: '6px 14px', marginTop: 10, fontSize: 11, color: MUTED }}>
-            {[['PO', 'Player option'], ['TO', 'Team option'], ['EXT', 'Extension eligible'], ['VM', 'Veteran minimum']]
-              .filter(([b]) => usedBadges.has(b))
-              .map(([b, t]) => <span key={b}><Badge>{b}</Badge> {t}</span>)}
-          </div>
-        )}
-        <div style={{ fontSize: 11, color: MUTED, marginTop: 8 }}>* Projected. Future seasons use estimated cap lines.</div>
-      </div>
 
-      {/* What each apron allows */}
-      <div style={{ marginTop: 32 }}>
-      <div style={{ marginBottom: 12 }}><SectionTitle>What each apron allows</SectionTitle></div>
-        <div className="rounded-2xl" style={{ ...CARD, overflow: 'hidden' }}>
-          <div className="overflow-x-auto">
-            <table aria-label="What each apron allows" style={{ borderCollapse: 'collapse', width: '100%', minWidth: 560 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, ...stickyCell, textAlign: 'left', minWidth: 170 }}>Rule</th>
-                  {APRON_COLS.map((c, i) => (
-                    <th key={c} style={{ ...th, background: i === posCol ? tint : undefined, minWidth: 96 }}>
-                      {c}
-                      {i === posCol && <div style={{ fontSize: 8, color: ACCENT, fontWeight: 800, letterSpacing: '0.06em' }}>TEAM</div>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {APRON_RULES.map(r => (
-                  <tr key={r.rule} style={{ borderTop: `1px solid ${HAIR}` }}>
-                    <td style={{ ...stickyCell, padding: '10px 8px', fontSize: 12, color: 'white', lineHeight: '16px' }}>{r.rule}</td>
-                    {r.cells.map((c, i) => (
-                      <td key={i} style={{ textAlign: 'center', verticalAlign: 'top', padding: '10px 6px', background: i === posCol ? tint : undefined }}>
-                        {c.v === 'yes' && <Check size={16} color={GREEN} aria-label="Yes" />}
-                        {c.v === 'no' && <X size={16} color={RED} aria-label="No" />}
-                        {c.v === 'na' && <Minus size={16} color={MUTED} aria-label="Not applicable" />}
-                        {c.note && <div style={{ fontSize: 10, color: MUTED, lineHeight: '13px', marginTop: 3 }}>{c.note}</div>}
-                      </td>
+          {/* What each apron allows */}
+          <div style={{ marginTop: 32 }}>
+            <div style={{ marginBottom: 12 }}><SectionTitle>What each apron allows</SectionTitle></div>
+            <div className="rounded-2xl" style={{ ...CARD, overflow: 'hidden' }}>
+              <div className="overflow-x-auto">
+                <table aria-label="What each apron allows" style={{ borderCollapse: 'collapse', width: '100%', minWidth: 560 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, ...stickyCell, textAlign: 'left', minWidth: 170 }}>Rule</th>
+                      {APRON_COLS.map((c, i) => (
+                        <th key={c} style={{ ...th, background: i === posCol ? tint : undefined, minWidth: 96 }}>
+                          {c}
+                          {i === posCol && <div style={{ fontSize: 8, color: ACCENT, fontWeight: 800, letterSpacing: '0.06em' }}>TEAM</div>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {APRON_RULES.map(r => (
+                      <tr key={r.rule} style={{ borderTop: `1px solid ${HAIR}` }}>
+                        <td style={{ ...stickyCell, padding: '10px 8px', fontSize: 12, color: 'white', lineHeight: '16px' }}>{r.rule}</td>
+                        {r.cells.map((c, i) => (
+                          <td key={i} style={{ textAlign: 'center', verticalAlign: 'top', padding: '10px 6px', background: i === posCol ? tint : undefined }}>
+                            {c.v === 'yes' && <Check size={16} color={GREEN} aria-label="Yes" />}
+                            {c.v === 'no' && <X size={16} color={RED} aria-label="No" />}
+                            {c.v === 'na' && <Minus size={16} color={MUTED} aria-label="Not applicable" />}
+                            {c.note && <div style={{ fontSize: 10, color: MUTED, lineHeight: '13px', marginTop: 3 }}>{c.note}</div>}
+                          </td>
+                        ))}
+                      </tr>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: MUTED, marginTop: 10, lineHeight: '17px' }}>
+              A team's position after the move is what counts. A move marked 'hard caps' means the team can't go over that line for the rest of the league year. Rules: NBA CBA, as summarized by the CBA Guide.
+            </div>
           </div>
-        </div>
-        <div style={{ fontSize: 12, color: MUTED, marginTop: 10, lineHeight: '17px' }}>
-          A team's position after the move is what counts. A move marked 'hard caps' means the team can't go over that line for the rest of the league year. Rules: NBA CBA, as summarized by the CBA Guide.
-        </div>
-      </div>
+        </>
+      )}
 
       {pickerOpen && (
         <TeamPicker current={abbr} onClose={() => setPickerOpen(false)}
