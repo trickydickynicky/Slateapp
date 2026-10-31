@@ -12,6 +12,7 @@ import PlayerComparison from './PlayerComparison';
 import PlayerStatsPage from './PlayerStatsPage';
 import TeamSchedule from './TeamSchedule';
 import TeamStatsPage from './TeamStatsPage';
+import SalaryCap from './SalaryCap';
 import GameLineups from './GameLineups';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
@@ -22,6 +23,7 @@ function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
  
+
   const [sport, setSport] = useState(() => localStorage.getItem('lastSport') || 'NBA');
   const [activeFilter, setActiveFilter] = useState('All');
   const [liveGames, setLiveGames] = useState([]);
@@ -81,6 +83,7 @@ const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 const [selectedGamePlayer, setSelectedGamePlayer] = useState(null);
 const [showFavorites, setShowFavorites] = useState(false);
 const [showRoster, setShowRoster] = useState(false);
+const [showSalary, setShowSalary] = useState(false);
 const [rosterData, setRosterData] = useState(null);
 const [pregameMatchupStats, setPregameMatchupStats] = useState(null);
 const [winProbabilities, setWinProbabilities] = useState(() => {
@@ -1899,6 +1902,7 @@ console.log('🏀 FULL DATA:', data);
   
   
   const closeTeamModal = () => {
+    setShowSalary(false);
     // team page was opened from a player page: go straight back to that player
     if (selectedTeamInfo?.returnTo) {
       const r = selectedTeamInfo.returnTo;
@@ -3766,6 +3770,7 @@ onClick={(e) => {
             onTeamClick={handleTeamClick}
             onRecentGameClick={handleRecentGameClick}
             loadTeamStats={getTeamStatsData}
+            onOpenSalary={() => setShowSalary(true)}
             onOpenRoster={async () => {
               setShowRoster(true);
               if (!rosterData) {
@@ -3793,6 +3798,8 @@ onClick={(e) => {
       </div>
     </div>
   )}
+ 
+  
   
   {selectedNBAPlayer && (
     <div ref={nbaPlayerRef} className={`fixed inset-0 bg-black bg-opacity-100 z-[180] overflow-y-auto ${noPlayerAnim ? '' : 'animate-[slideInRight_0.3s_ease-out]'}`} style={{
@@ -4004,6 +4011,17 @@ onClick={(e) => {
       onHaptic={trigger}
     />
   </Suspense>
+)}
+
+{showSalary && selectedTeamInfo && (
+  <div className="fixed inset-0 bg-black bg-opacity-100 z-[175] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+    <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="max-w-2xl mx-auto">
+      <BackButton onClick={() => { trigger('light'); setShowSalary(false); }} />
+      <SalaryCap teamInfo={selectedTeamInfo} onHaptic={trigger} />
+      </div>
+    </div>
+  </div>
 )}
 
 {/* Player Game Breakdown */}

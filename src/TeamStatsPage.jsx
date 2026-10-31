@@ -49,6 +49,25 @@ export const ordinal = n => {
   return `${n}${sfx}`;
 };
 
+/** "10-5" -> ".667" (same style as the record pct). Returns '' if it can't be parsed. */
+export const pctFromRecord = str => {
+    const m = /^(\d+)-(\d+)/.exec(String(str || ''));
+    if (!m) return '';
+    const w = Number(m[1]), l = Number(m[2]);
+    if (w + l === 0) return '';
+    const p = w / (w + l);
+    return p >= 1 ? '1.000' : p.toFixed(3).replace(/^0/, '');
+  };
+  
+  /** Wins/losses extrapolated to an 82-game season. Returns '' before the first game. */
+  export const paceRecord = (wins, losses, season = 82) => {
+    const w = Number(wins), l = Number(losses);
+    const gp = w + l;
+    if (!Number.isFinite(gp) || gp === 0) return '';
+    const pw = Math.round((w / gp) * season);
+    return `${pw}-${season - pw}`;
+  };
+
 /** Dark team colors disappear on black, so lighten them for bars. */
 export function lift(hex) {
   try {
@@ -280,7 +299,7 @@ function ComparePicker({ currentAbbr, onPick, onClose }) {
 export default function TeamStatsPage({
   teamInfo, stats, loading, leagueRankings,
   isFavorite, onToggleFavorite, onOpenStandings, onOpenRoster,
-  onRecentGameClick, onTeamClick, loadTeamStats, onHaptic,
+  onRecentGameClick, onTeamClick, loadTeamStats, onHaptic, onOpenSalary,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [compareAbbr, setCompareAbbr] = useState(null);
@@ -321,12 +340,13 @@ export default function TeamStatsPage({
   const cells = buildTeamCells(stats, leagueRankings?.[abbr]);
   const strip = [
     { l: 'REC', v: `${rec.wins}-${rec.losses}`, sub: rec.pct },
-    { l: 'HOME', v: rec.home },
-    { l: 'AWAY', v: rec.away },
-    { l: 'L10', v: rec.l10 },
+    { l: 'HOME', v: rec.home, sub: pctFromRecord(rec.home) },
+    { l: 'AWAY', v: rec.away, sub: pctFromRecord(rec.away) },
+    { l: 'L10', v: rec.l10, sub: pctFromRecord(rec.l10) },
     { l: 'GB', v: rec.gb },
     { l: 'STRK', v: streak || '—', color: streakColor },
   ];
+  const projected = paceRecord(rec.wins, rec.losses);
   const grid = (n) => ({ display: 'grid', gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`, columnGap: 2, rowGap: 6 });
   const comparing = compareAbbr && compareStats;
   const rows = comparing ? buildCompareRows(stats, compareStats) : null;
@@ -354,6 +374,13 @@ export default function TeamStatsPage({
             >
               Roster ›
             </button>
+            <span style={{ color: '#3f3f46' }}>·</span>
+            <button
+              onClick={() => { haptic('light'); onOpenSalary && onOpenSalary(); }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: ACCENT, fontSize: 14, fontWeight: 600 }}
+            >
+              Salary ›
+            </button>
           </div>
         </div>
         <button
@@ -365,14 +392,19 @@ export default function TeamStatsPage({
         </button>
       </div>
 
-      {/* Record strip */}
-      <div style={{ ...grid(6), marginTop: 24 }}>
+          {/* Record strip */}
+          <div style={{ ...grid(6), marginTop: 24 }}>
         {strip.map(c => <Stat key={c.l} label={c.l} value={c.v} sub={c.sub} valueColor={c.color} />)}
       </div>
+      {projected && (
+        <div className="text-center" style={{ fontSize: 11, lineHeight: '13px', color: MUTED, fontWeight: 500, marginTop: 2 }}>
+          Projected record: {projected}
+        </div>
+      )}
 
       {/* Title + compare */}
-      <div className="flex items-center justify-between" style={{ marginTop: 28 }}>
-        <SectionTitle color="#a1a1aa">{comparing ? 'Head to head' : 'Season stats'}</SectionTitle>
+      <div className="flex items-center justify-between" style={{ marginTop: projected ? 13 : 28 }}>
+      <SectionTitle color="#a1a1aa">{comparing ? 'Head to head' : 'Season stats'}</SectionTitle>
         {comparing ? (
           <button
             onClick={clearCompare}
@@ -427,9 +459,9 @@ export default function TeamStatsPage({
         onGameClick={g => { haptic('light'); onRecentGameClick && onRecentGameClick(g); }}
       />
 
-<TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
+        <TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
 
-<SeasonLineups teamAbbr={abbr} schedule={stats.fullSchedule} />
+      <SeasonLineups teamAbbr={abbr} schedule={stats.fullSchedule} />
 
       {pickerOpen && (
         <ComparePicker currentAbbr={abbr} onPick={pickCompare} onClose={() => setPickerOpen(false)} />
