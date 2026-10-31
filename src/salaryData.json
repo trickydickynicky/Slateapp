@@ -658,4 +658,1338 @@
    }
   }
  }
+,
+ "BOS": {
+  "years": [
+   2027,
+   2028,
+   2029,
+   2030,
+   2031,
+   2032
+  ],
+  "players": [
+   {
+    "name": "Jayson Tatum",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 58456566,
+     "2028": 62786682,
+     "2029": 67116798,
+     "2030": 71446914
+    },
+    "options": {
+     "2030": "PO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2031": "UFA"
+    }
+   },
+   {
+    "name": "Paul George",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 54126380,
+     "2028": 56586670
+    },
+    "options": {
+     "2028": "PO"
+    },
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Derrick White",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 30348000,
+     "2028": 32596000,
+     "2029": 34844000
+    },
+    "options": {
+     "2029": "PO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Mitchell Robinson",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 15044000,
+     "2028": 15796200,
+     "2029": 16548400
+    },
+    "options": {
+     "2029": "PO"
+    },
+    "ext": [],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Sam Hauser",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 10848215,
+     "2028": 11651785,
+     "2029": 12455356
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Payton Pritchard",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 7767857,
+     "2028": 8303571,
+     "2029": 21228200,
+     "2030": 22926456
+    },
+    "options": {
+     "2030": "MO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2031": "UFA"
+    }
+   },
+   {
+    "name": "Ron Harper Jr.",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 3150752,
+     "2028": 3308290,
+     "2029": 3465828,
+     "2030": 3779359
+    },
+    "options": {
+     "2029": "NG",
+     "2030": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2031": "UFA"
+    }
+   },
+   {
+    "name": "Chris Cenac Jr.",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2988120,
+     "2028": 3137640,
+     "2029": 3287400,
+     "2030": 5930470
+    },
+    "options": {
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Hugo Gonzalez",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2923560,
+     "2028": 3062640,
+     "2029": 5528065
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Luka Garza",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2801346
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Baylor Scheierman",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2744040,
+     "2028": 4952993
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "RFA"
+    }
+   },
+   {
+    "name": "Neemias Queta",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2667944,
+     "2028": 12500000,
+     "2029": 13500000,
+     "2030": 14500000,
+     "2031": 15500000
+    },
+    "options": {},
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2032": "UFA"
+    }
+   },
+   {
+    "name": "Mike Conley",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2449421
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Jordan Walsh",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2406205,
+     "2028": 5000000,
+     "2029": 5250000,
+     "2030": 5500000
+    },
+    "options": {
+     "2030": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2031": "UFA"
+    }
+   },
+   {
+    "name": "Devin Carter",
+    "pos": "PG",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Dillon Mitchell",
+    "pos": "F",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Amari Williams",
+    "pos": "C",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   }
+  ],
+  "dead": {},
+  "spotracSummary": {
+   "Cap Maximum": {
+    "2027": 164961000,
+    "2028": 176000000,
+    "2029": 184800000,
+    "2030": 194040000,
+    "2031": 203742000,
+    "2032": 213929000
+   },
+   "Active Cap": {
+    "2027": 198722406,
+    "2028": 219682471,
+    "2029": 183224047,
+    "2030": 124083199,
+    "2031": 15500000,
+    "2032": null
+   },
+   "Dead Cap": {
+    "2027": null,
+    "2028": null,
+    "2029": null,
+    "2030": null,
+    "2031": null,
+    "2032": null
+   },
+   "Total Cap Allocations": {
+    "2027": 207991480,
+    "2028": 232318093,
+    "2029": 272787841,
+    "2030": 264225502,
+    "2031": 185982562,
+    "2032": 29450000
+   }
+  }
+ },
+ "BKN": {
+  "years": [
+   2027,
+   2028,
+   2029,
+   2030,
+   2031,
+   2032,
+   2033,
+   2034
+  ],
+  "players": [
+   {
+    "name": "Michael Porter Jr.",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 40806150
+    },
+    "options": {},
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Julius Randle",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 33333334,
+     "2028": 35802468
+    },
+    "options": {
+     "2028": "PO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Terance Mann",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 15500000,
+     "2028": 16000000
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Day'Ron Sharpe",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 10000000,
+     "2028": 10000000
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Keon Ellis",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 9000000,
+     "2028": 9000000
+    },
+    "options": {
+     "2028": "MO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Moritz Wagner",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 9000000,
+     "2028": 9450000
+    },
+    "options": {
+     "2028": "MO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Mikel Brown Jr.",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 8787000,
+     "2028": 9226440,
+     "2029": 9666000,
+     "2030": 12256488
+    },
+    "options": {
+     "2029": "TO",
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Egor Demin",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 7233720,
+     "2028": 7578240,
+     "2029": 9639522
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Noah Clowney",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 5414034
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2028": "RFA"
+    }
+   },
+   {
+    "name": "Josh Minott",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 4500000,
+     "2028": 4500000
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Nolan Traore",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 4002000,
+     "2028": 4193040,
+     "2029": 6457282
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Drake Powell",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 3540600,
+     "2028": 3709320,
+     "2029": 6101832
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Ben Saraf",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 3028560,
+     "2028": 3172920,
+     "2029": 5720776
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Joshua Jefferson",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2969520,
+     "2028": 3118560,
+     "2029": 3266880,
+     "2030": 5896718
+    },
+    "options": {
+     "2029": "TO",
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Danny Wolf",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2941440,
+     "2028": 3081840,
+     "2029": 5559640
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Tyler Bilodeau",
+    "pos": "F",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Chaney Johnson",
+    "pos": "F",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Grant Nelson",
+    "pos": "F",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   }
+  ],
+  "dead": {},
+  "spotracSummary": {
+   "Cap Maximum": {
+    "2027": 164961000,
+    "2028": 176000000,
+    "2029": 184800000,
+    "2030": 194040000,
+    "2031": 203742000,
+    "2032": 213929000,
+    "2033": 224625000,
+    "2034": null
+   },
+   "Active Cap": {
+    "2027": 160056358,
+    "2028": 118832828,
+    "2029": 46411932,
+    "2030": 18153206,
+    "2031": null,
+    "2032": null,
+    "2033": null,
+    "2034": null
+   },
+   "Dead Cap": {
+    "2027": null,
+    "2028": null,
+    "2029": null,
+    "2030": null,
+    "2031": null,
+    "2032": null,
+    "2033": null,
+    "2034": null
+   },
+   "Total Cap Allocations": {
+    "2027": 160056358,
+    "2028": 181017726,
+    "2029": 186982698,
+    "2030": 137999252,
+    "2031": 58961099,
+    "2032": 3990240,
+    "2033": 4189800,
+    "2034": 4399320
+   }
+  }
+ },
+ "CHA": {
+  "years": [
+   2027,
+   2028,
+   2029,
+   2030,
+   2031,
+   2032,
+   2033
+  ],
+  "players": [
+   {
+    "name": "Coby White",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 26811593,
+     "2028": 24666667,
+     "2029": 22521740
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Naz Reid",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 23275862,
+     "2028": 25000000,
+     "2029": 26724138,
+     "2030": 28448276
+    },
+    "options": {
+     "2030": "PO"
+    },
+    "ext": [],
+    "fa": {
+     "2031": "UFA"
+    }
+   },
+   {
+    "name": "Grayson Allen",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 18125000,
+     "2028": 19375000
+    },
+    "options": {
+     "2028": "PO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Brandon Miller",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 15104626,
+     "2028": 44000000,
+     "2029": 41201600,
+     "2030": 37905472,
+     "2031": 40937910,
+     "2032": 44212943
+    },
+    "options": {},
+    "ext": [
+     2031
+    ],
+    "fa": {
+     "2033": "UFA"
+    }
+   },
+   {
+    "name": "Dennis Schröder",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 14809200,
+     "2028": 15514400
+    },
+    "options": {
+     "2028": "NG"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Grant Williams",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 14265750
+    },
+    "options": {},
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Royce O'Neale",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 10875000,
+     "2028": 11625000
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Kon Knueppel",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 10516560,
+     "2028": 11017560,
+     "2029": 13937214
+    },
+    "options": {
+     "2028": "TO",
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Tidjane Salaun",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 8237880,
+     "2028": 10445633
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "RFA"
+    }
+   },
+   {
+    "name": "Hannes Steinbach",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 5227200,
+     "2028": 5488560,
+     "2029": 5750160,
+     "2030": 8515987
+    },
+    "options": {
+     "2029": "TO",
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Christian Anderson",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 4257480,
+     "2028": 4470000,
+     "2029": 4683120,
+     "2030": 7202639
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Liam McNeeley",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2902080,
+     "2028": 3040320,
+     "2029": 5487778
+    },
+    "options": {
+     "2028": "TO",
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Moussa Diabate",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2461462
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Sion James",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2411090,
+     "2028": 2525901,
+     "2029": 2735698
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Ryan Kalkbrenner",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2411090,
+     "2028": 2525901,
+     "2029": 2735698
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Michael Ajayi",
+    "pos": "F",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Kylan Boswell",
+    "pos": "G",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "P.J. Hall",
+    "pos": "PF",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   }
+  ],
+  "dead": {
+   "2027": 9040237
+  },
+  "spotracSummary": {
+   "Cap Maximum": {
+    "2027": 164961000,
+    "2028": 176000000,
+    "2029": 184800000,
+    "2030": 194040000,
+    "2031": 203742000,
+    "2032": 213929000,
+    "2033": 224625000
+   },
+   "Active Cap": {
+    "2027": 161691873,
+    "2028": 179694942,
+    "2029": 125777146,
+    "2030": 82072374,
+    "2031": 40937910,
+    "2032": 44212943,
+    "2033": null
+   },
+   "Dead Cap": {
+    "2027": 9040237,
+    "2028": null,
+    "2029": null,
+    "2030": null,
+    "2031": null,
+    "2032": null,
+    "2033": null
+   },
+   "Total Cap Allocations": {
+    "2027": 173181531,
+    "2028": 203389841,
+    "2029": 192834086,
+    "2030": 194928283,
+    "2031": 149003157,
+    "2032": 44212943,
+    "2033": 66319415
+   }
+  }
+ },
+ "CHI": {
+  "years": [
+   2027,
+   2028,
+   2029,
+   2030,
+   2031
+  ],
+  "players": [
+   {
+    "name": "Josh Giddey",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 25000000,
+     "2028": 25000000,
+     "2029": 25000000
+    },
+    "options": {},
+    "ext": [],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Nicolas Claxton",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 23320738,
+     "2028": 21099720
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Norman Powell",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 21500000,
+     "2028": 22575000
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Patrick Williams",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 18000000,
+     "2028": 18000000,
+     "2029": 18000000
+    },
+    "options": {
+     "2029": "PO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2030": "UFA"
+    }
+   },
+   {
+    "name": "Isaac Okoro",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 11814814
+    },
+    "options": {},
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Caleb Wilson",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 10683720,
+     "2028": 11217960,
+     "2029": 11752320,
+     "2030": 14866685
+    },
+    "options": {
+     "2029": "TO",
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Buddy Hield",
+    "pos": "SG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 9658536,
+     "2028": 10097560
+    },
+    "options": {
+     "2028": "PO"
+    },
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Jalen Smith",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 9428571
+    },
+    "options": {},
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Zach Collins",
+    "pos": "C",
+    "twoWay": false,
+    "salaries": {
+     "2027": 8500000,
+     "2028": 8500000
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Tre Jones",
+    "pos": "PG",
+    "twoWay": false,
+    "salaries": {
+     "2027": 8000000,
+     "2028": 8000000
+    },
+    "options": {
+     "2028": "TO"
+    },
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "UFA"
+    }
+   },
+   {
+    "name": "Matas Buzelis",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 5715360,
+     "2028": 7584283
+    },
+    "options": {},
+    "ext": [
+     2028
+    ],
+    "fa": {
+     "2029": "RFA"
+    }
+   },
+   {
+    "name": "Noa Essengue",
+    "pos": "PF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 5701200,
+     "2028": 5972760,
+     "2029": 8230464
+    },
+    "options": {
+     "2029": "TO"
+    },
+    "ext": [
+     2029
+    ],
+    "fa": {
+     "2030": "RFA"
+    }
+   },
+   {
+    "name": "Dailyn Swain",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 4965480,
+     "2028": 5213760,
+     "2029": 5461920,
+     "2030": 8373124
+    },
+    "options": {
+     "2029": "TO",
+     "2030": "TO"
+    },
+    "ext": [
+     2030
+    ],
+    "fa": {
+     "2031": "RFA"
+    }
+   },
+   {
+    "name": "Leonard Miller",
+    "pos": "SF",
+    "twoWay": false,
+    "salaries": {
+     "2027": 2406205
+    },
+    "options": {},
+    "ext": [
+     2027
+    ],
+    "fa": {
+     "2028": "UFA"
+    }
+   },
+   {
+    "name": "Tobe Awaka",
+    "pos": "PF",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Jordan Hawkins",
+    "pos": "SG",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   },
+   {
+    "name": "Jaylin Sellers",
+    "pos": "G",
+    "twoWay": true,
+    "salaries": {},
+    "options": {},
+    "ext": [],
+    "fa": {}
+   }
+  ],
+  "dead": {
+   "2027": 1075459
+  },
+  "spotracSummary": {
+   "Cap Maximum": {
+    "2027": 164961000,
+    "2028": 176000000,
+    "2029": 184800000,
+    "2030": 194040000,
+    "2031": 203742000
+   },
+   "Active Cap": {
+    "2027": 164694624,
+    "2028": 143261043,
+    "2029": 68444704,
+    "2030": 23239809,
+    "2031": null
+   },
+   "Dead Cap": {
+    "2027": 1075459,
+    "2028": null,
+    "2029": null,
+    "2030": null,
+    "2031": null
+   },
+   "Total Cap Allocations": {
+    "2027": 165770083,
+    "2028": 188012699,
+    "2029": 213256380,
+    "2030": 128220771,
+    "2031": 89614287
+   }
+  }
+ }
 }
