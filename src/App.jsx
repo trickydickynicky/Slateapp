@@ -2876,7 +2876,7 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
               const hasData = (i + 1) <= currentPeriod && awayVal;
               const awayLosing = hasData && homeVal && parseInt(awayVal) < parseInt(homeVal);
               return (
-                <td key={`away-p${i}`} className={`text-lg font-semibold py-3 ${hasData ? (awayLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                <td key={`away-p${i}`} className={`text-lg font-semibold py-2 ${hasData ? (awayLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
                   {hasData ? awayVal : '-'}
                 </td>
               );
