@@ -19,6 +19,79 @@ import BackButton from './BackButton';
 
 const GameReplay = lazy(() => import('./GameReplay'));
 
+const fmtAmerican = (v) => {
+  if (v == null || v === '') return null;
+  const n = parseInt(String(v).replace('+', ''), 10);
+  if (Number.isNaN(n)) return null;
+  return n > 0 ? `+${n}` : `${n}`;
+};
+const fmtLine = (n) => (n === 0 ? 'PK' : n > 0 ? `+${n}` : `${n}`);
+
+const OddsCell = ({ line, price, dim }) => (
+  <div className="text-center whitespace-nowrap leading-tight">
+    <div className={`text-base font-semibold ${dim ? 'text-gray-500' : 'text-white'}`}>
+      {price ?? '—'}
+    </div>
+    <div className="text-[10px] text-gray-500 h-3">{line || '\u00A0'}</div>
+  </div>
+);
+
+function OddsTable({ game, odds, awayProb, homeProb }) {
+  if (!odds) return null;
+
+  const awayWins = awayProb != null && homeProb != null && awayProb > homeProb;
+  const homeWins = awayProb != null && homeProb != null && homeProb > awayProb;
+
+  const rows = [
+    {
+      abbr: game.awayTeam,
+      spread: fmtLine(odds.awaySpread),
+      spreadPx: fmtAmerican(odds.awaySpreadPrice),
+      total: odds.total != null ? `O ${odds.total}` : null,
+      totalPx: fmtAmerican(odds.overPrice),
+      ml: fmtAmerican(odds.awayML),
+      prob: awayProb != null ? `${awayProb}%` : null,
+      winning: awayWins,
+    },
+    {
+      abbr: game.homeTeam,
+      spread: fmtLine(odds.homeSpread),
+      spreadPx: fmtAmerican(odds.homeSpreadPrice),
+      total: odds.total != null ? `U ${odds.total}` : null,
+      totalPx: fmtAmerican(odds.underPrice),
+      ml: fmtAmerican(odds.homeML),
+      prob: homeProb != null ? `${homeProb}%` : null,
+      winning: homeWins,
+    },
+  ];
+
+  const cols = 'grid-cols-[2.5rem_repeat(4,minmax(0,1fr))]';
+
+  return (
+    <div className="mt-2 pt-2 border-t border-zinc-800">
+      <div className={`grid ${cols} text-[10px] uppercase tracking-widest text-gray-500 pb-1`}>
+        <span />
+        <span className="text-center">Spread</span>
+        <span className="text-center">Total</span>
+        <span className="text-center">ML</span>
+        <span className="text-center">Win</span>
+      </div>
+      {rows.map((r, i) => (
+        <div
+          key={r.abbr}
+          className={`grid ${cols} items-center py-1.5 ${i > 0 ? 'border-t border-zinc-800/60' : ''}`}
+        >
+          <span className="text-sm font-bold" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{r.abbr}</span>
+          <OddsCell line={r.spread} price={r.spreadPx} />
+          <OddsCell line={r.total} price={r.totalPx} />
+          <OddsCell price={r.ml} />
+          <OddsCell price={r.prob} dim={!r.winning} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SportsApp() {
 
   // Store API key safely (in production, use environment variables)
@@ -701,11 +774,11 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
   }, [selectedDate]);
 // Updated betting odds useEffect with duplicate prevention
 useEffect(() => {
-  fetchBettingOdds();
-  const oddsInterval = setInterval(fetchBettingOdds, 300000);
+  fetchBettingOdds(true);
+  const hasLive = liveGames.some(g => g.isLive);
+  const oddsInterval = setInterval(() => fetchBettingOdds(), hasLive ? 60000 : 300000);
   return () => clearInterval(oddsInterval);
-}, []);
-
+}, [selectedDate, liveGames.some(g => g.isLive)]);
 useEffect(() => {
   const loadAllPlayers = async () => {
     const cached = localStorage.getItem('allPlayersCache');
@@ -934,12 +1007,12 @@ const oppg = parseFloat(teamEntry?.stats?.find(s => s.name === 'avgPointsAgainst
 };
 
 // fetchBettingOdds is a SEPARATE function - NOT inside fetchLiveScores
-const fetchBettingOdds = async () => {
+const fetchBettingOdds = async (force = false) => {
   try {
     const lastFetch = localStorage.getItem('lastOddsFetch');
     const now = Date.now();
     
-    if (lastFetch && (now - parseInt(lastFetch)) < 30000) {
+    if (!force && lastFetch && (now - parseInt(lastFetch)) < 30000) {
       return;
     }
 
@@ -989,12 +1062,23 @@ if (provider) {
     provider.homeTeamOdds?.open?.pointSpread?.american ?? provider.spread ?? 0
   );
 
+  
+  const h = provider.homeTeamOdds || {};
+  const a = provider.awayTeamOdds || {};
+  const px = (v) => (v == null || v === '' ? null : v);
+
   oddsEntry = {
     favoriteTeam,
     spread,
     homeSpread,
     awaySpread: -homeSpread,
     total,
+    homeML: px(h.moneyLine ?? h.current?.moneyLine?.american),
+    awayML: px(a.moneyLine ?? a.current?.moneyLine?.american),
+    homeSpreadPrice: px(h.spreadOdds ?? h.current?.spread?.american),
+    awaySpreadPrice: px(a.spreadOdds ?? a.current?.spread?.american),
+    overPrice: px(provider.overOdds ?? provider.current?.over?.american),
+    underPrice: px(provider.underOdds ?? provider.current?.under?.american),
     openingSpread: Math.abs(openingHomeSpread),
     openingFavoriteTeam: openingHomeSpread < 0 ? homeAbbr : openingHomeSpread > 0 ? awayAbbr : null
   };
@@ -2580,7 +2664,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       <div className="max-w-2xl mx-auto">
       <BackButton onClick={() => { trigger('light'); closeModal(); }} />
         <div
-  className="bg-black rounded-2xl p-6 mb-6 select-none cursor-grab active:cursor-grabbing"
+className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab active:cursor-grabbing"
   style={{
     transform: `translateX(${scoreboardSwipeX}px)`,
     transition: isScoreboardSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -2595,7 +2679,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   onMouseUp={onScoreboardMouseUp}
   onMouseLeave={onScoreboardMouseUp}
 >
-          <div className="flex items-start justify-between min-h-[120px]">
+<div className="flex items-start justify-between">
             {/* AWAY TEAM - LEFT SIDE */}
             <div 
               className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
@@ -2726,39 +2810,16 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 </div>
  </div>
 
-  {/* Win Probability Bar */}
-  {(selectedGame.isLive || selectedGame.isPreGame) && (() => {
-    const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
-    const odds = bettingOdds[gameKey];
+ {(selectedGame.isLive || selectedGame.isPreGame) && (() => {
+    const odds = bettingOdds[`${selectedGame.awayTeam}-${selectedGame.homeTeam}`];
     if (!odds) return null;
-    const awayProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame);
-    const homeProb = calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame);
-    if (!awayProb || !homeProb) return null;
-
     return (
-      <div className="mt-4 pt-4 border-t border-zinc-800">
-       <div className="flex h-1.5 rounded-full overflow-hidden mb-2">
-          <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${awayProb}%`, backgroundColor: teamColors[selectedGame.awayTeam] || '#3B82F6', opacity: 0.6 }}
-          />
-          <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${homeProb}%`, backgroundColor: teamColors[selectedGame.homeTeam] || '#EF4444' }}
-          />
-        </div>
-        <div className="flex justify-between">
-          <span className={`text-xs font-semibold ${awayProb > homeProb ? 'text-white' : 'text-gray-500'}`}>
-            {selectedGame.awayTeam} {awayProb}%
-          </span>
-          <span className={`text-xs text-orange-400`}>
-            {odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} -${odds.spread}`}{odds.total ? ` • o${odds.total}` : ''}
-          </span>
-          <span className={`text-xs font-semibold ${homeProb > awayProb ? 'text-white' : 'text-gray-500'}`}>
-            {homeProb}% {selectedGame.homeTeam}
-          </span>
-        </div>
-      </div>
+      <OddsTable
+        game={selectedGame}
+        odds={odds}
+        awayProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame)}
+        homeProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame)}
+      />
     );
   })()}
 
