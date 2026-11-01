@@ -16,6 +16,7 @@ import SalaryCap from './SalaryCap';
 import GameLineups from './GameLineups';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
+import useOnCourt from './useOnCourt';
 
 const GameReplay = lazy(() => import('./GameReplay'));
 
@@ -182,6 +183,22 @@ const salaryRef = useRef(null);
 const { trigger } = useWebHaptics();
 const [showReplay, setShowReplay] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
+
+const liveOnCourt = useOnCourt(gameDetails, !!selectedGame?.isLive);
+
+// Live games: keep the box score and plays fresh (the page only refreshed when you came back to the app)
+useEffect(() => {
+  if (!selectedGame?.isLive) return undefined;
+  const id = setInterval(async () => {
+    if (document.hidden) return;
+    try {
+      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${selectedGame.id}`);
+      const data = await res.json();
+      setGameDetails(prev => (prev ? { ...prev, boxscore: data.boxscore, header: data.header, plays: data.plays } : prev));
+    } catch (e) { /* try again next tick */ }
+  }, 10000);
+  return () => clearInterval(id);
+}, [selectedGame?.id, selectedGame?.isLive]);
 
 useEffect(() => {
   localStorage.setItem('lastSport', sport);
@@ -3693,21 +3710,35 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     
     const allPlayers = [...boxscorePlayers, ...injuredOnlyPlayers];
     
-    return allPlayers
-      .sort((a, b) => {
-        if (a.isInjuredOnly) return 1;
-        if (b.isInjuredOnly) return -1;
-        const aMinutes = parseFloat(a.stats?.[0]) || 0;
-        const bMinutes = parseFloat(b.stats?.[0]) || 0;
-        return bMinutes - aMinutes;
-      })
+     // Live games: On court first, then Bench (injured-only stay at the bottom). Otherwise sort by minutes as before.
+    const isOn = (p) => !!liveOnCourt && liveOnCourt.has(String(p.athlete.id));
+    const groupOf = (p) => (p.isInjuredOnly ? 'out' : !liveOnCourt ? 'all' : isOn(p) ? 'on' : 'bench');
+    const groupOrder = { all: 0, on: 0, bench: 1, out: 2 };
+    const sorted = [...allPlayers].sort((a, b) =>
+      (groupOrder[groupOf(a)] - groupOrder[groupOf(b)]) ||
+      ((parseFloat(b.stats?.[0]) || 0) - (parseFloat(a.stats?.[0]) || 0))
+    );
+    const labelOf = (p) => (!liveOnCourt ? null : groupOf(p) === 'on' ? 'On court' : 'Bench');
+
+    return sorted
       .map((player, idx) => {
+        const label = labelOf(player);
+        const sectionLabel = label && label !== (idx > 0 ? labelOf(sorted[idx - 1]) : null) ? label : null;
+   
     const playerInjury = (player.isInjuredOnly || parseFloat(player.stats?.[0]) === 0) ? teamInjuryData?.injuries?.find(
       inj => inj.athlete.id === player.athlete.id
     ) : null;
         
 return (
-  <tr key={idx} className="border-b border-zinc-800 last:border-0 relative h-12">
+  <React.Fragment key={idx}>
+  {sectionLabel && (
+    <tr>
+      <td colSpan="15" className="bg-black px-2 pt-3 pb-1">
+        <div className="sticky left-0 inline-block text-xs font-semibold text-gray-400 uppercase tracking-widest" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{sectionLabel}</div>
+      </td>
+    </tr>
+  )}
+  <tr className="border-b border-zinc-800 last:border-0 relative h-12">
 <td className="py-1 sticky left-0 bg-black z-20 -ml-px border-l-0 w-14 min-w-[56px]">
 <div className="flex items-center gap-0">
 {player.athlete.headshot && (
@@ -3841,6 +3872,7 @@ onClick={(e) => {
 </>
 )}
 </tr>
+</React.Fragment>
 );
 });
 })()}
