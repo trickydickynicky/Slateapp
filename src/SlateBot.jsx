@@ -2080,22 +2080,36 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
    
      /* Keep the panel inside the visual viewport so the iOS keyboard never covers the input */
      useEffect(() => {
-        if (!open) return undefined;
-        const vv = window.visualViewport;
-        if (!vv) return undefined;
-        const update = () => {
-          if (window.innerWidth >= 640) { setVp(null); return; } // desktop card uses its own sizing
-          setVp({ h: Math.round(vv.height), top: Math.round(vv.offsetTop) });
-        };
+      if (!open) return undefined;
+      const vv = window.visualViewport;
+      if (!vv) return undefined;
+      const timers = [];
+      const update = () => {
+        if (window.innerWidth >= 640) { setVp(null); return; } // desktop card uses its own sizing
+        setVp({ h: Math.round(vv.height), top: Math.round(vv.offsetTop) });
+      };
+      const settle = () => {
         update();
-        vv.addEventListener('resize', update);
-        vv.addEventListener('scroll', update);
-        return () => {
-          vv.removeEventListener('resize', update);
-          vv.removeEventListener('scroll', update);
-          setVp(null);
-        };
-      }, [open]);
+        [60, 150, 300, 500, 800, 1200].forEach((ms) => timers.push(setTimeout(update, ms)));
+      };
+      update();
+      vv.addEventListener('resize', update);
+      vv.addEventListener('scroll', update);
+      window.addEventListener('resize', update);
+      window.addEventListener('orientationchange', settle);
+      document.addEventListener('focusin', settle);
+      document.addEventListener('focusout', settle);
+      return () => {
+        timers.forEach(clearTimeout);
+        vv.removeEventListener('resize', update);
+        vv.removeEventListener('scroll', update);
+        window.removeEventListener('resize', update);
+        window.removeEventListener('orientationchange', settle);
+        document.removeEventListener('focusin', settle);
+        document.removeEventListener('focusout', settle);
+        setVp(null);
+      };
+    }, [open]);
    
       const loadIndex = useCallback(() => {
        if (!idxPromise.current) {
@@ -2176,7 +2190,7 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
    
          {/* dim backdrop (phones only); tap to close */}
          <div
-           className={`fixed inset-0 z-[159] bg-black/60 transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          className={`fixed inset-0 z-[159] bg-black transition-opacity duration-300 sm:hidden ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
            onClick={() => setOpen(false)}
            aria-hidden="true"
          />

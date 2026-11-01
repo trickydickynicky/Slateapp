@@ -2810,7 +2810,7 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
 </div>
  </div>
 
- {(selectedGame.isLive || selectedGame.isPreGame) && (() => {
+ {selectedGame.isPreGame && (() => {
     const odds = bettingOdds[`${selectedGame.awayTeam}-${selectedGame.homeTeam}`];
     if (!odds) return null;
     return (
