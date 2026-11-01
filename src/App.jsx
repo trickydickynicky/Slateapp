@@ -195,6 +195,20 @@ useEffect(() => {
       const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${selectedGame.id}`);
       const data = await res.json();
       setGameDetails(prev => (prev ? { ...prev, boxscore: data.boxscore, header: data.header, plays: data.plays } : prev));
+
+      // Keep the top scoreboard in step with the box score
+      const comp = data.header?.competitions?.[0];
+      const home = comp?.competitors?.find(c => c.homeAway === 'home');
+      const away = comp?.competitors?.find(c => c.homeAway === 'away');
+      if (comp && home && away) {
+        setSelectedGame(prev => (prev && prev.id === selectedGame.id ? {
+          ...prev,
+          homeScore: home.score ?? prev.homeScore,
+          awayScore: away.score ?? prev.awayScore,
+          period: comp.status?.period ?? prev.period,
+          clock: comp.status?.displayClock ?? prev.clock,
+        } : prev));
+      }
     } catch (e) { /* try again next tick */ }
   }, 10000);
   return () => clearInterval(id);
