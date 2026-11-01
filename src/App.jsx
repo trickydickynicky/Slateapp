@@ -2829,7 +2829,7 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
 
 {/* Quarter-by-Quarter Breakdown */}
 {!selectedGame.isPreGame && gameDetails?.header?.competitions?.[0]?.competitors && (
-  <div className="bg-transparent rounded-2xl px-2 py-0..5 mb-4">
+  <div className="bg-transparent rounded-2xl px-2 py-0.5 mb-1">
 
 <table className="w-full text-center">
   <thead>
@@ -2884,8 +2884,8 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
           </tr>
 
           <tr className="border-t border-zinc-800">
-            <td className="text-left py-2">
-              <span className="font-semibold">{selectedGame.homeTeam}</span>
+          <td className="text-left py-1">
+          <span className="font-semibold">{selectedGame.homeTeam}</span>
             </td>
             {Array.from({ length: totalPeriods }, (_, i) => {
               const awayVal = awayQuarters[i]?.displayValue;
@@ -2893,7 +2893,7 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
               const hasData = (i + 1) <= currentPeriod && homeVal;
               const homeLosing = hasData && awayVal && parseInt(homeVal) < parseInt(awayVal);
               return (
-                <td key={`home-p${i}`} className={`text-lg font-semibold py-2 ${hasData ? (homeLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
+                <td key={`home-p${i}`} className={`text-lg font-semibold py-1 ${hasData ? (homeLosing ? 'text-gray-500' : 'text-white') : 'text-gray-600'}`}>
                   {hasData ? homeVal : '-'}
                 </td>
               );
