@@ -677,32 +677,45 @@ const headshotUrl = (p, athlete) => {
 const dataUrlCache = new Map();
 
 // Inline remote images so the capture never depends on CDN CORS. Failures resolve to null (initials fallback).
+async function fetchAsBlob(u) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(u, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    if (!blob.type.startsWith('image/')) throw new Error(`not an image (${blob.type})`);
+    return blob;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function toDataUrl(url) {
   if (!url) return null;
   if (dataUrlCache.has(url)) return dataUrlCache.get(url);
-  try {
-    let res;
+  const attempts = [
+    url,
+    `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=300`,
+    `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300`,
+  ];
+  for (const a of attempts) {
     try {
-      res = await fetch(url, { mode: 'cors' });
-      if (!res.ok) throw new Error('img');
+      const blob = await fetchAsBlob(a);
+      const out = await new Promise((ok, no) => {
+        const r = new FileReader();
+        r.onload = () => ok(r.result);
+        r.onerror = no;
+        r.readAsDataURL(blob);
+      });
+      dataUrlCache.set(url, out);
+      console.log('[share-img] ok', url, a === url ? '(direct)' : '(proxy)');
+      return out;
     } catch (e) {
-      // CDN doesn't allow CORS: retry through a CORS-friendly image proxy
-      res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300`);
-      if (!res.ok) throw new Error('img');
+      console.log('[share-img] fail', a, e.message);
     }
-    const blob = await res.blob();
-    const out = await new Promise((ok, no) => {
-      const r = new FileReader();
-      r.onload = () => ok(r.result);
-      r.onerror = no;
-      r.readAsDataURL(blob);
-    });
-    dataUrlCache.set(url, out);
-    return out;
-  } catch (e) {
-    if (IS_DEV) console.warn('[PlayerGameBreakdown] image failed', url, e);
-    return null;
   }
+  return null;
 }
 
 const nextFrames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -883,6 +896,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       myLogo, game?.awayLogo, game?.homeLogo,
       ...(data.assists?.rows || []).map(r => r.headshot),
     ].filter(Boolean);
+    console.log('[share-img] urls', urls);
     const entries = await Promise.all([...new Set(urls)].map(async u => [u, await toDataUrl(u)]));
     setImgs(Object.fromEntries(entries));
     setCapturing(true);
@@ -895,8 +909,12 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       try {
         await nextFrames();
         if (document.fonts?.ready) await document.fonts.ready;
+        const node = cardRef.current;
+        await Promise.all([...node.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
         const { toBlob } = await import('html-to-image');
-        const blob = await toBlob(cardRef.current, { pixelRatio: 3, backgroundColor: '#000' });
+        const opts = { pixelRatio: 3, backgroundColor: '#000' };
+        await toBlob(node, opts);              // warm-up pass: Safari drops images on the first render
+        const blob = await toBlob(node, opts);
         if (!blob || cancelled) return;
         const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
         await shareOrDownload(blob, `${slug(player?.name)}-${slug(game?.awayTeam)}-at-${slug(game?.homeTeam)}.png`);
