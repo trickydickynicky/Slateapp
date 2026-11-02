@@ -97,7 +97,7 @@ export function RatingTable({ rows, cols, sort, onSort, onTeamClick, showEstimat
     <div className="bg-black rounded-2xl overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-black sticky top-0">
+        <thead className="bg-black sticky top-0 [&_th]:py-2">
             <tr className="text-gray-400">
             <th className="text-right py-3 pl-2 pr-1 w-[34px] min-w-[34px] sticky left-0 bg-black z-10">#</th>
               <th

@@ -2599,7 +2599,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
         }
       }} />
 
-<div className="flex gap-2 mb-6">
+<div className="flex gap-2 mb-2">
           {[
             { label: 'Eastern', active: standingsView === 'standings' && selectedConference === 'Eastern', go: () => { setStandingsView('standings'); setSelectedConference('Eastern'); } },
             { label: 'Western', active: standingsView === 'standings' && selectedConference === 'Western', go: () => { setStandingsView('standings'); setSelectedConference('Western'); } },
@@ -2630,7 +2630,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
           <div className="bg-black rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-black sticky top-0">
+              <thead className="bg-black sticky top-0 [&_th]:py-2">
                   <tr className="text-gray-400">
                   <th className="text-right py-3 pl-2 pr-1 w-[34px] min-w-[34px] sticky left-0 bg-black z-10">#</th>
                   <th className="text-left py-3 pl-1 pr-3 sticky left-[34px] bg-black z-10">Team</th>

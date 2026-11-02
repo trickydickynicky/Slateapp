@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { Star } from 'lucide-react';
 import TeamSchedule from './TeamSchedule';
+
+const TeamAdvanced = lazy(() => import('./TeamAdvanced'));
 import { SeasonLineups } from './GameLineups';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -301,7 +303,8 @@ export default function TeamStatsPage({
   isFavorite, onToggleFavorite, onOpenStandings, onOpenRoster,
   onRecentGameClick, onTeamClick, loadTeamStats, onHaptic, onOpenSalary,
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false);
+    const [pickerOpen, setPickerOpen] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
   const [compareAbbr, setCompareAbbr] = useState(null);
   const [compareStats, setCompareStats] = useState(null);
   const haptic = typeof onHaptic === 'function' ? onHaptic : () => {};
@@ -413,12 +416,20 @@ export default function TeamStatsPage({
             Clear
           </button>
         ) : (
-          <button
-            onClick={() => { haptic('light'); setPickerOpen(true); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: ACCENT, fontSize: 15, fontWeight: 700 }}
-          >
-            Compare ›
-          </button>
+            <div className="flex items-center" style={{ gap: 18 }}>
+            <button
+              onClick={() => { haptic('light'); setAdvancedOpen(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: ACCENT, fontSize: 15, fontWeight: 700 }}
+            >
+              Advanced ›
+            </button>
+            <button
+              onClick={() => { haptic('light'); setPickerOpen(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: ACCENT, fontSize: 15, fontWeight: 700 }}
+            >
+              Compare ›
+            </button>
+          </div>
         )}
       </div>
 
@@ -459,9 +470,15 @@ export default function TeamStatsPage({
         onGameClick={g => { haptic('light'); onRecentGameClick && onRecentGameClick(g); }}
       />
 
-        <TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
+<TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
 
       <SeasonLineups teamAbbr={abbr} schedule={stats.fullSchedule} />
+
+      {advancedOpen && (
+        <Suspense fallback={<div className="fixed inset-0 z-[120] bg-black flex items-center justify-center text-gray-400 text-sm">Loading…</div>}>
+          <TeamAdvanced teamAbbr={abbr} onClose={() => setAdvancedOpen(false)} onHaptic={haptic} />
+        </Suspense>
+      )}
 
       {pickerOpen && (
         <ComparePicker currentAbbr={abbr} onPick={pickCompare} onClose={() => setPickerOpen(false)} />
