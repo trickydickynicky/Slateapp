@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ZONES, findTeam, loadTeamTotals, loadOppTotals, nbaSeason } from './pbpstatsTeams';
+import { ZONES, findTeam, loadTeamTotals, loadOppTotals, loadTeamExtras, nbaSeason } from './pbpstatsTeams';
 import { loadTeamShots, loadTeamPlays } from './espnShots';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -103,7 +103,302 @@ function TabToggle({ tab, onChange }) {
    Tab: Team (ratings and pace)
 ──────────────────────────────────────────────────────────────────────────── */
 
-function TeamTab({ teams, me }) {
+const num1 = v => String(+v.toFixed(1));
+const num0 = v => String(Math.round(v));
+const pct0 = v => `${Math.round(v * 100)}%`;
+
+function useBox(teamAbbr, season) {
+  const [box, setBox] = useState([]);
+  useEffect(() => {
+    let dead = false;
+    loadTeamPlays(teamAbbr, season, d => { if (!dead) setBox(d.box); })
+      .then(d => { if (!dead) setBox(d.box); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, [teamAbbr, season]);
+  return box;
+}
+
+function useExtras(season) {
+  const [st, setSt] = useState({ status: 'loading', data: null });
+  useEffect(() => {
+    let dead = false;
+    loadTeamExtras(season)
+      .then(data => { if (!dead) setSt({ status: 'ready', data }); })
+      .catch(() => { if (!dead) setSt({ status: 'error', data: null }); });
+    return () => { dead = true; };
+  }, [season]);
+  return st;
+}
+
+/* Rows of the per-game table. pb = from pbpstats totals (ranked), es = from ESPN box scores (no rank). */
+function buildTeamRows(teams, opp, me, oppMe, box) {
+  const gp = t => Math.max(t.gp, 1);
+  const fga = t => t.fg2a + t.fg3a;
+  const fgm = t => t.fg2m + t.fg3m;
+  const ratio = (a, b) => (b > 0 ? a / b : 0);
+  const div = (a, b) => (a != null && b > 0 ? a / b : null);
+  const avg = (side, key) => {
+    const v = box.map(b => b[side]?.[key]).filter(Number.isFinite);
+    return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+  };
+  const g = { me: k => avg('m', k), op: k => avg('o', k) };
+  const pb = (label, fn, fmt, better) => ({ label, fmt, better, pb: fn });
+  const es = (label, fn, fmt, better) => ({ label, fmt, better, es: fn });
+  const pair = k => () => [g.me(k), g.op(k)];
+
+  const secs = [
+    {
+      title: 'Shooting',
+      items: [
+        pb('FG%', t => ratio(fgm(t), fga(t)), pct0, 'high'),
+        pb('2PT made', t => t.fg2m / gp(t), num1, 'high'),
+        pb('2PT attempts', t => t.fg2a / gp(t), num1, null),
+        pb('2PT%', t => ratio(t.fg2m, t.fg2a), pct0, 'high'),
+        pb('3PT made', t => t.fg3m / gp(t), num1, 'high'),
+        pb('3PT attempts', t => t.fg3a / gp(t), num1, null),
+        pb('3PT%', t => ratio(t.fg3m, t.fg3a), pct0, 'high'),
+        pb('FT made', t => t.ftm / gp(t), num1, 'high'),
+        pb('FT attempts', t => t.fta / gp(t), num1, null),
+        pb('FT%', t => ratio(t.ftm, t.fta), pct0, 'high'),
+        es('Fouls', pair('pf'), num1, 'low'),
+      ],
+    },
+    {
+      title: 'Possessions',
+      items: [
+        es('Rebounds', pair('reb'), num1, 'high'),
+        es('Rebound %', () => {
+          const a = g.me('reb'), b = g.op('reb');
+          return a != null && b != null && a + b > 0 ? [a / (a + b), b / (a + b)] : [null, null];
+        }, pct1, 'high'),
+        es('Off. rebounds', pair('oreb'), num1, 'high'),
+        pb('Assists', t => totalAst(t) / gp(t), num1, 'high'),
+        pb('Assist %', t => ratio(totalAst(t), fgm(t)), pct1, 'high'),
+        pb('Turnovers', t => t.tov / gp(t), num1, 'low'),
+        pb('TOV %', t => ratio(t.tov, t.offPoss), pct1, 'low'),
+        es('Steals', pair('stl'), num1, 'high'),
+        es('Steal %', () => [div(g.me('stl'), me.defPoss / gp(me)), div(g.op('stl'), me.offPoss / gp(me))], pct1, 'high'),
+        es('Blocks', pair('blk'), num1, 'high'),
+        es('Block %', () => [
+          div(g.me('blk'), oppMe ? oppMe.fg2a / gp(oppMe) : 0),
+          div(g.op('blk'), me.fg2a / gp(me)),
+        ], pct1, 'high'),
+      ],
+    },
+    {
+      title: 'Scoring',
+      items: [
+        es('In the paint', pair('paint'), num1, 'high'),
+        es('Off turnovers', pair('offTO'), num1, 'high'),
+        es('Bench points', pair('bench'), num1, 'high'),
+        es('Starters points', pair('starters'), num1, 'high'),
+      ],
+    },
+    {
+      title: 'Efficiency',
+      items: [
+        pb('Possessions', t => t.offPoss / gp(t), num0, null),
+        pb('Points per 100', t => ratio(t.pts, t.offPoss) * 100, num0, 'high'),
+        pb('True shooting', t => t.ts, pct0, 'high'),
+        pb('True shot att.', t => (fga(t) + 0.44 * t.fta) / gp(t), num1, null),
+      ],
+    },
+  ];
+
+  let wins = 0, total = 0;
+  const won = [];
+  const sections = secs.map(sec => {
+    const rows = [];
+    let w = 0, l = 0, n = 0;
+    sec.items.forEach(it => {
+      let a, b, rA = null, rB = null;
+      if (it.pb) {
+        a = it.pb(me);
+        b = oppMe ? it.pb(oppMe) : null;
+        rA = rank(teams, it.pb, me, it.better !== 'low');
+        if (b != null && opp) rB = 1 + opp.filter(t => it.pb(t) < b).length;
+      } else {
+        [a, b] = it.es();
+      }
+      if (a == null) return;
+      const row = { label: it.label, fmt: it.fmt, better: it.better, a, b, rA, rB };
+      rows.push(row);
+      if (it.better && b != null) {
+        n++;
+        const win = it.better === 'high' ? a > b : a < b;
+        const loss = it.better === 'high' ? a < b : a > b;
+        if (win) { w++; won.push(row); } else if (loss) l++;
+      }
+    });
+    wins += w; total += n;
+    return { title: sec.title, rows, w, l };
+  });
+
+  const chips = won
+    .map(r => ({ r, rel: Math.abs(r.a - r.b) / Math.max(Math.min(Math.abs(r.a), Math.abs(r.b)), 0.01) }))
+    .sort((x, y) => y.rel - x.rel)
+    .slice(0, 4)
+    .map(({ r }) => `${r.label} ${r.fmt(r.a)}–${r.fmt(r.b)}`);
+
+  return { sections, wins, total, chips };
+}
+
+function StatCell({ value, rank, tone }) {
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: 14, fontWeight: 800 }}>{value}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color: rank && tone ? rankTone(rank) : MUTED, marginTop: 1, minHeight: 12 }}>
+        {rank ? ordinal(rank) : ''}
+      </div>
+    </div>
+  );
+}
+
+function TeamStatsCard({ built, teamAbbr, hasOpp, nTeams }) {
+  const cols = hasOpp ? 'minmax(0, 1fr) 70px 70px' : 'minmax(0, 1fr) 70px';
+  const colHead = { fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em', textAlign: 'right' };
+  return (
+    <div>
+      <div style={{ ...heading, fontSize: 18, fontWeight: 700 }}>
+        {teamAbbr} won <span style={{ color: ACCENT }}>{built.wins}</span> of {built.total} categories
+      </div>
+      {built.chips.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {built.chips.map(c => (
+            <span key={c} style={{ fontSize: 11, fontWeight: 700, color: '#a1a1aa', background: '#0a0a0a', border: '1px solid #171717', borderRadius: 999, padding: '4px 10px' }}>{c}</span>
+          ))}
+        </div>
+      )}
+      {built.sections.map(sec => sec.rows.length > 0 && (
+        <div key={sec.title} style={{ marginTop: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <SectionTitle>{sec.title}</SectionTitle>
+            {sec.w + sec.l > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: MUTED }}>{teamAbbr} {sec.w}–{sec.l}</span>}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 4, padding: '10px 0 6px', ...colHead }}>
+            <span />
+            <span>{teamAbbr}</span>
+            {hasOpp && <span>OPP</span>}
+          </div>
+          {sec.rows.map(r => (
+            <div key={r.label} style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 4, alignItems: 'center', padding: '9px 0', borderTop: '1px solid #131313' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#e4e4e7' }}>{r.label}</span>
+              <StatCell value={r.fmt(r.a)} rank={r.rA} tone={!!r.better} />
+              {hasOpp && <StatCell value={r.b != null ? r.fmt(r.b) : '—'} rank={r.rB} tone={!!r.better} />}
+            </div>
+          ))}
+        </div>
+      ))}
+      <Note>
+        Per game. Small numbers are the NBA rank among {nTeams} teams (OPP: 1st = fewest allowed; turnovers, TOV% and fouls: 1st = fewest). Rows without a rank are from ESPN box scores of this team's games. Rebound % = share of all rebounds. Assist % = share of made shots that were assisted. TOV % = turnovers per possession. Steal % = steals per opponent possession. Block % = share of the opponent's two-point tries blocked. True shot attempts = FGA + 0.44 × FTA.
+      </Note>
+    </div>
+  );
+}
+
+/* Generic CLE | OPP table for the extra cards. Each cell: { text, rank } or null. */
+function DualTable({ title, sub, head, rows, note }) {
+  const cols = 'minmax(0, 1fr) 70px 70px';
+  return (
+    <div style={{ marginTop: 28 }}>
+      <SectionTitle>{title}</SectionTitle>
+      {sub && <div style={{ fontSize: 12, color: MUTED, marginTop: 6 }}>{sub}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 4, padding: '12px 0 6px', fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em', textAlign: 'right' }}>
+        <span />
+        <span>{head[0]}</span>
+        <span>{head[1]}</span>
+      </div>
+      {rows.map(r => (
+        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: cols, columnGap: 4, alignItems: 'center', padding: '9px 0', borderTop: '1px solid #131313' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#e4e4e7' }}>{r.label}</span>
+          {[r.a, r.b].map((c, i) => (
+            <StatCell key={i} value={c ? c.text : '—'} rank={c ? c.rank : null} tone />
+          ))}
+        </div>
+      ))}
+      {note && <Note>{note}</Note>}
+    </div>
+  );
+}
+
+function ExtraCards({ data, teams, opp, teamAbbr }) {
+  // cell from an array of { abbr, [key] }; desc = rank 1 is the highest value
+  const cell = (arr, key, desc, fmt, ranked = true) => {
+    const mine = findTeam(arr || [], teamAbbr);
+    if (!mine || mine[key] == null) return null;
+    const v = mine[key];
+    return { text: fmt(v), rank: ranked ? 1 + arr.filter(x => (desc ? x[key] > v : x[key] < v)).length : null };
+  };
+  const ppp = v => v.toFixed(2);
+
+  const startRows = [
+    ['After a steal', 'steal'],
+    ['After a defensive rebound', 'missed'],
+    ['After a dead-ball turnover', 'dead'],
+    ['After an opponent score', 'made'],
+  ].map(([label, k]) => ({ label, a: cell(data.start.team, k, true, ppp), b: cell(data.start.opp, k, false, ppp) }));
+
+  const timeoutRows = [
+    { label: 'After timeouts', a: cell(data.start.team, 'timeout', true, ppp), b: cell(data.start.opp, 'timeout', false, ppp) },
+    { label: 'All possessions', a: cell(data.start.team, 'ppp', true, ppp, false), b: cell(data.start.opp, 'ppp', true, ppp, false) },
+  ];
+
+  const orebRows = ZONES.map(z => ({
+    label: z.label,
+    a: cell(data.oreb[z.key].team, 'v', true, pct0),
+    b: cell(data.oreb[z.key].opp, 'v', false, pct0),
+  }));
+
+  const per100 = (tms, liveArr) => tms.map(t => {
+    const lv = liveArr.find(x => x.abbr === t.abbr)?.v;
+    if (lv == null || !(t.offPoss > 0)) return null;
+    return { abbr: t.abbr, live: lv * 100, dead: Math.max(t.tov / t.offPoss - lv, 0) * 100 };
+  }).filter(Boolean);
+  const mineTO = per100(teams, data.live.team);
+  const forcedTO = opp ? per100(opp, data.live.opp) : [];
+  const toRows = [
+    ['Live-ball turnovers per 100', 'live'],
+    ['Dead-ball turnovers per 100', 'dead'],
+  ].map(([label, k]) => ({ label, a: cell(mineTO, k, false, num1), b: cell(forcedTO, k, true, num1) }));
+
+  return (
+    <div>
+      <DualTable
+        title="How possessions started"
+        sub="Points per possession"
+        head={[teamAbbr, 'OPP']}
+        rows={startRows}
+        note={`Small numbers are the NBA rank among ${data.start.team.length} teams (${teamAbbr}: 1st = most points per possession; OPP: 1st = fewest allowed). Counted from rebounds, turnovers and made baskets, from pbpstats.`}
+      />
+      <DualTable
+        title="Out of timeouts"
+        sub="The first possession after each team's own timeout"
+        head={[teamAbbr, 'OPP']}
+        rows={timeoutRows}
+        note="Points per possession on the first possession after a timeout, compared with all possessions."
+      />
+      <DualTable
+        title="Offensive rebounds by miss"
+        sub="Offensive rebound rate by where the miss came from"
+        head={[`${teamAbbr} GET IT`, 'OPP GET IT']}
+        rows={orebRows}
+        note={`${teamAbbr} get it: their offensive rebound rate on their own misses (1st = most). Opp get it: opponents on their misses against ${teamAbbr} (1st = fewest). From pbpstats.`}
+      />
+      {forcedTO.length > 0 && (
+        <DualTable
+          title="Turnover type"
+          sub="Steals feed fast breaks; dead balls let the D set"
+          head={[teamAbbr, 'FORCED']}
+          rows={toRows}
+          note={`${teamAbbr}: 1st = fewest. Forced = what the ${teamAbbr} defense caused, 1st = most. From pbpstats.`}
+        />
+      )}
+    </div>
+  );
+}
+
+function TeamTab({ teams, opp, me, oppMe, teamAbbr, season }) {
   const rows = useMemo(() => {
     const ortg = t => (t.offPoss > 0 ? (t.pts / t.offPoss) * 100 : 0);
     const drtg = t => (t.defPoss > 0 ? (t.opp / t.defPoss) * 100 : 0);
@@ -117,6 +412,10 @@ function TeamTab({ teams, me }) {
     ];
   }, [teams, me]);
 
+  const box = useBox(teamAbbr, season);
+  const built = useMemo(() => buildTeamRows(teams, opp, me, oppMe, box), [teams, opp, me, oppMe, box]);
+  const extras = useExtras(season);
+
   return (
     <div>
       <SectionTitle>Ratings</SectionTitle>
@@ -129,6 +428,17 @@ function TeamTab({ teams, me }) {
       <Note>
         {me.gp} games. Ratings are points per 100 possessions, with possessions counted by pbpstats. Pace is possessions per 48 minutes. Small numbers are the NBA rank among {teams.length} teams (DRTG and OPPG: 1st = fewest allowed).
       </Note>
+
+      <div style={{ marginTop: 28 }}>
+        <SectionTitle>Team stats</SectionTitle>
+        <div style={{ marginTop: 14 }}>
+          <TeamStatsCard built={built} teamAbbr={teamAbbr} hasOpp={!!oppMe} nTeams={teams.length} />
+        </div>
+      </div>
+
+      {extras.status === 'ready' && <ExtraCards data={extras.data} teams={teams} opp={opp} teamAbbr={teamAbbr} />}
+      {extras.status === 'loading' && <div className="skeleton rounded-2xl" style={{ height: 160, marginTop: 28 }} />}
+
     </div>
   );
 }
@@ -900,7 +1210,7 @@ export default function TeamAdvanced({ teamAbbr, onClose, onHaptic }) {
   } else if (!me || me.gp === 0) {
     body = <Empty>No games played yet this season.</Empty>;
   } else if (tab === 'team') {
-    body = <TeamTab teams={state.teams} me={me} />;
+    body = <TeamTab teams={state.teams} opp={state.opp} me={me} oppMe={oppMe} teamAbbr={teamAbbr} season={season} />;
   } else if (tab === 'factors') {
     body = <FactorsTab teams={state.teams} me={me} />;
   } else if (tab === 'shots') {

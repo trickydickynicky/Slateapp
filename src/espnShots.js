@@ -1,8 +1,8 @@
 /**
- * Shots + assist pairs from ESPN play-by-play (one summary request per finished game).
- * Shots are [x, y, made] in tenths of a foot on a half court:
- * x 0-500 across, y 0-400 from the baseline, hoop at (250, 52.5).
- * Assist pairs are [passerId, scorerId].
+ * Per-game data from ESPN (one summary request per finished game):
+ *  - shots [x, y, made]: tenths of a foot, half court, hoop at (250, 52.5)
+ *  - assist pairs [passerId, scorerId]
+ *  - box score lines for both teams: t.m = this team, t.o = opponent
  */
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
@@ -17,6 +17,33 @@ const validCoord = c =>
 
 // Full-court frame -> one half court (rotate shots taken at the far basket).
 const toHalf = ({ x, y }) => (y > 47 ? [50 - x, 94 - y] : [x, y]);
+
+const num = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
+
+function boxLine(team, players) {
+  const st = team?.statistics || [];
+  const get = (name, label) => st.find(s => s.name === name || s.label === label)?.displayValue;
+  let bench = null, starters = null;
+  const grp = players?.statistics?.[0];
+  const pi = grp ? (grp.labels || []).indexOf('PTS') : -1;
+  if (pi >= 0) {
+    bench = 0; starters = 0;
+    for (const e of grp.athletes || []) {
+      const v = parseInt(e.stats?.[pi], 10) || 0;
+      if (e.starter) starters += v; else bench += v;
+    }
+  }
+  return {
+    reb: num(get('totalRebounds', 'Rebounds')),
+    oreb: num(get('offensiveRebounds', 'Offensive Rebounds')),
+    stl: num(get('steals', 'Steals')),
+    blk: num(get('blocks', 'Blocks')),
+    pf: num(get('fouls', 'Fouls')),
+    paint: num(get('pointsInPaint', 'Points in Paint')),
+    offTO: num(get('turnoverPoints', 'Points Off Turnovers')),
+    bench, starters,
+  };
+}
 
 function extractGame(summary, teamId) {
   const s = [], a = [], names = {};
@@ -35,7 +62,8 @@ function extractGame(summary, teamId) {
     if (sy > 400) continue; // drop heaves
     s.push([sx, sy, p.scoringPlay ? 1 : 0]);
   }
-  for (const t of summary?.boxscore?.players || []) {
+  const players = summary?.boxscore?.players || [];
+  for (const t of players) {
     if (String(t.team?.id) !== String(teamId)) continue;
     for (const st of t.statistics || []) {
       for (const e of st.athletes || []) {
@@ -45,7 +73,13 @@ function extractGame(summary, teamId) {
       }
     }
   }
-  return { s, a, names };
+  const teams = summary?.boxscore?.teams || [];
+  const mine = teams.find(t => String(t.team?.id) === String(teamId));
+  const other = teams.find(t => t !== mine);
+  const pm = players.find(p => String(p.team?.id) === String(teamId));
+  const po = players.find(p => p !== pm);
+  const t = mine && other ? { m: boxLine(mine, pm), o: boxLine(other, po) } : null;
+  return { s, a, names, t };
 }
 
 async function run(abbr, season, emit) {
@@ -56,7 +90,7 @@ async function run(abbr, season, emit) {
     .filter(e => e.competitions?.[0]?.status?.type?.completed)
     .map(e => e.id);
 
-  const key = `espnShots:v2:${season}:${abbr}`;
+  const key = `espnShots:v3:${season}:${abbr}`;
   let cache = { games: {}, names: {} };
   try {
     const raw = JSON.parse(localStorage.getItem(key));
@@ -66,6 +100,7 @@ async function run(abbr, season, emit) {
   const snap = () => ({
     shots: ids.flatMap(id => cache.games[id]?.s || []),
     pairs: ids.flatMap(id => cache.games[id]?.a || []),
+    box: ids.map(id => cache.games[id]?.t).filter(Boolean),
     names: cache.names,
   });
   const todo = ids.filter(id => !cache.games[id]);
@@ -77,7 +112,7 @@ async function run(abbr, season, emit) {
       const id = todo[next++];
       try {
         const g = extractGame(await getJson(`${BASE}/summary?event=${id}`), teamId);
-        cache.games[id] = { s: g.s, a: g.a };
+        cache.games[id] = { s: g.s, a: g.a, t: g.t };
         Object.assign(cache.names, g.names);
         emit(snap());
       } catch (e) { /* retried on next visit */ }
@@ -100,7 +135,7 @@ export function loadTeamPlays(abbr, season, onProgress) {
     job = { listeners: new Set(), snap: null };
     job.promise = run(abbr, season, snap => { job.snap = snap; job.listeners.forEach(f => f(snap)); })
       .then(data => {
-        if (data.shots.length || data.pairs.length) mem.set(key, { at: Date.now(), data });
+        if (data.shots.length || data.pairs.length || data.box.length) mem.set(key, { at: Date.now(), data });
         return data;
       })
       .finally(() => jobs.delete(key));

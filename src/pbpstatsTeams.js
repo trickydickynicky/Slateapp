@@ -71,3 +71,71 @@ export const ZONES = [
     const want = [TRICODE[espnAbbr], espnAbbr].filter(Boolean);
     return teams.find(t => want.includes(t.abbr)) || null;
   }
+  /* ── League-wide extras for the Team tab ── */
+
+const API = 'https://api.pbpstats.com';
+const getJson = url => fetch(url).then(r => { if (!r.ok) throw new Error(`pbpstats ${r.status}`); return r.json(); });
+// some stats come back as 0-1, some as 0-100: normalize to 0-1
+const asFrac = rows => (Math.max(0, ...rows.map(r => r.v)) > 1.5 ? rows.map(r => ({ ...r, v: r.v / 100 })) : rows);
+
+const scatter = (season, key) =>
+  getJson(`${API}/get-scatter-plots/nba?Season=${season}&SeasonType=Regular%20Season&Xaxis=${key}&Yaxis=${key}&XaxisType=Team&YaxisType=Opponent`)
+    .then(j => {
+      const res = j?.results || [];
+      if (res.length < 20) throw new Error('unexpected response');
+      return {
+        team: asFrac(res.map(r => ({ abbr: String(r.label), v: n(r.x) }))),
+        opp: asFrac(res.map(r => ({ abbr: String(r.label), v: n(r.y) }))),
+      };
+    });
+
+const startSummary = (season, type) =>
+  getJson(`${API}/get-pace-efficiency-summary/nba?Season=${season}&SeasonType=Regular%20Season&Type=${type}`)
+    .then(j => {
+      const res = j?.results || [];
+      if (res.length < 20) throw new Error('unexpected response');
+      return res.map(r => ({
+        abbr: String(r.team_name),
+        ppp: n(r.ppp),
+        steal: n(r.ppp_off_steal),
+        missed: n(r.ppp_off_missed_fg),
+        dead: n(r.ppp_off_deadball),
+        made: n(r.ppp_off_made_fg),
+        timeout: n(r.ppp_off_timeout),
+      }));
+    });
+
+const extrasMem = new Map();
+const extrasInflight = new Map();
+
+export function loadTeamExtras(season) {
+  const hit = extrasMem.get(season);
+  if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.data);
+  const key = `pbpExtras:v1:${season}`;
+  try {
+    const raw = JSON.parse(localStorage.getItem(key));
+    if (raw?.data && Date.now() - raw.at < TTL) { extrasMem.set(season, raw); return Promise.resolve(raw.data); }
+  } catch (e) { /* ignore */ }
+  if (extrasInflight.has(season)) return extrasInflight.get(season);
+  const zoneKeys = ZONES.map(z => z.key);
+  const p = Promise.all([
+    startSummary(season, 'Team'),
+    startSummary(season, 'Opponent'),
+    scatter(season, 'LiveBallTurnoverPct'),
+    ...zoneKeys.map(k => scatter(season, `Off${k}ReboundPct`)),
+  ])
+    .then(([startTeam, startOpp, live, ...oreb]) => {
+      const data = {
+        start: { team: startTeam, opp: startOpp },
+        live,
+        oreb: Object.fromEntries(zoneKeys.map((k, i) => [k, oreb[i]])),
+      };
+      const entry = { at: Date.now(), data };
+      extrasMem.set(season, entry);
+      try { localStorage.setItem(key, JSON.stringify(entry)); } catch (e) { /* ignore */ }
+      return data;
+    })
+    .finally(() => extrasInflight.delete(season));
+  extrasInflight.set(season, p);
+  return p;
+}
