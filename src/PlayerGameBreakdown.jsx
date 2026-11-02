@@ -670,8 +670,15 @@ async function toDataUrl(url) {
   if (!url) return null;
   if (dataUrlCache.has(url)) return dataUrlCache.get(url);
   try {
-    const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error('img');
+    let res;
+    try {
+      res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('img');
+    } catch (e) {
+      // CDN doesn't allow CORS: retry through a CORS-friendly image proxy
+      res = await fetch(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300`);
+      if (!res.ok) throw new Error('img');
+    }
     const blob = await res.blob();
     const out = await new Promise((ok, no) => {
       const r = new FileReader();
@@ -682,6 +689,7 @@ async function toDataUrl(url) {
     dataUrlCache.set(url, out);
     return out;
   } catch (e) {
+    if (IS_DEV) console.warn('[PlayerGameBreakdown] image failed', url, e);
     return null;
   }
 }
