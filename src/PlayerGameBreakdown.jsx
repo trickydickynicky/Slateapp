@@ -709,10 +709,9 @@ async function toDataUrl(url) {
         r.readAsDataURL(blob);
       });
       dataUrlCache.set(url, out);
-      console.log('[share-img] ok', url, a === url ? '(direct)' : '(proxy)');
       return out;
     } catch (e) {
-      console.log('[share-img] fail', a, e.message);
+      // try the next source
     }
   }
   return null;
@@ -896,7 +895,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       myLogo, game?.awayLogo, game?.homeLogo,
       ...(data.assists?.rows || []).map(r => r.headshot),
     ].filter(Boolean);
-    console.log('[share-img] urls', urls);
+
     const entries = await Promise.all([...new Set(urls)].map(async u => [u, await toDataUrl(u)]));
     setImgs(Object.fromEntries(entries));
     setCapturing(true);
