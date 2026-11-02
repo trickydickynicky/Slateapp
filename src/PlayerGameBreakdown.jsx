@@ -174,7 +174,11 @@ export function buildAssistBreakdown(plays, pid, roster = new Map()) {
     map.set(ids[0], row);
   });
   const rows = [...map.values()]
-    .map(r => ({ ...r, name: roster.get(r.id)?.name || 'Teammate', headshot: roster.get(r.id)?.headshot || null }))
+  .map(r => ({
+    ...r,
+    name: roster.get(r.id)?.name || 'Teammate',
+    headshot: roster.get(r.id)?.headshot || `https://a.espncdn.com/i/headshots/nba/players/full/${r.id}.png`,
+  }))
     .sort((a, b) => b.pts - a.pts || b.ast - a.ast);
   return { total: rows.reduce((s, r) => s + r.pts, 0), rows };
 }
@@ -663,6 +667,13 @@ function AssistBreakdown({ assists }) {
    Share screenshot
 ──────────────────────────────────────────────────────────────────────────── */
 
+const headshotUrl = (p, athlete) => {
+  const c = p?.athlete?.headshot?.href || p?.headshot?.href || p?.headshot || athlete?.headshot?.href;
+  if (typeof c === 'string' && c) return c;
+  const id = p?.id ?? p?.athlete?.id;
+  return id != null ? `https://a.espncdn.com/i/headshots/nba/players/full/${id}.png` : null;
+};
+
 const dataUrlCache = new Map();
 
 // Inline remote images so the capture never depends on CDN CORS. Failures resolve to null (initials fallback).
@@ -868,7 +879,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
     if (sharing || !data) return;
     setSharing(true);
     const urls = [
-      player?.athlete?.headshot?.href || player?.headshot || data.boxAthlete?.headshot?.href,
+      headshot,
       myLogo, game?.awayLogo, game?.homeLogo,
       ...(data.assists?.rows || []).map(r => r.headshot),
     ].filter(Boolean);
@@ -903,7 +914,7 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const athlete = data?.boxAthlete;
   const pos = player?.position?.abbreviation || player?.position
     || athlete?.position?.abbreviation || '';
-  const headshot = player?.athlete?.headshot?.href || player?.headshot || athlete?.headshot?.href || null;
+    const headshot = headshotUrl(player, athlete);
 
   const awayScore = game?.awayScore;
   const homeScore = game?.homeScore;
