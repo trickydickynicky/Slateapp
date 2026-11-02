@@ -17,7 +17,7 @@ import GameLineups from './GameLineups';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
 import useOnCourt from './useOnCourt';
-
+import NetRatingView from './NetRatingView';
 const GameReplay = lazy(() => import('./GameReplay'));
 
 const fmtAmerican = (v) => {
@@ -124,6 +124,7 @@ const [appReady, setAppReady] = useState(false);
   const [standings, setStandings] = useState({ eastern: [], western: [] });
   const [loadingStandings, setLoadingStandings] = useState(false);
   const [selectedConference, setSelectedConference] = useState('Eastern');
+  const [standingsView, setStandingsView] = useState('standings');
   const [selectedTeamInfo, setSelectedTeamInfo] = useState(null);
   const [teamStats, setTeamStats] = useState(null);
   const [loadingTeamStats, setLoadingTeamStats] = useState(false);
@@ -2598,26 +2599,32 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
         }
       }} />
 
-        <div className="flex gap-2 mb-6">
-          <button
-          onClick={() => { trigger('selection'); setSelectedConference('Eastern'); }}
-            className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
-              selectedConference === 'Eastern' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-            }`}
-          >
-            Eastern
-          </button>
-          <button
-            onClick={() => { trigger('selection'); setSelectedConference('Western'); }}
-            className={`flex-1 py-3 rounded-xl font-bold transition-colors ${
-              selectedConference === 'Western' ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
-            }`}
-          >
-            Western
-          </button>
+<div className="flex gap-2 mb-6">
+          {[
+            { label: 'Eastern', active: standingsView === 'standings' && selectedConference === 'Eastern', go: () => { setStandingsView('standings'); setSelectedConference('Eastern'); } },
+            { label: 'Western', active: standingsView === 'standings' && selectedConference === 'Western', go: () => { setStandingsView('standings'); setSelectedConference('Western'); } },
+            { label: 'Net Rating', active: standingsView === 'net', go: () => setStandingsView('net') },
+            { label: 'Four Factors', active: standingsView === 'factors', go: () => setStandingsView('factors') },
+          ].map(t => (
+            <button
+              key={t.label}
+              onClick={() => { trigger('selection'); t.go(); }}
+              className={`flex-1 py-3 rounded-xl font-bold text-xs whitespace-nowrap transition-colors ${
+                t.active ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-
-        {loadingStandings ? (
+        {standingsView !== 'standings' ? (
+          <NetRatingView
+            view={standingsView}
+            espnTeamIds={espnTeamIds}
+            onTeamClick={(abbr, logo) => { trigger('light'); handleTeamClick(abbr, logo); }}
+            onHaptic={trigger}
+          />
+        ) : loadingStandings ? (
           <div className="text-center py-12 text-gray-400">Loading standings...</div>
         ) : (
           <div className="bg-black rounded-2xl overflow-hidden">
@@ -2625,10 +2632,10 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
               <table className="w-full text-sm">
                 <thead className="bg-black sticky top-0">
                   <tr className="text-gray-400">
-                    <th className="text-left py-3 px-3 sticky left-0 bg-black z-10">#</th>
-                    <th className="text-left py-3 px-3 sticky left-[40px] bg-black z-10">Team</th>
+                  <th className="text-right py-3 pl-2 pr-1 w-[34px] min-w-[34px] sticky left-0 bg-black z-10">#</th>
+                  <th className="text-left py-3 pl-1 pr-3 sticky left-[34px] bg-black z-10">Team</th>
                     <th className="text-center py-3 px-3">GB</th>
-                    <th className="text-center py-3 px-3">W-L</th>
+                    <th className="text-center py-3 px-3 whitespace-nowrap">W-L</th>
                     <th className="text-center py-3 px-3">PCT</th>
                     <th className="text-center py-3 px-3">L10</th>
                     <th className="text-center py-3 px-3">STRK</th>
@@ -2649,8 +2656,8 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
       : 'border-zinc-800'
     }`}
   >
-                      <td className="py-3 px-3 sticky left-0 bg-black font-semibold text-blue-500">{idx + 1}</td>
-                      <td className="py-3 px-3 sticky left-[40px] bg-black">
+                                          <td className="py-3 pl-2 pr-1 w-[34px] min-w-[34px] text-right sticky left-0 bg-black font-semibold text-blue-500">{idx + 1}</td>
+                                          <td className="py-3 pl-1 pr-3 sticky left-[34px] bg-black">
                         <div className="flex items-center gap-2">
                           {team.logo && (
                             <img src={team.logo} alt={team.team} className="w-6 h-6" />
@@ -2659,7 +2666,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
                         </div>
                       </td>
                       <td className="text-center py-3 px-3 text-gray-300">{team.gb}</td>
-                      <td className="text-center py-3 px-3 font-semibold">{team.wins}-{team.losses}</td>
+                      <td className="text-center py-3 px-3 font-semibold whitespace-nowrap">{team.wins}-{team.losses}</td>
                       <td className="text-center py-3 px-3">{team.pct}</td>
                   <td className="text-center py-3 px-3 whitespace-nowrap">{team.l10}</td>
                       <td className="text-center py-3 px-3">
@@ -2667,8 +2674,8 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
                           {team.streak}
                         </span>
                       </td>
-                      <td className="text-center py-3 px-3">{team.home}</td>
-                      <td className="text-center py-3 px-3">{team.away}</td>
+                      <td className="text-center py-3 px-3 whitespace-nowrap">{team.home}</td>
+                      <td className="text-center py-3 px-3 whitespace-nowrap">{team.away}</td>
                       <td className="text-center py-3 px-3">{team.ppg}</td>
                       <td className="text-center py-3 px-3">{team.oppg}</td>
                     </tr>
