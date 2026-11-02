@@ -2644,8 +2644,9 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
     key={idx} 
     onClick={() => { trigger('light'); handleTeamClick(team.team, team.logo); }}
     className={`border-t hover:bg-black cursor-pointer transition-colors ${
-      idx === 6 || idx === 10 ? 'border-gray-400 border-dashed'
-   : 'border-zinc-800'
+      idx === 6 ? 'border-gray-400 border-dashed'
+      : idx === 10 ? 'border-gray-400 border-solid'
+      : 'border-zinc-800'
     }`}
   >
                       <td className="py-3 px-3 sticky left-0 bg-black font-semibold text-blue-500">{idx + 1}</td>

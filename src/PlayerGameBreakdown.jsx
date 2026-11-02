@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Camera } from 'lucide-react';
 import { useSwipeBack } from './useSwipeBack';
 import BackButton from './BackButton';
 
@@ -658,6 +659,148 @@ function AssistBreakdown({ assists }) {
    Screen
 ──────────────────────────────────────────────────────────────────────────── */
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Share screenshot
+──────────────────────────────────────────────────────────────────────────── */
+
+const dataUrlCache = new Map();
+
+// Inline remote images so the capture never depends on CDN CORS. Failures resolve to null (initials fallback).
+async function toDataUrl(url) {
+  if (!url) return null;
+  if (dataUrlCache.has(url)) return dataUrlCache.get(url);
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('img');
+    const blob = await res.blob();
+    const out = await new Promise((ok, no) => {
+      const r = new FileReader();
+      r.onload = () => ok(r.result);
+      r.onerror = no;
+      r.readAsDataURL(blob);
+    });
+    dataUrlCache.set(url, out);
+    return out;
+  } catch (e) {
+    return null;
+  }
+}
+
+const nextFrames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+async function shareOrDownload(blob, filename) {
+  const file = new File([blob], filename, { type: 'image/png' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return;
+    } catch (e) {
+      if (e?.name === 'AbortError') return;   // user closed the sheet
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function ShareCard({ cardRef, color, teamAbbr, name, pos, headshot, myLogo, game, allStat, data, periods, seasonStats, img }) {
+  const showScore = (game?.isFinal || game?.isLive) && game?.awayScore != null && game?.homeScore != null;
+  const a = num(game?.awayScore);
+  const h = num(game?.homeScore);
+  const fin = !!game?.isFinal;
+  const sStyle = (won, lost) => ({
+    fontWeight: won ? 800 : lost ? 300 : 600,
+    color: won ? '#ffffff' : lost ? '#a1a1aa' : '#e4e4e7',
+  });
+  const awayLogo = img(game?.awayLogo);
+  const homeLogo = img(game?.homeLogo);
+  const assists = {
+    ...data.assists,
+    rows: data.assists.rows.map(r => ({ ...r, headshot: img(r.headshot) })),
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        width: 390, background: '#000', padding: '26px 20px 20px', boxSizing: 'border-box',
+        fontFamily: 'Inter, system-ui, -apple-system, sans-serif', color: 'white',
+        backgroundImage: `radial-gradient(120% 60% at 50% 0%, ${color}22 0%, transparent 70%)`,
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Headshot src={img(headshot)} name={name} size={60} ring={`${color}66`} />
+          {img(myLogo) && (
+            <img
+              src={img(myLogo)}
+              alt={teamAbbr}
+              style={{
+                position: 'absolute', right: -4, bottom: -4, width: 22, height: 22,
+                borderRadius: 22, background: '#000', padding: 2, border: '1px solid #1f1f1f',
+              }}
+            />
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="truncate" style={{ ...heading, fontSize: 21, fontWeight: 900, lineHeight: 1.1 }}>{name}</div>
+          {pos ? <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, marginTop: 3 }}>{pos}</div> : null}
+        </div>
+        {allStat && (
+          <div className="flex flex-shrink-0" style={{ gap: 12 }}>
+            {[['pts', allStat.pts], ['reb', allStat.reb], ['ast', allStat.ast]].map(([l, v]) => (
+              <div key={l} className="flex flex-col items-center">
+                <span style={{ fontSize: 28, fontWeight: 800, lineHeight: 0.95 }}>{v}</span>
+                <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, marginTop: 4 }}>{l}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showScore && (
+        <div className="flex items-center justify-center" style={{ gap: 10, marginTop: 18 }}>
+          {awayLogo && <img src={awayLogo} alt="" style={{ width: 22, height: 22 }} />}
+          <span style={{ fontSize: 22, lineHeight: 1, display: 'flex', alignItems: 'baseline', gap: 4 }}>
+            <span style={sStyle(fin && a > h, fin && a < h)}>{game.awayScore}</span>
+            <span style={{ color: '#52525b', fontWeight: 300 }}>-</span>
+            <span style={sStyle(fin && h > a, fin && h < a)}>{game.homeScore}</span>
+          </span>
+          {homeLogo && <img src={homeLogo} alt="" style={{ width: 22, height: 22 }} />}
+        </div>
+      )}
+
+      {allStat && <StatGrid view={allStat} isAll showPm />}
+
+      {data.hasPlays && (
+        <>
+          <QuarterBars periods={periods} maxPeriod={data.maxPeriod} byPeriod={data.byPeriod} color={color} tab="all" />
+          <AssistBreakdown assists={assists} />
+        </>
+      )}
+
+      <SeasonStats items={seasonStats} />
+
+      <div
+        className="flex items-center justify-between"
+        style={{ marginTop: 28, paddingTop: 14, borderTop: '1px solid #171717' }}
+      >
+        <span style={{ ...heading, fontSize: 15, fontWeight: 900, letterSpacing: '0.14em', color: '#a1a1aa' }}>
+          SLATE
+        </span>
+        <span style={{ fontSize: 10, color: MUTED, fontWeight: 600 }}>
+          {game?.awayTeam} @ {game?.homeTeam}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function PlayerGameBreakdown({ player, game, gameDetails, selectedTeam, onClose }) {
   const screenRef = useSwipeBack(onClose);
   const [tab, setTab] = useState('all');
@@ -673,6 +816,11 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
   const gameId = game?.id ?? game?.gameId ?? game?.eventId ?? gameDetails?.header?.id ?? gameDetails?.id ?? null;
 
   const seasonStats = useSeasonStats(player?.id);
+  const cardRef = useRef(null);
+  const [sharing, setSharing] = useState(false);      // true while working
+  const [capturing, setCapturing] = useState(false);  // true while the offscreen card is mounted
+  const [imgs, setImgs] = useState({});
+  const img = u => (u ? imgs[u] ?? null : null);
 
   const { data, failed } = usePlayerBreakdown({
     gameId,
@@ -708,6 +856,41 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
         : { ...emptyStat(), min: '—', pm: null })
     : null;
   const view = tab === 'all' ? allStat : data?.byPeriod?.[tab] || emptyStat();
+  const handleShare = async () => {
+    if (sharing || !data) return;
+    setSharing(true);
+    const urls = [
+      player?.athlete?.headshot?.href || player?.headshot || data.boxAthlete?.headshot?.href,
+      myLogo, game?.awayLogo, game?.homeLogo,
+      ...(data.assists?.rows || []).map(r => r.headshot),
+    ].filter(Boolean);
+    const entries = await Promise.all([...new Set(urls)].map(async u => [u, await toDataUrl(u)]));
+    setImgs(Object.fromEntries(entries));
+    setCapturing(true);
+  };
+
+  useEffect(() => {
+    if (!capturing) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        await nextFrames();
+        if (document.fonts?.ready) await document.fonts.ready;
+        const { toBlob } = await import('html-to-image');
+        const blob = await toBlob(cardRef.current, { pixelRatio: 3, backgroundColor: '#000' });
+        if (!blob || cancelled) return;
+        const slug = s => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        await shareOrDownload(blob, `${slug(player?.name)}-${slug(game?.awayTeam)}-at-${slug(game?.homeTeam)}.png`);
+      } catch (e) {
+        if (IS_DEV) console.warn('[PlayerGameBreakdown] screenshot failed', e);
+      } finally {
+        setCapturing(false);
+        setSharing(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capturing]);
 
   const athlete = data?.boxAthlete;
   const pos = player?.position?.abbreviation || player?.position
@@ -733,9 +916,45 @@ export default function PlayerGameBreakdown({ player, game, gameDetails, selecte
       className="fixed inset-0 bg-black z-[200] overflow-y-auto"
       style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}
     >
-        <div className="min-h-screen px-4 pb-14 max-w-lg mx-auto" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="relative min-h-screen px-4 pb-14 max-w-lg mx-auto" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
 
         <BackButton onClick={onClose} />
+
+{data && (
+  <button
+    onClick={handleShare}
+    disabled={sharing}
+    aria-label="Share screenshot"
+    className="absolute flex items-center justify-center"
+    style={{
+      right: 16, top: 'calc(env(safe-area-inset-top) + 8px)', width: 36, height: 36,
+      borderRadius: 18, background: 'none', border: 'none', cursor: 'pointer',
+      color: MUTED, opacity: sharing ? 0.4 : 1, zIndex: 1,
+    }}
+  >
+    <Camera size={20} strokeWidth={2} />
+  </button>
+)}
+
+{capturing && data && (
+  <div style={{ position: 'fixed', left: -10000, top: 0, pointerEvents: 'none' }} aria-hidden="true">
+    <ShareCard
+      cardRef={cardRef}
+      color={color}
+      teamAbbr={teamAbbr}
+      name={player?.name}
+      pos={pos}
+      headshot={headshot}
+      myLogo={myLogo}
+      game={game}
+      allStat={allStat}
+      data={data}
+      periods={shownPeriods}
+      seasonStats={seasonStats}
+      img={img}
+    />
+  </div>
+)}
 
         {/* Header */}
         <div className="flex items-center" style={{ gap: 12, marginTop: 4 }}>
