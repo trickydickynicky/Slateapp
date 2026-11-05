@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Maximize2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { toPng } from 'html-to-image';
 import { ZONES, findTeam, loadTeamTotals, loadOppTotals, loadTeamExtras, nbaSeason } from './pbpstatsTeams';
 import { loadTeamShots, loadTeamPlays } from './espnShots';
@@ -1980,13 +1981,194 @@ function PlayerScatter({ d, xLabel, yLabel, hl, onToggle }) {
   );
 }
 
-function PlayerVisuals({ teams, season, haptic }) {
+function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
+    const boxRef = useRef(null);
+    const svgRef = useRef(null);
+    const ptrs = useRef(new Map());
+    const pinch = useRef(0);
+    const travel = useRef(0);
+    const moved = useRef(false);
+    const [bad, setBad] = useState({});
+    const [size, setSize] = useState({ w: 360, h: 600 });
+    const { list, xs, ys, slope, mx, my } = d;
+    const PL = 52, PR = 16, PT = 16, PB = 40, R = 14;
+  
+    const base = useMemo(() => {
+      const ext = k => {
+        const v = list.map(p => p[k]);
+        const lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.1 || 0.01;
+        return [lo - pad, hi + pad];
+      };
+      const [x0, x1] = ext('x'), [y0, y1] = ext('y');
+      return { x0, x1, y0, y1 };
+    }, [list]);
+    const [view, setView] = useState(base);
+  
+    const plotW = Math.max(size.w - PL - PR, 1);
+    const plotH = Math.max(size.h - PT - PB, 1);
+  
+    useEffect(() => {
+      const el = boxRef.current;
+      if (!el) return undefined;
+      const upd = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+      upd();
+      const ro = new ResizeObserver(upd);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
+  
+    const zoomAt = (f, px, py) => setView(v => {
+      const nx = (v.x1 - v.x0) / f, ny = (v.y1 - v.y0) / f;
+      const bx = base.x1 - base.x0, by = base.y1 - base.y0;
+      if (nx > bx * 1.5 || nx < bx / 60 || ny > by * 1.5 || ny < by / 60) return v;
+      const tx = (px - PL) / plotW, ty = (py - PT) / plotH;
+      const fx = v.x0 + tx * (v.x1 - v.x0), fy = v.y1 - ty * (v.y1 - v.y0);
+      const x0 = fx - tx * nx, y1 = fy + ty * ny;
+      return { x0, x1: x0 + nx, y1, y0: y1 - ny };
+    });
+  
+    const panBy = (dx, dy) => setView(v => {
+      const kx = (v.x1 - v.x0) / plotW, ky = (v.y1 - v.y0) / plotH;
+      return { x0: v.x0 - dx * kx, x1: v.x1 - dx * kx, y0: v.y0 + dy * ky, y1: v.y1 + dy * ky };
+    });
+  
+    // mouse wheel / trackpad zoom (needs a non-passive listener)
+    useEffect(() => {
+      const el = svgRef.current;
+      if (!el) return undefined;
+      const onWheel = e => {
+        e.preventDefault();
+        const r = el.getBoundingClientRect();
+        zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+      };
+      el.addEventListener('wheel', onWheel, { passive: false });
+      return () => el.removeEventListener('wheel', onWheel);
+    });
+  
+    const onDown = e => {
+      ptrs.current.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.current.size === 1) { travel.current = 0; moved.current = false; }
+      if (ptrs.current.size === 2) {
+        const [a, b] = [...ptrs.current.values()];
+        pinch.current = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        moved.current = true;
+      }
+    };
+    const onMove = e => {
+      const prev = ptrs.current.get(e.pointerId);
+      if (!prev) return;
+      const cur = [e.clientX, e.clientY];
+      ptrs.current.set(e.pointerId, cur);
+      if (ptrs.current.size === 1) {
+        const dx = cur[0] - prev[0], dy = cur[1] - prev[1];
+        travel.current += Math.hypot(dx, dy);
+        if (travel.current > 6) moved.current = true;
+        panBy(dx, dy);
+      } else if (ptrs.current.size === 2) {
+        const [a, b] = [...ptrs.current.values()];
+        const dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        const r = svgRef.current.getBoundingClientRect();
+        if (pinch.current > 0) zoomAt(dist / pinch.current, (a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top);
+        pinch.current = dist;
+      }
+    };
+    const onUp = e => { ptrs.current.delete(e.pointerId); pinch.current = 0; };
+  
+    const sx = v => PL + ((v - view.x0) / (view.x1 - view.x0)) * plotW;
+    const sy = v => PT + (1 - (v - view.y0) / (view.y1 - view.y0)) * plotH;
+    const q = { fill: '#71717a', fontSize: 11, fontFamily: 'ui-monospace, monospace' };
+    const ordered = useMemo(() => [...list].sort((a, b) => hl.includes(a.id) - hl.includes(b.id)), [list, hl]);
+    const seen = ordered.filter(p => {
+      const x = sx(p.x), y = sy(p.y);
+      return x > PL - R && x < size.w - PR + R && y > PT - R && y < size.h - PB + R;
+    });
+  
+    return createPortal(
+        <div className="fixed inset-0 bg-black text-white flex flex-col" style={{ zIndex: 200, paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="flex items-center justify-between px-3 py-2 border-b border-white/5">
+        <div style={{ flex: 1, minWidth: 0, marginRight: 12 }}>
+        <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15, color: '#fff' }}>{yLabel} vs {xLabel}</div>
+        {sub && <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, marginTop: 2 }}>{sub}</div>}
+        </div>
+        <div className="flex items-center gap-4" style={{ flexShrink: 0 }}>
+            <button onClick={() => setView(base)} style={{ background: 'none', border: 'none', color: ACCENT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Reset</button>
+            <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer' }}><X size={22} /></button>
+          </div>
+        </div>
+        <div ref={boxRef} style={{ flex: 1, minHeight: 0 }}>
+          <svg
+            ref={svgRef} width={size.w} height={size.h} viewBox={`0 0 ${size.w} ${size.h}`}
+            style={{ display: 'block', touchAction: 'none' }}
+            onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
+          >
+            <defs>
+              <clipPath id="fs-clip" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5" /></clipPath>
+              <clipPath id="fs-plot"><rect x={PL} y={PT} width={plotW} height={plotH} /></clipPath>
+            </defs>
+            {niceTicks(view.x0, view.x1).map(v => (
+              <g key={`x${v}`}>
+                <line x1={sx(v)} x2={sx(v)} y1={PT} y2={size.h - PB} stroke="#18181b" />
+                <text x={sx(v)} y={size.h - PB + 16} textAnchor="middle" {...q}>{xs.fmt(v)}</text>
+              </g>
+            ))}
+            {niceTicks(view.y0, view.y1).map(v => (
+              <g key={`y${v}`}>
+                <line x1={PL} x2={size.w - PR} y1={sy(v)} y2={sy(v)} stroke="#18181b" />
+                <text x={PL - 6} y={sy(v) + 4} textAnchor="end" {...q}>{ys.fmt(v)}</text>
+              </g>
+            ))}
+            <g clipPath="url(#fs-plot)">
+              <line
+                x1={sx(view.x0)} y1={sy(my + slope * (view.x0 - mx))} x2={sx(view.x1)} y2={sy(my + slope * (view.x1 - mx))}
+                stroke="#3f3f46" strokeDasharray="4 4"
+              />
+              {seen.map(p => {
+                const on = hl.includes(p.id);
+                const cx = sx(p.x), cy = sy(p.y);
+                return (
+                  <g key={p.id} onClick={() => { if (!moved.current) onToggle(p.id); }} style={{ cursor: 'pointer' }} opacity={hl.length && !on ? 0.5 : 1}>
+                    <circle cx={cx} cy={cy} r={R + 1.5} fill="#18181b" stroke={on ? ACCENT : '#3f3f46'} strokeWidth={on ? 3 : 1} />
+                    {bad[p.id] ? (
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={R * 0.9} fontWeight="800" fill="#a1a1aa" style={{ pointerEvents: 'none' }}>{initials(p.name)}</text>
+                    ) : (
+                      <image
+                        href={headshot(p.id)} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
+                        preserveAspectRatio="xMidYMin slice" clipPath="url(#fs-clip)"
+                        onError={() => setBad(b => (b[p.id] ? b : { ...b, [p.id]: 1 }))}
+                      />
+                    )}
+                  </g>
+                );
+              })}
+              {seen.filter(p => hl.includes(p.id)).map(p => (
+                <text
+                  key={`l${p.id}`} x={sx(p.x)} y={sy(p.y) - R - 6} textAnchor="middle" fontSize="12" fontWeight="800"
+                  fill="#fff" stroke="#000" strokeWidth="3" paintOrder="stroke" style={{ pointerEvents: 'none' }}
+                >
+                  {shortName(p.name)}
+                </text>
+              ))}
+            </g>
+            <text x={(PL + size.w - PR) / 2} y={size.h - 6} textAnchor="middle" {...q}>{xLabel} →</text>
+            <text x="12" y={(PT + size.h - PB) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(PT + size.h - PB) / 2})`} {...q}>{yLabel} →</text>
+          </svg>
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 11, color: MUTED, fontWeight: 600, padding: '6px 0 8px' }}>
+          Pinch or scroll to zoom · drag to pan · tap a player to label
+        </div>
+      </div>,
+      document.body
+    );
+  }
+  
+  function PlayerVisuals({ teams, season, haptic }) {
   const [draft, setDraft] = useState({
     season: String(season), seasonType: 'Regular Season', scope: 'league', minMin: 100, x: 'ppg', y: 'ts',
   });
   const [spec, setSpec] = useState(null);
   const [res, setRes] = useState({ status: 'idle' });
   const [hl, setHl] = useState([]);
+  const [full, setFull] = useState(false);
   const cardRef = useRef(null);
 
   const set = (k, v) => setDraft(x => ({ ...x, [k]: v }));
@@ -2137,7 +2319,26 @@ function PlayerVisuals({ teams, season, haptic }) {
 </button>
         </div>
       )}
-      {result}
+         {result}
+      {ready && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+          <button
+            onClick={() => { haptic('light'); setFull(true); }}
+            aria-label="Fullscreen"
+            className="flex items-center justify-center"
+            style={{ width: 36, height: 36, borderRadius: 18, background: 'none', border: 'none', cursor: 'pointer', color: MUTED }}
+          >
+            <Maximize2 size={20} strokeWidth={2} />
+          </button>
+        </div>
+      )}
+      {full && ready && (
+        <PlayerScatterFull
+        d={data} xLabel={pLabel(data.xs)} yLabel={pLabel(data.ys)} hl={hl} onToggle={toggle}
+        sub={`${spec.season}${spec.seasonType === 'Playoffs' ? ' playoffs' : ''}`}
+          onClose={() => { haptic('light'); setFull(false); }}
+        />
+      )}
     </div>
   );
 }
