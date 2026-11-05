@@ -1697,7 +1697,7 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
             <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>{yl} vs {xl}</div>
             <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.season}{spec.seasonType === 'Playoffs' ? ' · Playoffs' : ''}</div>
           </div>
-          <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>r = {pts.r.toFixed(2)} across {pts.list.length} teams</div>
+
           <div style={{ marginTop: 12 }}>
           <ScatterChart d={pts} xLabel={xl} yLabel={yl} logos={logoState.map} />
           </div>
