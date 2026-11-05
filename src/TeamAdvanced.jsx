@@ -1544,6 +1544,8 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
 
   const [netDraft, setNetDraft] = useState(teamAbbr);
   const [netTeam, setNetTeam] = useState(null);
+  const [yoyTeam, setYoyTeam] = useState(teamAbbr);
+
   const [sel, setSel] = useState(null);
   const cardRef = useRef(null);
 
@@ -1661,7 +1663,8 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
   const cardKey = kind === 'scatter'
     ? `${spec ? JSON.stringify(spec) : ''}`
     : kind === 'yoy'
-      ? `${spec ? JSON.stringify(spec) : ''}|yoy`
+    ? `${spec ? JSON.stringify(spec) : ''}|yoy|${yoyTeam}`
+  
       : `${netTeam}|${sel}|${plays.data ? 1 : 0}`;
   const snapName = kind === 'scatter' ? 'scatter' : kind === 'yoy' ? 'year-over-year' : `${netTeam}-assist-network`;
   const { snap, busy } = useSnap(cardRef, snapName, ready, cardKey, haptic);
@@ -1703,13 +1706,15 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
           </div>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
           {yl2
-  ? `${teamAbbr} in white (left stat), league averages: left axis in blue, right axis in amber, other teams in gray.`
-  : `${teamAbbr} in white, league average in blue, other teams in gray`}
+  ? `${yoyTeam} in white (left stat), league averages: left axis in blue, right axis in amber, other teams in gray.`
+  : `${yoyTeam} in white, league average in blue, other teams in gray`}
+
 
 
           </div>
           <div style={{ marginTop: 12 }}>
-          <YoyChart d={yoy} yLabel={yl} y2Label={yl2} teamAbbr={teamAbbr} />
+          <YoyChart d={yoy} yLabel={yl} y2Label={yl2} teamAbbr={yoyTeam} />
+
 
           </div>
         </div>
@@ -1781,12 +1786,15 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
             <GenSelect label="RIGHT AXIS STAT" value={draft.y2} onChange={v => set('y2', v)} flex={2}>
-                <option value="">None</option>
-                <StatOptions side={draft.y2Side} />
-              </GenSelect>
-             
-            </div>
-                </>
+    <option value="">None</option>
+    <StatOptions side={draft.y2Side} />
+  </GenSelect>
+</div>
+<GenSelect label="HIGHLIGHT TEAM" value={yoyTeam} onChange={v => { haptic('selection'); setYoyTeam(v); }}>
+  {abbrs.map(a => <option key={a} value={a}>{a}</option>)}
+</GenSelect>
+</>
+
               ) : (
                 <GenSelect label="TEAM" value={netDraft} onChange={setNetDraft}>
             {abbrs.map(a => <option key={a} value={a}>{a}</option>)}
