@@ -1557,6 +1557,7 @@ const mine2 = avg2 && byTeam2 ? byTeam2[teamAbbr] : null;
   const [netDraft, setNetDraft] = useState(teamAbbr);
   const [netTeam, setNetTeam] = useState(null);
   const [yoyTeam, setYoyTeam] = useState(teamAbbr);
+  const [full, setFull] = useState(false);
 
   const [sel, setSel] = useState(null);
   const cardRef = useRef(null);
@@ -1632,6 +1633,10 @@ const mine2 = avg2 && byTeam2 ? byTeam2[teamAbbr] : null;
   }, [res, spec]);
 
   const logoState = useLogos(pts && !pts.error && pts.list ? pts.list.map(p => p.abbr).sort() : []);
+  const fullData = useMemo(
+    () => (pts && !pts.error && pts.list ? { ...pts, list: pts.list.map(p => ({ ...p, id: p.abbr, name: p.abbr })) } : null),
+    [pts]
+  );
 
   // year-over-year data
   const yoy = useMemo(() => {
@@ -1824,6 +1829,16 @@ const mine2 = avg2 && byTeam2 ? byTeam2[teamAbbr] : null;
           <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>
           {kind === 'network' ? 'Tap a player to isolate their passes' : ''}
           </span>
+          {kind === 'scatter' && (
+            <button
+              onClick={() => { haptic('light'); setFull(true); }}
+              aria-label="Fullscreen"
+              className="flex items-center justify-center"
+              style={{ width: 28, height: 28, marginLeft: 'auto', marginRight: 6, background: 'none', border: 'none', cursor: 'pointer', color: MUTED }}
+            >
+              <Maximize2 size={20} strokeWidth={2} />
+            </button>
+          )}
           <button
             onClick={snap}
             disabled={busy}
@@ -1838,7 +1853,15 @@ const mine2 = avg2 && byTeam2 ? byTeam2[teamAbbr] : null;
           </button>
         </div>
       )}
-      {result}
+          {result}
+      {full && kind === 'scatter' && fullData && spec && (
+        <PlayerScatterFull
+          d={fullData} xLabel={axisLabel(fullData.xs, spec.xSide)} yLabel={axisLabel(fullData.ys, spec.ySide)}
+          logos={logoState.map} hl={[]} onToggle={() => {}}
+          sub={`${spec.season}${spec.seasonType === 'Playoffs' ? ' · Playoffs' : ''}`}
+          onClose={() => { haptic('light'); setFull(false); }}
+        />
+      )}
     </div>
   );
 }
@@ -1981,7 +2004,7 @@ function PlayerScatter({ d, xLabel, yLabel, hl, onToggle }) {
   );
 }
 
-function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
+function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose, logos }) {
     const boxRef = useRef(null);
     const svgRef = useRef(null);
     const ptrs = useRef(new Map());
@@ -2127,13 +2150,13 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
                 const cx = sx(p.x), cy = sy(p.y);
                 return (
                   <g key={p.id} onClick={() => { if (!moved.current) onToggle(p.id); }} style={{ cursor: 'pointer' }} opacity={hl.length && !on ? 0.5 : 1}>
-                    <circle cx={cx} cy={cy} r={R + 1.5} fill="#18181b" stroke={on ? ACCENT : '#3f3f46'} strokeWidth={on ? 3 : 1} />
+                                    {!logos && <circle cx={cx} cy={cy} r={R + 1.5} fill="#18181b" stroke={on ? ACCENT : '#3f3f46'} strokeWidth={on ? 3 : 1} />}
                     {bad[p.id] ? (
                       <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={R * 0.9} fontWeight="800" fill="#a1a1aa" style={{ pointerEvents: 'none' }}>{initials(p.name)}</text>
                     ) : (
                       <image
-                        href={headshot(p.id)} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
-                        preserveAspectRatio="xMidYMin slice" clipPath="url(#fs-clip)"
+                      href={logos ? (logos[p.id] || logoUrl(p.id)) : headshot(p.id)} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
+                      preserveAspectRatio={logos ? 'xMidYMid meet' : 'xMidYMin slice'} clipPath={logos ? undefined : 'url(#fs-clip)'}
                         onError={() => setBad(b => (b[p.id] ? b : { ...b, [p.id]: 1 }))}
                       />
                     )}
@@ -2153,8 +2176,18 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
             <text x="12" y={(PT + size.h - PB) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(PT + size.h - PB) / 2})`} {...q}>{yLabel} →</text>
           </svg>
         </div>
-        <div style={{ textAlign: 'center', fontSize: 11, color: MUTED, fontWeight: 600, padding: '6px 0 8px' }}>
-          Pinch or scroll to zoom · drag to pan · tap a player to label
+        {hl.length > 0 && (
+        <div style={{ padding: '4px 16px 0', maxHeight: 120, overflowY: 'auto' }}>
+          {list.filter(p => hl.includes(p.id)).slice(0, 6).map(p => (
+            <div key={p.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', columnGap: 8, padding: '6px 0', borderTop: '1px solid #131313' }}>
+              <span style={{ fontSize: 13, fontWeight: 700 }}>{p.name} <span style={{ color: MUTED, fontWeight: 600 }}>{p.abbr}</span></span>
+              <span style={{ fontSize: 13, fontWeight: 800 }}>{xs.fmt(p.x)} · {ys.fmt(p.y)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ textAlign: 'center', fontSize: 11, color: MUTED, fontWeight: 600, padding: '6px 0 8px' }}>
+      {logos ? 'Pinch or scroll to zoom · drag to pan' : 'Pinch or scroll to zoom · drag to pan · tap a player to label'}
         </div>
       </div>,
       document.body
@@ -2217,7 +2250,7 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
   }, [res, spec]);
 
   const ready = !!data && !data.error;
-  const { snap, busy } = useSnap(cardRef, 'player-scatter', ready, `${spec ? JSON.stringify(spec) : ''}|${hl.join(',')}`, haptic);
+ 
   const toggle = id => { haptic('selection'); setHl(h => (h.includes(id) ? h.filter(x => x !== id) : [...h, id])); };
 
   let result = null;
@@ -2300,9 +2333,8 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
             )}
           </span>
           <button
-  onClick={snap}
-  disabled={busy}
-  aria-label="Share as image"
+  onClick={() => { haptic('light'); setFull(true); }}
+  aria-label="Fullscreen"
   className="flex items-center justify-center"
   style={{
     width: 36,
@@ -2312,26 +2344,14 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose }) {
     border: 'none',
     cursor: 'pointer',
     color: MUTED,
-    opacity: busy ? 0.4 : 1,
-  }}
+}}
 >
-  <Camera size={20} strokeWidth={2} />
+  <Maximize2 size={20} strokeWidth={2} />
 </button>
         </div>
       )}
          {result}
-      {ready && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-          <button
-            onClick={() => { haptic('light'); setFull(true); }}
-            aria-label="Fullscreen"
-            className="flex items-center justify-center"
-            style={{ width: 36, height: 36, borderRadius: 18, background: 'none', border: 'none', cursor: 'pointer', color: MUTED }}
-          >
-            <Maximize2 size={20} strokeWidth={2} />
-          </button>
-        </div>
-      )}
+    
       {full && ready && (
         <PlayerScatterFull
         d={data} xLabel={pLabel(data.xs)} yLabel={pLabel(data.ys)} hl={hl} onToggle={toggle}
