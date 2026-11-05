@@ -1379,7 +1379,11 @@ function useSnap(cardRef, name, ready, dep, haptic) {
   return { snap, busy };
 }
 
-function ScatterChart({ d, xLabel, yLabel, hl, onHl }) {
+// pbpstats uses NBA tricodes; ESPN's logo files use ESPN abbreviations
+const ESPN_LOGO = { GSW: 'gs', NOP: 'no', NYK: 'ny', SAS: 'sa', UTA: 'utah', WAS: 'wsh' };
+const logoUrl = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${ESPN_LOGO[abbr] || String(abbr).toLowerCase()}.png`;
+
+function ScatterChart({ d, xLabel, yLabel }) {
   const W = 500, H = 440, PL = 52, PR = 18, PT = 16, PB = 46;
   const { list, xs, ys, slope, mx, my } = d;
   const ext = k => {
@@ -1391,7 +1395,7 @@ function ScatterChart({ d, xLabel, yLabel, hl, onHl }) {
   const sx = v => PL + ((v - x0) / (x1 - x0)) * (W - PL - PR);
   const sy = v => PT + (1 - (v - y0) / (y1 - y0)) * (H - PT - PB);
   const q = { fill: '#71717a', fontSize: 11, fontFamily: 'ui-monospace, monospace' };
-  const ordered = [...list].sort((a, b) => (a.abbr === hl) - (b.abbr === hl));
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
       <defs><clipPath id="sc-plot"><rect x={PL} y={PT} width={W - PL - PR} height={H - PT - PB} /></clipPath></defs>
@@ -1411,28 +1415,95 @@ function ScatterChart({ d, xLabel, yLabel, hl, onHl }) {
         x1={sx(x0)} y1={sy(my + slope * (x0 - mx))} x2={sx(x1)} y2={sy(my + slope * (x1 - mx))}
         stroke="#3f3f46" strokeDasharray="4 4" clipPath="url(#sc-plot)"
       />
-      {ordered.map(p => {
-        const on = p.abbr === hl;
-        return (
-          <g key={p.abbr} onClick={() => onHl(p.abbr)} style={{ cursor: 'pointer' }}>
-            <circle cx={sx(p.x)} cy={sy(p.y)} r="11" fill="transparent" />
-            <circle cx={sx(p.x)} cy={sy(p.y)} r={on ? 7.5 : 4.5} fill={on ? ACCENT : '#71717a'} fillOpacity={on ? 1 : 0.85} stroke={on ? '#fff' : 'none'} strokeWidth="2" />
-            <text x={sx(p.x) + (on ? 12 : 8)} y={sy(p.y) + 3.5} fontSize={on ? 13 : 9} fontWeight={on ? 800 : 600} fill={on ? '#60a5fa' : '#a1a1aa'}>{p.abbr}</text>
-          </g>
-        );
-      })}
+          {list.map(p => (
+        <image
+          key={p.abbr}
+          href={logoUrl(p.abbr)}
+          crossOrigin="anonymous"
+          x={sx(p.x) - 10} y={sy(p.y) - 10}
+          width="20" height="20"
+          preserveAspectRatio="xMidYMid meet"
+        >
+          <title>{p.abbr}</title>
+        </image>
+      ))}
       <text x={(PL + W - PR) / 2} y={H - 8} textAnchor="middle" {...q}>{xLabel} →</text>
       <text x="12" y={(PT + H - PB) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(PT + H - PB) / 2})`} {...q}>{yLabel} →</text>
     </svg>
   );
 }
 
+function YoyChart({ d, yLabel, y2Label }) {
+    const { seasons, series, avg, st, st2, avg2 } = d;
+    const W = 500, H = 440, PL = 52, PR = avg2 ? 52 : 22, PT = 16, PB = 40;
+    const RIGHT = '#f59e0b';
+    const range = vals => {
+      const v = vals.filter(x => x != null);
+      const lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.08 || 0.01;
+      return [lo - pad, hi + pad];
+    };
+    const [y0, y1] = range(series.flatMap(s => s.vals));
+    const [r0, r1] = avg2 ? range(avg2) : [0, 1];
+    const n = seasons.length;
+    const sx = i => PL + (n > 1 ? i / (n - 1) : 0.5) * (W - PL - PR);
+    const sy = v => PT + (1 - (v - y0) / (y1 - y0)) * (H - PT - PB);
+    const sr = v => PT + (1 - (v - r0) / (r1 - r0)) * (H - PT - PB);
+    const q = { fill: '#71717a', fontSize: 11, fontFamily: 'ui-monospace, monospace' };
+    const line = (vals, f) => {
+      let out = '', pen = false;
+      vals.forEach((v, i) => {
+        if (v == null) { pen = false; return; }
+        out += `${pen ? 'L' : 'M'}${sx(i).toFixed(1)} ${f(v).toFixed(1)}`;
+        pen = true;
+      });
+      return out;
+    };
+    const mid = (PT + H - PB) / 2;
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {niceTicks(y0, y1).map(v => (
+          <g key={`y${v}`}>
+            <line x1={PL} x2={W - PR} y1={sy(v)} y2={sy(v)} stroke="#18181b" />
+            <text x={PL - 6} y={sy(v) + 4} textAnchor="end" {...q}>{st.fmt(v)}</text>
+          </g>
+        ))}
+        {avg2 && niceTicks(r0, r1).map(v => (
+          <text key={`r${v}`} x={W - PR + 6} y={sr(v) + 4} textAnchor="start" {...q} fill={RIGHT} fillOpacity="0.8">{st2.fmt(v)}</text>
+        ))}
+        {seasons.map((s, i) => (
+          <text key={s} x={sx(i)} y={H - PB + 18} textAnchor="middle" {...q}>{s}</text>
+        ))}
+        {series.map(s => (
+          <path key={s.abbr} d={line(s.vals, sy)} fill="none" stroke="#71717a" strokeOpacity="0.35" strokeWidth="1.5" strokeLinejoin="round">
+            <title>{s.abbr}</title>
+          </path>
+        ))}
+        <path d={line(avg, sy)} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+        {avg.map((v, i) => v == null ? null : (
+          <g key={i}>
+            <circle cx={sx(i)} cy={sy(v)} r="4.5" fill={ACCENT} stroke="#000" strokeWidth="2" />
+            <text x={sx(i)} y={sy(v) - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#60a5fa">{st.fmt(v)}</text>
+          </g>
+        ))}
+        {avg2 && <path d={line(avg2, sr)} fill="none" stroke={RIGHT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
+        {avg2 && avg2.map((v, i) => v == null ? null : (
+          <g key={`b${i}`}>
+            <circle cx={sx(i)} cy={sr(v)} r="4.5" fill={RIGHT} stroke="#000" strokeWidth="2" />
+            <text x={sx(i)} y={sr(v) + 18} textAnchor="middle" fontSize="11" fontWeight="800" fill={RIGHT}>{st2.fmt(v)}</text>
+          </g>
+        ))}
+        <text x="12" y={mid} textAnchor="middle" transform={`rotate(-90 12 ${mid})`} {...q}>{yLabel} →</text>
+        {avg2 && <text x={W - 10} y={mid} textAnchor="middle" transform={`rotate(90 ${W - 10} ${mid})`} {...q} fill={RIGHT} fillOpacity="0.8">← {y2Label}</text>}
+      </svg>
+    );
+  }
+
 function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
   const [kind, setKind] = useState('scatter');
-  const [draft, setDraft] = useState({ season: String(season), x: 'ortg', xSide: 'team', y: 'drtg', ySide: 'team' });
+  const [draft, setDraft] = useState({ season: String(season), seasonType: 'Regular Season', x: 'ortg', xSide: 'team', y: 'drtg', ySide: 'team', y2: '', y2Side: 'team' });
   const [spec, setSpec] = useState(null);
   const [res, setRes] = useState({ status: 'idle' });
-  const [hl, setHl] = useState(teamAbbr);
+
   const [netDraft, setNetDraft] = useState(teamAbbr);
   const [netTeam, setNetTeam] = useState(null);
   const [sel, setSel] = useState(null);
@@ -1445,15 +1516,34 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
     [statKey]: v === 'opp' && statOf(x[statKey]).teamOnly ? 'efg' : x[statKey],
   }));
 
+
+
   const generate = async () => {
     haptic('light');
     if (kind === 'network') { setSel(null); setNetTeam(netDraft); return; }
+    if (kind === 'yoy') {
+        const d = { ...draft };
+        setRes({ status: 'loading' });
+        try {
+          const seasons = seasonOptions(season).reverse(); // oldest first
+          const sides = [...new Set([d.ySide, d.y2 ? d.y2Side : null].filter(Boolean))];
+          const got = await Promise.all(sides.map(sd => Promise.all(
+            seasons.map(s => (sd === 'opp' ? loadOppTotals : loadTeamTotals)(s, d.seasonType).catch(() => null))
+          )));
+          const bySide = Object.fromEntries(sides.map((sd, i) => [sd, got[i]]));
+          setSpec(d);
+          setRes({ status: 'ready', yoy: { seasons, bySide } });
+        } catch (e) {
+          setRes({ status: 'error' });
+        }
+        return;
+      }
     const d = { ...draft };
     setRes({ status: 'loading' });
     try {
       let tms = teams, op = opp;
-      if (d.season !== String(season)) {
-        [tms, op] = await Promise.all([loadTeamTotals(d.season), loadOppTotals(d.season).catch(() => null)]);
+      if (d.season !== String(season) || d.seasonType !== 'Regular Season') {
+        [tms, op] = await Promise.all([loadTeamTotals(d.season, d.seasonType), loadOppTotals(d.season, d.seasonType).catch(() => null)]);
       }
       setSpec(d);
       setRes({ status: 'ready', teams: tms, opp: op });
@@ -1464,7 +1554,7 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
 
   // scatter data
   const pts = useMemo(() => {
-    if (res.status !== 'ready' || !spec) return null;
+    if (res.status !== 'ready' || !spec || res.yoy) return null;
     const xs = statOf(spec.x), ys = statOf(spec.y);
     const xa = spec.xSide === 'opp' ? res.opp : res.teams;
     const ya = spec.ySide === 'opp' ? res.opp : res.teams;
@@ -1489,6 +1579,36 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
     };
   }, [res, spec]);
 
+  // year-over-year data
+  const yoy = useMemo(() => {
+    if (!res.yoy || !spec) return null;
+    const { seasons, bySide } = res.yoy;
+    const build = (st, side) => {
+      const byTeam = {};
+      (bySide[side] || []).forEach((tms, i) => (tms || []).forEach(t => {
+        if (!(t.gp > 0)) return;
+        const v = st.fn(t);
+        if (!Number.isFinite(v)) return;
+        (byTeam[t.abbr] = byTeam[t.abbr] || Array(seasons.length).fill(null))[i] = v;
+      }));
+      const avg = seasons.map((_, i) => {
+        const v = Object.values(byTeam).map(a => a[i]).filter(x => x != null);
+        return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
+      });
+      return { byTeam, avg };
+    };
+    const st = statOf(spec.y);
+    const L = build(st, spec.ySide);
+    if (L.avg.filter(v => v != null).length < 2) return { error: 'Not enough seasons of data.' };
+    const st2 = spec.y2 ? statOf(spec.y2) : null;
+    const R = st2 ? build(st2, spec.y2Side) : null;
+    return {
+      seasons, st, avg: L.avg,
+      series: Object.entries(L.byTeam).map(([abbr, vals]) => ({ abbr, vals })),
+      st2, avg2: R && R.avg.filter(v => v != null).length >= 2 ? R.avg : null,
+    };
+  }, [res, spec]);
+
   // assist network data
   const plays = useLoaded(loadTeamPlays, netTeam, season, kind === 'network' && !!netTeam);
   const net = useMemo(() => buildNetwork(plays.data), [plays.data]);
@@ -1496,11 +1616,15 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
 
   const scatterReady = kind === 'scatter' && !!pts && !pts.error;
   const netReady = kind === 'network' && !!net && plays.status === 'ready';
-  const ready = scatterReady || netReady;
+  const yoyReady = kind === 'yoy' && !!yoy && !yoy.error;
+  const ready = scatterReady || netReady || yoyReady;
   const cardKey = kind === 'scatter'
-    ? `${spec ? JSON.stringify(spec) : ''}|${hl}`
-    : `${netTeam}|${sel}|${plays.data ? 1 : 0}`;
-  const { snap, busy } = useSnap(cardRef, kind === 'scatter' ? 'scatter' : `${netTeam}-assist-network`, ready, cardKey, haptic);
+    ? `${spec ? JSON.stringify(spec) : ''}`
+    : kind === 'yoy'
+      ? `${spec ? JSON.stringify(spec) : ''}|yoy`
+      : `${netTeam}|${sel}|${plays.data ? 1 : 0}`;
+  const snapName = kind === 'scatter' ? 'scatter' : kind === 'yoy' ? 'year-over-year' : `${netTeam}-assist-network`;
+  const { snap, busy } = useSnap(cardRef, snapName, ready, cardKey, haptic);
 
   const skeleton = <div className="skeleton rounded-2xl" style={{ height: 240, marginTop: 20 }} />;
   let result = null;
@@ -1510,24 +1634,39 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
     else if (pts && pts.error) result = <div style={{ marginTop: 20 }}><Empty>{pts.error}</Empty></div>;
     else if (pts) {
       const xl = axisLabel(pts.xs, spec.xSide), yl = axisLabel(pts.ys, spec.ySide);
-      const me2 = pts.list.find(p => p.abbr === hl);
+  
       result = (
-        <div ref={cardRef} style={{ marginTop: 20, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 16px 14px' }}>
+        <div ref={cardRef} style={{ marginTop: 2, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 16px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>{yl} vs {xl}</div>
-            <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.season}</div>
+            <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.season}{spec.seasonType === 'Playoffs' ? ' · Playoffs' : ''}</div>
           </div>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>r = {pts.r.toFixed(2)} across {pts.list.length} teams</div>
           <div style={{ marginTop: 12 }}>
-            <ScatterChart d={pts} xLabel={xl} yLabel={yl} hl={hl} onHl={a => { haptic('selection'); setHl(a); }} />
+          <ScatterChart d={pts} xLabel={xl} yLabel={yl} />
           </div>
-          {me2 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
-              <Box value={pts.xs.fmt(me2.x)} label={`${hl} · ${xl}`} />
-              <Box value={pts.ys.fmt(me2.y)} label={`${hl} · ${yl}`} />
-            </div>
-          )}
-          <div style={{ marginTop: 14, fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE · PBPSTATS</div>
+        </div>
+      );
+    }
+} else if (kind === 'yoy') {
+    if (res.status === 'loading') result = skeleton;
+    else if (res.status === 'error') result = <div style={{ marginTop: 2 }}><Empty>Couldn't load those seasons.</Empty></div>;
+    else if (yoy && yoy.error) result = <div style={{ marginTop: 2 }}><Empty>{yoy.error}</Empty></div>;
+    else if (yoy) {
+        const yl = axisLabel(yoy.st, spec.ySide);
+        const yl2 = yoy.avg2 ? axisLabel(yoy.st2, spec.y2Side) : null;
+      result = (
+        <div ref={cardRef} style={{ marginTop: 2, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 16px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+          <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>{yl2 ? `${yl} & ${yl2}` : `${yl} by season`}</div>
+            <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.seasonType === 'Playoffs' ? 'Playoffs' : 'Regular season'}</div>
+          </div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
+            {yl2 ? 'League averages: left axis in blue, right axis in amber. Teams in gray (left stat).' : 'League average in blue, each team in gray'}
+          </div>
+          <div style={{ marginTop: 12 }}>
+          <YoyChart d={yoy} yLabel={yl} y2Label={yl2} />
+          </div>
         </div>
       );
     }
@@ -1553,13 +1692,20 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
         <GenSelect label="VISUALIZATION" value={kind} onChange={v => { haptic('selection'); setKind(v); }}>
           <option value="scatter">Scatter plot</option>
           <option value="network">Assist network</option>
+          <option value="yoy">League year-over-year</option>
         </GenSelect>
 
         {kind === 'scatter' ? (
           <>
-            <GenSelect label="SEASON" value={draft.season} onChange={v => set('season', v)}>
-              {seasonOptions(season).map(s => <option key={s} value={s}>{s}</option>)}
-            </GenSelect>
+                      <div style={{ display: 'flex', gap: 8 }}>
+              <GenSelect label="SEASON" value={draft.season} onChange={v => set('season', v)}>
+                {seasonOptions(season).map(s => <option key={s} value={s}>{s}</option>)}
+              </GenSelect>
+              <GenSelect label="SEASON TYPE" value={draft.seasonType} onChange={v => set('seasonType', v)}>
+                <option value="Regular Season">Regular season</option>
+                <option value="Playoffs">Playoffs</option>
+              </GenSelect>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <GenSelect label="X AXIS" value={draft.x} onChange={v => set('x', v)} flex={2}><StatOptions side={draft.xSide} /></GenSelect>
               <GenSelect label="X AXIS TYPE" value={draft.xSide} onChange={v => setSide('x', 'xSide', v)}>
@@ -1575,8 +1721,29 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
               </GenSelect>
             </div>
           </>
-        ) : (
-          <GenSelect label="TEAM" value={netDraft} onChange={setNetDraft}>
+               ) : kind === 'yoy' ? (
+                <>
+                  <GenSelect label="SEASON TYPE" value={draft.seasonType} onChange={v => set('seasonType', v)}>
+                    <option value="Regular Season">Regular season</option>
+                    <option value="Playoffs">Playoffs</option>
+                  </GenSelect>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                  <GenSelect label="LEFT AXIS STAT" value={draft.y} onChange={v => set('y', v)} flex={2}><StatOptions side={draft.ySide} /></GenSelect>
+                  <GenSelect label="LEFT AXIS TYPE" value={draft.ySide} onChange={v => setSide('y', 'ySide', v)}>
+                <option value="team">Team</option>
+                <option value="opp">Opponent</option>
+              </GenSelect>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+            <GenSelect label="RIGHT AXIS STAT" value={draft.y2} onChange={v => set('y2', v)} flex={2}>
+                <option value="">None</option>
+                <StatOptions side={draft.y2Side} />
+              </GenSelect>
+             
+            </div>
+                </>
+              ) : (
+                <GenSelect label="TEAM" value={netDraft} onChange={setNetDraft}>
             {abbrs.map(a => <option key={a} value={a}>{a}</option>)}
           </GenSelect>
         )}
@@ -1592,18 +1759,21 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
       </div>
 
       {result && ready && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
           <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>
-            {kind === 'scatter' ? 'Tap a team to highlight it' : 'Tap a player to isolate their passes'}
+          {kind === 'network' ? 'Tap a player to isolate their passes' : ''}
           </span>
           <button
             onClick={snap}
             disabled={busy}
-            aria-label="Share as image"
-            className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center"
-            style={{ border: 'none', cursor: 'pointer', opacity: busy ? 0.4 : 1 }}
+            aria-label="Share screenshot"
+            className="flex items-center justify-center"
+            style={{
+                width: 28, height: 28, borderRadius: 14, background: 'none', border: 'none',
+              cursor: 'pointer', color: MUTED, opacity: busy ? 0.4 : 1,
+            }}
           >
-            <Camera size={16} color="white" />
+            <Camera size={20} strokeWidth={2} />
           </button>
         </div>
       )}

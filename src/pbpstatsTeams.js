@@ -21,8 +21,10 @@ export const ZONES = [
     return `${y}-${String((y + 1) % 100).padStart(2, '0')}`;
   };
   
-  const totalsUrl = (season, type) =>
-    `https://api.pbpstats.com/get-totals/nba?Season=${season}&SeasonType=Regular%20Season&Type=${type}`;
+  const totalsUrl = (season, type, seasonType = 'Regular Season') =>
+    `https://api.pbpstats.com/get-totals/nba?Season=${season}&SeasonType=${encodeURIComponent(seasonType)}&Type=${type}`;
+  // playoffs only has the teams that qualified, so the "full league" check has to relax
+  const minTeams = seasonType => (seasonType === 'Playoffs' ? 8 : 20);
   const n = v => (Number.isFinite(Number(v)) ? Number(v) : 0);
   
   const toTeam = r => ({
@@ -37,29 +39,30 @@ export const ZONES = [
   });
   
   function makeLoader(type, cachePrefix) {
-    const mem = new Map();        // season -> { at, teams }
-    const inflight = new Map();   // season -> Promise
-    return function load(season) {
-      const hit = mem.get(season);
+    const mem = new Map();        // season|seasonType -> { at, teams }
+    const inflight = new Map();   // season|seasonType -> Promise
+    return function load(season, seasonType = 'Regular Season') {
+      const mk = `${season}|${seasonType}`;
+      const hit = mem.get(mk);
       if (hit && Date.now() - hit.at < TTL) return Promise.resolve(hit.teams);
-      const key = `${cachePrefix}:${season}`;
+      const key = `${cachePrefix}:${season}:${seasonType}`;
       try {
         const raw = JSON.parse(localStorage.getItem(key));
-        if (raw && Date.now() - raw.at < TTL && raw.teams?.length >= 20) { mem.set(season, raw); return Promise.resolve(raw.teams); }
+        if (raw && Date.now() - raw.at < TTL && raw.teams?.length >= minTeams(seasonType)) { mem.set(mk, raw); return Promise.resolve(raw.teams); }
       } catch (e) { /* ignore */ }
-      if (inflight.has(season)) return inflight.get(season);
-      const p = fetch(totalsUrl(season, type))
+      if (inflight.has(mk)) return inflight.get(mk);
+      const p = fetch(totalsUrl(season, type, seasonType))
         .then(r => { if (!r.ok) throw new Error(`pbpstats ${r.status}`); return r.json(); })
         .then(j => {
           const teams = (j?.multi_row_table_data || []).map(toTeam).filter(t => t.abbr);
-          if (teams.length < 20) throw new Error('unexpected response');
+          if (teams.length < minTeams(seasonType)) throw new Error('unexpected response');
           const entry = { at: Date.now(), teams };
-          mem.set(season, entry);
+          mem.set(mk, entry);
           try { localStorage.setItem(key, JSON.stringify(entry)); } catch (e) { /* ignore */ }
           return teams;
         })
-        .finally(() => inflight.delete(season));
-      inflight.set(season, p);
+        .finally(() => inflight.delete(mk));
+      inflight.set(mk, p);
       return p;
     };
   }
