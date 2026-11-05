@@ -5,7 +5,7 @@ import CheatSheet from './CheatSheet';
 /* =====================================================================
    CONFIG
    ===================================================================== */
-const DEBUG = true; // true → logs the first raw propBets item so field names can be verified
+const DEBUG = false; // true → logs the first raw propBets item so field names can be verified
 const MAX_CANDIDATES = 80; // players per prop type we pull game logs for (highest lines first)
 const MIN_GAMES = 5;
 const CONCURRENCY = 8;
@@ -148,7 +148,7 @@ function readPrice(item) {
 
 /* Collapse raw items into one main line per player + prop type */
 function parseProps(items, gameId) {
-  if (DEBUG && items[0]) console.log('[Betting] raw propBets item', JSON.stringify(items.slice(0, 3), null, 1));
+  if (DEBUG && items[0]) console.log('[Betting] first raw propBets item', items[0]);
   const groups = new Map();
   for (const it of items) {
     const key = propKeyFromName(it?.type?.name);
@@ -679,9 +679,7 @@ async function getKeyInjuries(athleteId, teamId, propKey) {
         >
           <p className="text-gray-400 text-sm">{formatDate()}</p>
           <div className="flex items-center gap-3">
-            <span className="text-gray-400 text-sm">
-              Tonight • {games.length} game{games.length === 1 ? '' : 's'}
-            </span>
+           
             <button
               onClick={() => {
                 trigger('light');
