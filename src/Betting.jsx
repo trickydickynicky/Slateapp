@@ -5,7 +5,7 @@ import CheatSheet from './CheatSheet';
 /* =====================================================================
    CONFIG
    ===================================================================== */
-const DEBUG = false; // true → logs the first raw propBets item so field names can be verified
+const DEBUG = true; // true → logs the first raw propBets item so field names can be verified
 const MAX_CANDIDATES = 80; // players per prop type we pull game logs for (highest lines first)
 const MIN_GAMES = 5;
 const CONCURRENCY = 8;
@@ -14,6 +14,7 @@ const INJURY_MIN_PPG = 15; // teammate counts as "key" at this PPG...
 const INJURY_MIN_RPG = 7; // ...or this RPG (rebound-based props)...
 const INJURY_MIN_APG = 5; // ...or this APG (assist props)...
 const INJURY_MIN_MPG = 25; // ...or this many minutes per game, for any prop
+const FIRST_IS_OVER = true; // ESPN propBets items carry no over/under label; first item per line = over (verify vs DK)
 const SMALL_SAMPLE = 5; // "without him" games below this get a label
 
 const SCOREBOARD = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard';
@@ -31,9 +32,9 @@ const PROP_TYPES = [
   { key: 'pts', label: 'Points', unit: 'pts', stats: ['pts'] },
   { key: 'reb', label: 'Rebounds', unit: 'reb', stats: ['reb'] },
   { key: 'ast', label: 'Assists', unit: 'ast', stats: ['ast'] },
-  { key: 'pr', label: 'Pts+Reb', unit: 'pts+reb', stats: ['pts', 'reb'] },
-  { key: 'pa', label: 'Pts+Ast', unit: 'pts+ast', stats: ['pts', 'ast'] },
-  { key: 'pra', label: 'Pts+Reb+Ast', unit: 'PRA', stats: ['pts', 'reb', 'ast'] },
+  { key: 'pr', label: 'Pts+Reb', unit: 'p+r', long: 'pts + reb', stats: ['pts', 'reb'] },
+  { key: 'pa', label: 'Pts+Ast', unit: 'p+a', long: 'pts + ast', stats: ['pts', 'ast'] },
+  { key: 'pra', label: 'Pts+Reb+Ast', unit: 'p+r+a', long: 'pts + reb + ast', stats: ['pts', 'reb', 'ast'] },
   { key: 'tpm', label: '3PM', unit: '3PM', stats: ['tpm'] },
 ];
 
@@ -68,6 +69,7 @@ const idFromRef = (ref, seg) => {
 
 const fmt = (v) => (v == null || Number.isNaN(v) ? '–' : Number.isInteger(v) ? String(v) : v.toFixed(1));
 const pct = (v) => `${Math.round(v * 100)}%`;
+const fmtOdds = (p) => (p == null ? '–' : `${p > 0 ? '+' : ''}${p}`);
 const sumStats = (g, stats) => stats.reduce((a, s) => a + (g[s] ?? 0), 0);
 
 const ordinal = (n) => {
@@ -146,7 +148,7 @@ function readPrice(item) {
 
 /* Collapse raw items into one main line per player + prop type */
 function parseProps(items, gameId) {
-  if (DEBUG && items[0]) console.log('[Betting] first raw propBets item', items[0]);
+  if (DEBUG && items[0]) console.log('[Betting] raw propBets item', JSON.stringify(items.slice(0, 3), null, 1));
   const groups = new Map();
   for (const it of items) {
     const key = propKeyFromName(it?.type?.name);
@@ -161,7 +163,11 @@ function parseProps(items, gameId) {
     if (!g.lines.has(line)) g.lines.set(line, { over: null, under: null });
     const side = readSide(it);
     const price = readPrice(it);
-    if (side) g.lines.get(line)[side] = price;
+    const slot = g.lines.get(line);
+    const [first, second] = FIRST_IS_OVER ? ['over', 'under'] : ['under', 'over'];
+    if (side) slot[side] = price;
+    else if (slot[first] == null) slot[first] = price;
+    else if (slot[second] == null) slot[second] = price;
   }
   const out = [];
   for (const g of groups.values()) {
@@ -923,6 +929,13 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
   const injNames = keyInj.map((t) => t.name).join(' & ');
 
   const price = isOver ? c.overPrice : c.underPrice;
+  const books = [{ label: 'DK', price }];
+  if (c.fd) {
+    books.push({
+      label: c.fd.line === c.line ? 'FD' : `FD ${fmt(c.fd.line)}`, // show FD's line if it differs from DK's
+      price: isOver ? c.fd.overPrice : c.fd.underPrice,
+    });
+  }
 
   const teamView =
     c.key === 'pts' && team
@@ -998,13 +1011,38 @@ const teamAll = c.opp ? posSplits[`${c.opp.id}|ALL`] : null;
             </span>
           )}
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className={`text-2xl font-bold leading-none ${sideText}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+        <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 70 }}>
+          <div
+            style={{
+              color: isOver ? '#22c55e' : '#ef4444',
+              fontFamily: 'Rajdhani, sans-serif',
+              fontSize: 24,
+              fontWeight: 700,
+              lineHeight: 1,
+            }}
+          >
             {isOver ? 'O' : 'U'} {fmt(c.line)}
           </div>
-          <div className="text-xs text-gray-400 mt-0.5">
-            {type.unit}
-            {price != null && ` • ${price > 0 ? '+' : ''}${price}`}
+          <div style={{ color: '#9ca3af', fontSize: 12, lineHeight: 1.1, marginTop: 0, whiteSpace: 'nowrap' }}>
+            {type.long || type.unit}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 8,
+              color: '#9ca3af',
+              fontSize: 12,
+              lineHeight: 1.1,
+              marginTop: 2,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {books.map((b) => (
+              <span key={b.label}>
+                <span style={{ color: '#d1d5db', fontWeight: 600 }}>{b.label}</span> {fmtOdds(b.price)}
+              </span>
+            ))}
           </div>
         </div>
       </div>
