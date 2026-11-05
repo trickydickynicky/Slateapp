@@ -1461,12 +1461,19 @@ function ScatterChart({ d, xLabel, yLabel, logos }) {
   );
 }
 
+const LEFT_C = { team: '#3b82f6', avg: '#f87171' };
+const RIGHT_C = { team: '#f59e0b', avg: '#fcd34d' };
+
 function YoyChart({ d, yLabel, y2Label, teamAbbr }) {
 
-    const { seasons, series, avg, st, st2, avg2 } = d;
+    const { seasons, series, avg, st, st2, avg2, byTeam2 } = d;
+const mine2 = avg2 && byTeam2 ? byTeam2[teamAbbr] : null;
+
     const W = 500, H = 440, PL = 52, PR = avg2 ? 52 : 22, PT = 16, PB = 40;
-    const RIGHT = '#f59e0b';
+   
     const mine = series.find(s => s.abbr === teamAbbr);
+    const leftTeam = avg2 ? LEFT_C.team : '#fff';
+    const leftLabel = avg2 ? LEFT_C.team : '#71717a';
 
     const range = vals => {
       const v = vals.filter(x => x != null);
@@ -1474,7 +1481,8 @@ function YoyChart({ d, yLabel, y2Label, teamAbbr }) {
       return [lo - pad, hi + pad];
     };
     const [y0, y1] = range(series.flatMap(s => s.vals));
-    const [r0, r1] = avg2 ? range(avg2) : [0, 1];
+    const [r0, r1] = avg2 ? range(Object.values(byTeam2 || {}).flat()) : [0, 1];
+
     const n = seasons.length;
     const sx = i => PL + (n > 1 ? i / (n - 1) : 0.5) * (W - PL - PR);
     const sy = v => PT + (1 - (v - y0) / (y1 - y0)) * (H - PT - PB);
@@ -1495,43 +1503,46 @@ function YoyChart({ d, yLabel, y2Label, teamAbbr }) {
         {niceTicks(y0, y1).map(v => (
           <g key={`y${v}`}>
             <line x1={PL} x2={W - PR} y1={sy(v)} y2={sy(v)} stroke="#18181b" />
-            <text x={PL - 6} y={sy(v) + 4} textAnchor="end" {...q}>{st.fmt(v)}</text>
+            <text x={PL - 6} y={sy(v) + 4} textAnchor="end" {...q} fill={leftLabel}>{st.fmt(v)}</text>
           </g>
         ))}
         {avg2 && niceTicks(r0, r1).map(v => (
-          <text key={`r${v}`} x={W - PR + 6} y={sr(v) + 4} textAnchor="start" {...q} fill={RIGHT} fillOpacity="0.8">{st2.fmt(v)}</text>
+            <text key={`r${v}`} x={W - PR + 6} y={sr(v) + 4} textAnchor="start" {...q} fill={RIGHT_C.team}>{st2.fmt(v)}</text>
         ))}
         {seasons.map((s, i) => (
           <text key={s} x={sx(i)} y={H - PB + 18} textAnchor="middle" {...q}>{s}</text>
         ))}
-        {series.map(s => (
+       {!avg2 && series.map(s => (
+
           <path key={s.abbr} d={line(s.vals, sy)} fill="none" stroke="#71717a" strokeOpacity="0.35" strokeWidth="1.5" strokeLinejoin="round">
             <title>{s.abbr}</title>
           </path>
         ))}
 
 
-
-<path d={line(avg, sy)} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+{!avg2 && <path d={line(avg, sy)} fill="none" stroke={LEFT_C.avg} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />}
 {mine && (
-  <path d={line(mine.vals, sy)} fill="none" stroke="#fff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+  <path d={line(mine.vals, sy)} fill="none" stroke={leftTeam} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
 )}
 {mine && mine.vals.map((v, i) => v == null ? null : (
   <g key={i}>
-    <circle cx={sx(i)} cy={sy(v)} r="4.5" fill="#fff" stroke="#000" strokeWidth="2" />
-    <text x={sx(i)} y={sy(v) - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#fff">{st.fmt(v)}</text>
+    <circle cx={sx(i)} cy={sy(v)} r="4.5" fill={leftTeam} stroke="#000" strokeWidth="2" />
+    <text x={sx(i)} y={sy(v) - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill={leftTeam}>{st.fmt(v)}</text>
   </g>
 ))}
 
-        {avg2 && <path d={line(avg2, sr)} fill="none" stroke={RIGHT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
-        {avg2 && avg2.map((v, i) => v == null ? null : (
-          <g key={`b${i}`}>
-            <circle cx={sx(i)} cy={sr(v)} r="4.5" fill={RIGHT} stroke="#000" strokeWidth="2" />
-            <text x={sx(i)} y={sr(v) + 18} textAnchor="middle" fontSize="11" fontWeight="800" fill={RIGHT}>{st2.fmt(v)}</text>
+
+        {mine2 && (
+          <path d={line(mine2, sr)} fill="none" stroke={RIGHT_C.team} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+        )}
+        {mine2 && mine2.map((v, i) => v == null ? null : (
+          <g key={`m2${i}`}>
+            <circle cx={sx(i)} cy={sr(v)} r="4.5" fill={RIGHT_C.team} stroke="#000" strokeWidth="2" />
+            <text x={sx(i)} y={sr(v) + 18} textAnchor="middle" fontSize="11" fontWeight="800" fill={RIGHT_C.team}>{st2.fmt(v)}</text>
           </g>
         ))}
-        <text x="12" y={mid} textAnchor="middle" transform={`rotate(-90 12 ${mid})`} {...q}>{yLabel} →</text>
-        {avg2 && <text x={W - 10} y={mid} textAnchor="middle" transform={`rotate(90 ${W - 10} ${mid})`} {...q} fill={RIGHT} fillOpacity="0.8">← {y2Label}</text>}
+<text x="12" y={mid} textAnchor="middle" transform={`rotate(-90 12 ${mid})`} {...q} fill={leftLabel}>{yLabel} →</text>
+{avg2 && <text x={W - 10} y={mid} textAnchor="middle" transform={`rotate(90 ${W - 10} ${mid})`} {...q} fill={RIGHT_C.team}>← {y2Label}</text>}
       </svg>
     );
   }
@@ -1648,6 +1659,8 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
       seasons, st, avg: L.avg,
       series: Object.entries(L.byTeam).map(([abbr, vals]) => ({ abbr, vals })),
       st2, avg2: R && R.avg.filter(v => v != null).length >= 2 ? R.avg : null,
+      byTeam2: R ? R.byTeam : null,
+      
     };
   }, [res, spec]);
 
@@ -1706,10 +1719,8 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
           </div>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
           {yl2
-  ? `${yoyTeam} in white (left stat), league averages: left axis in blue, right axis in amber, other teams in gray.`
-  : `${yoyTeam} in white, league average in blue, other teams in gray`}
-
-
+            ? `${yoyTeam} ${yl} in blue, ${yoyTeam} ${yl2} in amber`
+            : `${yoyTeam} in white, league average in red, other teams in gray`}
 
           </div>
           <div style={{ marginTop: 12 }}>
