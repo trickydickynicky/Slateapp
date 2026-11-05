@@ -1345,7 +1345,7 @@ function useSnap(cardRef, name, ready, dep, haptic) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const render = async () => {
-    const opts = { pixelRatio: 2, backgroundColor: '#000' };
+    const opts = { pixelRatio: 3, backgroundColor: '#000' };
     await toPng(cardRef.current, opts); // Safari drops images/fonts on the first pass
     const url = await toPng(cardRef.current, opts);
     const blob = await (await fetch(url)).blob();
@@ -1446,8 +1446,8 @@ function ScatterChart({ d, xLabel, yLabel, logos }) {
         <image
           key={p.abbr}
           href={logos[p.abbr]}
-          x={sx(p.x) - 10} y={sy(p.y) - 10}
-          width="20" height="20"
+                  x={sx(p.x) - 12} y={sy(p.y) - 12}
+          width="24" height="24"
           preserveAspectRatio="xMidYMid meet"
         >
           <title>{p.abbr}</title>
