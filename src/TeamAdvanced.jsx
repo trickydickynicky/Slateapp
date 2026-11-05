@@ -1851,29 +1851,7 @@ const headshot = id => `https://cdn.nba.com/headshots/nba/latest/260x190/${id}.p
 const shortName = n => n.split(' ').slice(1).join(' ') || n;
 const initials = n => n.split(' ').map(w => w[0]).join('').slice(0, 2);
 
-const headCache = new Map(); // id -> data URL, or null if it failed
-function useHeadshots(ids) {
-  const key = ids.join(',');
-  const pick = () => Object.fromEntries(ids.filter(i => headCache.has(i)).map(i => [i, headCache.get(i)]));
-  const [st, setSt] = useState({ map: pick(), done: ids.length > 0 && ids.every(i => headCache.has(i)) });
-  useEffect(() => {
-    if (!ids.length) { setSt({ map: {}, done: false }); return undefined; }
-    let dead = false;
-    (async () => {
-      const todo = ids.filter(i => !headCache.has(i));
-      for (let i = 0; i < todo.length; i += 20) {
-        await Promise.all(todo.slice(i, i + 20).map(async id => {
-          try { headCache.set(id, await toDataUrl(headshot(id))); } catch (e) { headCache.set(id, null); }
-        }));
-        if (dead) return;
-      }
-      if (!dead) setSt({ map: pick(), done: true });
-    })();
-    return () => { dead = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return st;
-}
+
 
 const pg = k => p => (p.gp > 0 && p[k] != null ? p[k] / p.gp : null);
 const p36 = k => p => (p.min > 0 && p[k] != null ? (p[k] / p.min) * 36 : null);
@@ -1932,7 +1910,7 @@ function PlayerStatOptions() {
 
 const pLabel = s => (s.group === 'Per game' ? `${s.label} per game` : s.group === 'Per 36 min' ? `${s.label} per 36` : s.label);
 
-function PlayerScatter({ d, xLabel, yLabel, hl, onToggle, heads }) {
+function PlayerScatter({ d, xLabel, yLabel, hl, onToggle }) {
   const W = 500, H = 460, PL = 52, PR = 22, PT = 24, PB = 46;
   const [bad, setBad] = useState({});
   const { list, xs, ys, slope, mx, my } = d;
@@ -1976,11 +1954,11 @@ function PlayerScatter({ d, xLabel, yLabel, hl, onToggle, heads }) {
         return (
           <g key={p.id} onClick={() => onToggle(p.id)} style={{ cursor: 'pointer' }} opacity={hl.length && !on ? 0.5 : 1}>
             <circle cx={cx} cy={cy} r={R + 1.5} fill="#18181b" stroke={on ? ACCENT : '#3f3f46'} strokeWidth={on ? 3 : 1} />
-            {bad[p.id] || heads[p.id] === null ? (
+            {bad[p.id] ? (
               <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={R * 0.9} fontWeight="800" fill="#a1a1aa" style={{ pointerEvents: 'none' }}>{initials(p.name)}</text>
             ) : (
               <image
-              href={heads[p.id] || headshot(p.id)} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
+              href={headshot(p.id)} x={cx - R} y={cy - R} width={R * 2} height={R * 2}
                 preserveAspectRatio="xMidYMin slice" clipPath="url(#hs-clip)"
                 onError={() => setBad(b => (b[p.id] ? b : { ...b, [p.id]: 1 }))}
               />
@@ -2056,8 +2034,7 @@ function PlayerVisuals({ teams, season, haptic }) {
     };
   }, [res, spec]);
 
-  const heads = useHeadshots(data && !data.error ? data.list.map(p => p.id) : []);
-  const ready = !!data && !data.error && heads.done;
+  const ready = !!data && !data.error;
   const { snap, busy } = useSnap(cardRef, 'player-scatter', ready, `${spec ? JSON.stringify(spec) : ''}|${hl.join(',')}`, haptic);
   const toggle = id => { haptic('selection'); setHl(h => (h.includes(id) ? h.filter(x => x !== id) : [...h, id])); };
 
@@ -2080,7 +2057,7 @@ function PlayerVisuals({ teams, season, haptic }) {
         </div>
         
         <div style={{ marginTop: 12 }}>
-        <PlayerScatter d={data} xLabel={xl} yLabel={yl} hl={hl} onToggle={toggle} heads={heads.map} />
+        <PlayerScatter d={data} xLabel={xl} yLabel={yl} hl={hl} onToggle={toggle} />
         </div>
         {picked.length > 0 && (
           <div style={{ marginTop: 12 }}>
