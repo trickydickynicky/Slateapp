@@ -1785,7 +1785,7 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
               </GenSelect>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-            <GenSelect label="RIGHT AXIS STAT" value={draft.y2} onChange={v => set('y2', v)} flex={2}>
+            <GenSelect label="RIGHT AXIS STAT (optional)" value={draft.y2} onChange={v => set('y2', v)} flex={2}>
     <option value="">None</option>
     <StatOptions side={draft.y2Side} />
   </GenSelect>
