@@ -1461,10 +1461,13 @@ function ScatterChart({ d, xLabel, yLabel, logos }) {
   );
 }
 
-function YoyChart({ d, yLabel, y2Label }) {
+function YoyChart({ d, yLabel, y2Label, teamAbbr }) {
+
     const { seasons, series, avg, st, st2, avg2 } = d;
     const W = 500, H = 440, PL = 52, PR = avg2 ? 52 : 22, PT = 16, PB = 40;
     const RIGHT = '#f59e0b';
+    const mine = series.find(s => s.abbr === teamAbbr);
+
     const range = vals => {
       const v = vals.filter(x => x != null);
       const lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.08 || 0.01;
@@ -1506,13 +1509,20 @@ function YoyChart({ d, yLabel, y2Label }) {
             <title>{s.abbr}</title>
           </path>
         ))}
-        <path d={line(avg, sy)} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-        {avg.map((v, i) => v == null ? null : (
-          <g key={i}>
-            <circle cx={sx(i)} cy={sy(v)} r="4.5" fill={ACCENT} stroke="#000" strokeWidth="2" />
-            <text x={sx(i)} y={sy(v) - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#60a5fa">{st.fmt(v)}</text>
-          </g>
-        ))}
+
+
+
+<path d={line(avg, sy)} fill="none" stroke={ACCENT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+{mine && (
+  <path d={line(mine.vals, sy)} fill="none" stroke="#fff" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+)}
+{mine && mine.vals.map((v, i) => v == null ? null : (
+  <g key={i}>
+    <circle cx={sx(i)} cy={sy(v)} r="4.5" fill="#fff" stroke="#000" strokeWidth="2" />
+    <text x={sx(i)} y={sy(v) - 10} textAnchor="middle" fontSize="11" fontWeight="800" fill="#fff">{st.fmt(v)}</text>
+  </g>
+))}
+
         {avg2 && <path d={line(avg2, sr)} fill="none" stroke={RIGHT} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />}
         {avg2 && avg2.map((v, i) => v == null ? null : (
           <g key={`b${i}`}>
@@ -1692,10 +1702,15 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
             <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.seasonType === 'Playoffs' ? 'Playoffs' : 'Regular season'}</div>
           </div>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>
-            {yl2 ? 'League averages: left axis in blue, right axis in amber. Teams in gray (left stat).' : 'League average in blue, each team in gray'}
+          {yl2
+  ? `${teamAbbr} in white (left stat), league averages: left axis in blue, right axis in amber, other teams in gray.`
+  : `${teamAbbr} in white, league average in blue, other teams in gray`}
+
+
           </div>
           <div style={{ marginTop: 12 }}>
-          <YoyChart d={yoy} yLabel={yl} y2Label={yl2} />
+          <YoyChart d={yoy} yLabel={yl} y2Label={yl2} teamAbbr={teamAbbr} />
+
           </div>
         </div>
       );
