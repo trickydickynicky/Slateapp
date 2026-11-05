@@ -1345,7 +1345,7 @@ function useSnap(cardRef, name, ready, dep, haptic) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const render = async () => {
-    const opts = { pixelRatio: 2, cacheBust: true, backgroundColor: '#000' };
+    const opts = { pixelRatio: 2, backgroundColor: '#000' };
     await toPng(cardRef.current, opts); // Safari drops images/fonts on the first pass
     const url = await toPng(cardRef.current, opts);
     const blob = await (await fetch(url)).blob();
@@ -1383,7 +1383,34 @@ function useSnap(cardRef, name, ready, dep, haptic) {
 const ESPN_LOGO = { GSW: 'gs', NOP: 'no', NYK: 'ny', SAS: 'sa', UTA: 'utah', WAS: 'wsh' };
 const logoUrl = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${ESPN_LOGO[abbr] || String(abbr).toLowerCase()}.png`;
 
-function ScatterChart({ d, xLabel, yLabel }) {
+const logoCache = new Map(); // abbr -> data URL, kept for the session
+const toDataUrl = async url => {
+  const blob = await (await fetch(url)).blob();
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+};
+function useLogos(abbrs) {
+  const key = abbrs.join(',');
+  const pick = () => Object.fromEntries(abbrs.filter(a => logoCache.has(a)).map(a => [a, logoCache.get(a)]));
+  const [st, setSt] = useState({ map: pick(), done: abbrs.length > 0 && abbrs.every(a => logoCache.has(a)) });
+  useEffect(() => {
+    if (!abbrs.length) { setSt({ map: {}, done: false }); return undefined; }
+    let dead = false;
+    Promise.all(abbrs.map(async a => {
+      if (logoCache.has(a)) return;
+      try { logoCache.set(a, await toDataUrl(logoUrl(a))); } catch (e) { /* skip this logo */ }
+    })).then(() => { if (!dead) setSt({ map: pick(), done: true }); });
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return st;
+}
+
+function ScatterChart({ d, xLabel, yLabel, logos }) {
   const W = 500, H = 440, PL = 52, PR = 18, PT = 16, PB = 46;
   const { list, xs, ys, slope, mx, my } = d;
   const ext = k => {
@@ -1415,18 +1442,19 @@ function ScatterChart({ d, xLabel, yLabel }) {
         x1={sx(x0)} y1={sy(my + slope * (x0 - mx))} x2={sx(x1)} y2={sy(my + slope * (x1 - mx))}
         stroke="#3f3f46" strokeDasharray="4 4" clipPath="url(#sc-plot)"
       />
-          {list.map(p => (
+           {list.map(p => (logos[p.abbr] ? (
         <image
           key={p.abbr}
-          href={logoUrl(p.abbr)}
-          crossOrigin="anonymous"
+          href={logos[p.abbr]}
           x={sx(p.x) - 10} y={sy(p.y) - 10}
           width="20" height="20"
           preserveAspectRatio="xMidYMid meet"
         >
           <title>{p.abbr}</title>
         </image>
-      ))}
+      ) : (
+        <circle key={p.abbr} cx={sx(p.x)} cy={sy(p.y)} r="4.5" fill="#71717a" fillOpacity="0.85"><title>{p.abbr}</title></circle>
+      )))}
       <text x={(PL + W - PR) / 2} y={H - 8} textAnchor="middle" {...q}>{xLabel} →</text>
       <text x="12" y={(PT + H - PB) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(PT + H - PB) / 2})`} {...q}>{yLabel} →</text>
     </svg>
@@ -1579,6 +1607,8 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
     };
   }, [res, spec]);
 
+  const logoState = useLogos(pts && !pts.error && pts.list ? pts.list.map(p => p.abbr).sort() : []);
+
   // year-over-year data
   const yoy = useMemo(() => {
     if (!res.yoy || !spec) return null;
@@ -1614,7 +1644,7 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
   const net = useMemo(() => buildNetwork(plays.data), [plays.data]);
   const abbrs = useMemo(() => teams.map(t => t.abbr).sort(), [teams]);
 
-  const scatterReady = kind === 'scatter' && !!pts && !pts.error;
+  const scatterReady = kind === 'scatter' && !!pts && !pts.error && logoState.done;
   const netReady = kind === 'network' && !!net && plays.status === 'ready';
   const yoyReady = kind === 'yoy' && !!yoy && !yoy.error;
   const ready = scatterReady || netReady || yoyReady;
@@ -1643,7 +1673,7 @@ function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
           </div>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>r = {pts.r.toFixed(2)} across {pts.list.length} teams</div>
           <div style={{ marginTop: 12 }}>
-          <ScatterChart d={pts} xLabel={xl} yLabel={yl} />
+          <ScatterChart d={pts} xLabel={xl} yLabel={yl} logos={logoState.map} />
           </div>
         </div>
       );
