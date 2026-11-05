@@ -19,6 +19,25 @@ const validCoord = c =>
 const toHalf = ({ x, y }) => (y > 47 ? [50 - x, 94 - y] : [x, y]);
 
 const num = v => { const x = parseFloat(v); return Number.isFinite(x) ? x : null; };
+const TYPES = ['Jumper', 'Pull-up', 'Step-back', 'Fadeaway', 'Floater', 'Layup', 'Driving layup', 'Hook', 'Dunk', 'Alley-oop', 'Tip-in'];
+
+// stored as an index into TYPES to keep the localStorage cache small
+function shotTypeIdx(p) {
+  const m = /(?:makes|misses)\s+(.*)/i.exec(p.text || '');
+  const desc = (m ? m[1] : p.text || '').replace(/\(.*?\)/g, '');
+  const s = `${p.type?.text || ''} ${desc}`.toLowerCase();
+  let t = 'Jumper';
+  if (/alley/.test(s)) t = 'Alley-oop';
+  else if (/dunk/.test(s)) t = 'Dunk';
+  else if (/\btip\b|tip shot|tip-in/.test(s)) t = 'Tip-in';
+  else if (/hook/.test(s)) t = 'Hook';
+  else if (/floating|floater/.test(s)) t = 'Floater';
+  else if (/layup|finger roll/.test(s)) t = /driving/.test(s) ? 'Driving layup' : 'Layup';
+  else if (/step ?back/.test(s)) t = 'Step-back';
+  else if (/pull ?up/.test(s)) t = 'Pull-up';
+  else if (/fadeaway|turnaround/.test(s)) t = 'Fadeaway';
+  return TYPES.indexOf(t);
+}
 
 function boxLine(team, players) {
   const st = team?.statistics || [];
@@ -60,7 +79,8 @@ function extractGame(summary, teamId) {
     const sx = Math.round(x * 10);
     const sy = Math.max(0, Math.round(y * 10));
     if (sy > 400) continue; // drop heaves
-    s.push([sx, sy, p.scoringPlay ? 1 : 0]);
+    const shooter = p.participants?.[0]?.athlete?.id;
+    s.push([sx, sy, p.scoringPlay ? 1 : 0, shooter ? String(shooter) : '', shotTypeIdx(p)]);
   }
   const players = summary?.boxscore?.players || [];
   for (const t of players) {
@@ -90,7 +110,7 @@ async function run(abbr, season, emit) {
     .filter(e => e.competitions?.[0]?.status?.type?.completed)
     .map(e => e.id);
 
-  const key = `espnShots:v3:${season}:${abbr}`;
+    const key = `espnShots:v4:${season}:${abbr}`;
   let cache = { games: {}, names: {} };
   try {
     const raw = JSON.parse(localStorage.getItem(key));
@@ -148,5 +168,7 @@ export function loadTeamPlays(abbr, season, onProgress) {
   return job.promise;
 }
 
-export const loadTeamShots = (abbr, season, onProgress) =>
-  loadTeamPlays(abbr, season, onProgress && (d => onProgress(d.shots))).then(d => d.shots);
+export const loadTeamShots = (abbr, season, onProgress) => {
+    const label = d => d.shots.map(([x, y, m, pid, ti]) => [x, y, m, d.names[pid] || (pid ? '?' : ''), TYPES[ti] || 'Jumper']);
+    return loadTeamPlays(abbr, season, onProgress && (d => onProgress(label(d)))).then(label);
+  };

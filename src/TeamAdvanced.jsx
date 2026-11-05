@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Camera } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import { ZONES, findTeam, loadTeamTotals, loadOppTotals, loadTeamExtras, nbaSeason } from './pbpstatsTeams';
 import { loadTeamShots, loadTeamPlays } from './espnShots';
 
@@ -12,7 +14,7 @@ const GREEN = '#22c55e';
 const RED = '#ef4444';
 const heading = { fontFamily: 'Rajdhani, sans-serif' };
 
-const TABS = [['shots', 'Shots'], ['assists', 'Assists'], ['team', 'Team'], ['factors', 'Factors']];
+const TABS = [['shots', 'Shots'], ['assists', 'Assists'], ['team', 'Team'], ['visuals', 'Visuals'], ['factors', 'Factors']];
 
 const ordinal = n => {
   const v = Math.abs(n) % 100;
@@ -67,8 +69,11 @@ function Box({ value, valueColor, label }) {
   );
 }
 
+const Bare = React.createContext(false);
 const Note = ({ children }) => (
-  <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, marginTop: 16 }}>{children}</p>
+  React.useContext(Bare) ? null : (
+    <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, marginTop: 16 }}>{children}</p>
+  )
 );
 
 function Empty({ children }) {
@@ -754,107 +759,220 @@ function QualityScatter({ teams, me, teamAbbr }) {
   );
 }
 
-function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
-  const t = useMemo(() => buildZones(teams, me, oppMe), [teams, me, oppMe]);
-  const [view, setView] = useState('bars');
-  const [dots, setDots] = useState({ status: 'idle', shots: [] });
-  const [retry, setRetry] = useState(0);
+const ALL = 'all';
 
-  // Shot locations are the heavy part, so they only load when the Shots view is opened.
-  useEffect(() => {
-    if (view !== 'dots') return undefined;
-    let dead = false;
-    setDots(d => ({ status: 'loading', shots: d.shots }));
-    loadTeamShots(teamAbbr, season, shots => { if (!dead) setDots({ status: 'loading', shots }); })
-      .then(shots => { if (!dead) setDots({ status: 'ready', shots }); })
-      .catch(() => { if (!dead) setDots(d => ({ status: 'error', shots: d.shots })); });
-    return () => { dead = true; };
-  }, [view, teamAbbr, season, retry]);
+const zoneOf = (x, y) => {
+  const d = Math.hypot(x - HX, y - HY);
+  if ((x <= CORNER_X || x >= CW - CORNER_X) && y <= ARC_Y) return 'Corner3';
+  if (d > R3) return 'Arc3';
+  if (d < 40) return 'AtRim';
+  if (d < 140) return 'ShortMidRange';
+  return 'LongMidRange';
+};
 
-  if (!t) return <Empty>Shot zone data isn't available yet.</Empty>;
+function buildZonesFromShots(shots, lg) {
+  if (!shots.length) return null;
+  const acc = Object.fromEntries(ZONES.map(z => [z.key, [0, 0]]));
+  shots.forEach(([x, y, made]) => {
+    const a = acc[zoneOf(x, y)];
+    a[1]++;
+    if (made) a[0]++;
+  });
+  const tot = shots.length;
+  const rows = ZONES.map(z => {
+    const [m, a] = acc[z.key];
+    const pts = m * z.pts, exp = a * z.pts * lg[z.key];
+    return {
+      key: z.key, label: z.label, range: z.range, zpts: z.pts,
+      fgm: m, fga: a, pct: a > 0 ? m / a : 0, share: a / tot,
+      pts, exp, lgPct: lg[z.key], vsAvg: pts - exp,
+      pctRank: null, shareRank: null,
+    };
+  });
+  const pts = rows.reduce((s, r) => s + r.pts, 0);
+  const exp = rows.reduce((s, r) => s + r.exp, 0);
+  return { rows, opp: null, fga: tot, pts, exp, xPps: exp / tot, diff: pts - exp };
+}
 
-  let chart;
-  if (view === 'bars') {
-    chart = <ZoneBars t={t} teamAbbr={teamAbbr} />;
-  } else if (view === 'map') {
-    chart = <ZoneMap rows={t.rows} />;
-  } else if (dots.shots.length) {
-    chart = <ShotDots shots={dots.shots} loading={dots.status === 'loading'} />;
-  } else if (dots.status === 'error') {
-    chart = (
-      <Empty>
-        <div>Shot locations aren't available right now.</div>
-        <button
-          onClick={() => { haptic('light'); setRetry(n => n + 1); }}
-          style={{ marginTop: 12, background: 'none', border: 'none', color: ACCENT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-        >
-          Try again
-        </button>
-      </Empty>
-    );
-  } else if (dots.status === 'ready') {
-    chart = <Empty>No shot locations yet.</Empty>;
-  } else {
-    chart = <div className="skeleton rounded-2xl" style={{ height: 240 }} />;
-  }
-
+function FilterSelect({ label, value, onChange, options }) {
   return (
-    <div>
-      <SectionTitle>Shot chart</SectionTitle>
-      <Pills items={VIEWS} value={view} onChange={v => { haptic('selection'); setView(v); }} />
-      {chart}
-
-      <div style={{ marginTop: 28 }}>
-        <SectionTitle>By zone</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
-          <Box value={t.xPps.toFixed(2)} label={`xPts per shot · ${t.fga} FGA`} />
-          <Box value={signed(t.diff)} valueColor={signColor(t.diff)} label={`${t.pts} pts vs ${t.exp.toFixed(1)} exp.`} />
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: ZONE_GRID, columnGap: 4, paddingBottom: 8, fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>
-            <span>ZONE</span>
-            <span style={{ textAlign: 'center' }}>FG</span>
-            <span style={{ textAlign: 'center' }}>FG%</span>
-            <span style={{ textAlign: 'center' }}>SHARE</span>
-            <span style={{ textAlign: 'right' }}>VS AVG</span>
-          </div>
-          {t.rows.map(r => {
-            const d = r.pct - r.lgPct;
-            const pctColor = d > 0.015 ? GREEN : d < -0.015 ? RED : 'white';
-            return (
-              <div key={r.key} style={{ display: 'grid', gridTemplateColumns: ZONE_GRID, columnGap: 4, alignItems: 'center', padding: '10px 0', borderTop: '1px solid #131313' }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#e4e4e7' }}>{r.label}</div>
-                  {r.range && <div style={{ fontSize: 10, fontWeight: 500, color: MUTED, marginTop: 1 }}>{r.range}</div>}
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#a1a1aa', textAlign: 'center', whiteSpace: 'nowrap' }}>{r.fgm}-{r.fga}</span>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: pctColor }}>{r.fga > 0 ? `${Math.round(r.pct * 100)}%` : '—'}</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: rankTone(r.pctRank), marginTop: 1 }}>{ordinal(r.pctRank)}</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 800 }}>{Math.round(r.share * 100)}%</div>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: MUTED, marginTop: 1 }}>{ordinal(r.shareRank)}</div>
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 800, textAlign: 'right', color: signColor(r.vsAvg) }}>{signed(r.vsAvg)}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <Note>
-          {t.pts} points on {t.fga} field goal attempts ({(t.pts / t.fga).toFixed(2)} per shot), {me.gp} games. FG% is colored against the league average in each zone. Vs avg = points above or below what an average shooter scores on the same shots. Small numbers are the NBA rank among {teams.length} teams (FG%: 1st = best; Share: 1st = most of their shots). Corner 3s are along the baseline, where the line is 22 ft; above-the-break 3s are every other 3.
-        </Note>
-      </div>
-
-      <div style={{ marginTop: 28 }}>
-        <SectionTitle>Shot quality vs shot making</SectionTitle>
-        <QualityScatter teams={teams} me={me} teamAbbr={teamAbbr} />
-      </div>
-    </div>
+    <label style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em', marginBottom: 4 }}>{label}</div>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="bg-zinc-900 text-white rounded-xl"
+        style={{ width: '100%', fontSize: 13, fontWeight: 600, padding: '8px 10px', border: '1px solid #171717' }}
+      >
+        <option value={ALL}>All</option>
+        {options.map(([v, n]) => <option key={v} value={v}>{v} ({n})</option>)}
+      </select>
+    </label>
   );
 }
+
+function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
+    const [view, setView] = useState('bars');
+    const [dots, setDots] = useState({ status: 'idle', shots: [] });
+    const [retry, setRetry] = useState(0);
+    const [showFilters, setShowFilters] = useState(false);
+    const [player, setPlayer] = useState(ALL);
+    const [type, setType] = useState(ALL);
+  
+    const filtered = player !== ALL || type !== ALL;
+    const needShots = view === 'dots' || showFilters || filtered;
+  
+    // Shot locations are the heavy part: only load for the dots view, the filter panel, or an active filter.
+    useEffect(() => {
+      if (!needShots) return undefined;
+      let dead = false;
+      setDots(d => ({ status: 'loading', shots: d.shots }));
+      loadTeamShots(teamAbbr, season, shots => { if (!dead) setDots({ status: 'loading', shots }); })
+        .then(shots => { if (!dead) setDots({ status: 'ready', shots }); })
+        .catch(() => { if (!dead) setDots(d => ({ status: 'error', shots: d.shots })); });
+      return () => { dead = true; };
+    }, [needShots, teamAbbr, season, retry]);
+  
+    useEffect(() => { setPlayer(ALL); setType(ALL); }, [teamAbbr]);
+  
+    const lg = useMemo(() => leagueAvg(teams), [teams]);
+    const teamZones = useMemo(() => buildZones(teams, me, oppMe), [teams, me, oppMe]);
+    const shown = useMemo(
+      () => dots.shots.filter(s => (player === ALL || s[3] === player) && (type === ALL || s[4] === type)),
+      [dots.shots, player, type]
+    );
+    const t = useMemo(
+      () => (filtered ? buildZonesFromShots(shown, lg) : teamZones),
+      [filtered, shown, lg, teamZones]
+    );
+    const options = useMemo(() => {
+      const count = i => {
+        const m = {};
+        dots.shots.forEach(s => { if (s[i] && s[i] !== '?') m[s[i]] = (m[s[i]] || 0) + 1; });
+        return Object.entries(m).sort((a, b) => b[1] - a[1]);
+      };
+      return { players: count(3), types: count(4) };
+    }, [dots.shots]);
+  
+    if (!teamZones) return <Empty>Shot zone data isn't available yet.</Empty>;
+  
+    let chart;
+    if (filtered && !t) {
+      chart = dots.status === 'loading'
+        ? <div className="skeleton rounded-2xl" style={{ height: 240 }} />
+        : <Empty>No shots match this filter.</Empty>;
+    } else if (view === 'bars') {
+      chart = <ZoneBars t={t} teamAbbr={teamAbbr} />;
+    } else if (view === 'map') {
+      chart = <ZoneMap rows={t.rows} />;
+    } else if (shown.length) {
+      chart = <ShotDots shots={shown} loading={dots.status === 'loading'} />;
+    } else if (dots.status === 'error') {
+      chart = (
+        <Empty>
+          <div>Shot locations aren't available right now.</div>
+          <button
+            onClick={() => { haptic('light'); setRetry(n => n + 1); }}
+            style={{ marginTop: 12, background: 'none', border: 'none', color: ACCENT, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+          >
+            Try again
+          </button>
+        </Empty>
+      );
+    } else if (dots.status === 'ready') {
+      chart = <Empty>No shot locations yet.</Empty>;
+    } else {
+      chart = <div className="skeleton rounded-2xl" style={{ height: 240 }} />;
+    }
+  
+    return (
+      <div>
+        <SectionTitle>Shot chart</SectionTitle>
+        <Pills items={VIEWS} value={view} onChange={v => { haptic('selection'); setView(v); }} />
+  
+        <div style={{ marginBottom: 14 }}>
+          <button
+            onClick={() => { haptic('light'); setShowFilters(s => !s); }}
+            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, color: filtered ? ACCENT : MUTED, cursor: 'pointer' }}
+          >
+            {filtered ? `Filtered · ${[player !== ALL && player, type !== ALL && type].filter(Boolean).join(' · ')}` : 'Filter by player or shot type'} {showFilters ? '▴' : '▾'}
+          </button>
+          {showFilters && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+              <FilterSelect label="PLAYER" value={player} onChange={v => { haptic('selection'); setPlayer(v); }} options={options.players} />
+              <FilterSelect label="SHOT TYPE" value={type} onChange={v => { haptic('selection'); setType(v); }} options={options.types} />
+              {filtered && (
+                <button
+                  onClick={() => { haptic('light'); setPlayer(ALL); setType(ALL); }}
+                  style={{ background: 'none', border: 'none', color: ACCENT, fontSize: 12, fontWeight: 700, padding: '10px 4px', cursor: 'pointer' }}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+  
+        {chart}
+  
+        {t && (
+          <div style={{ marginTop: 28 }}>
+            <SectionTitle>By zone</SectionTitle>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
+              <Box value={t.xPps.toFixed(2)} label={`xPts per shot · ${t.fga} FGA`} />
+              <Box value={signed(t.diff)} valueColor={signColor(t.diff)} label={`${t.pts} pts vs ${t.exp.toFixed(1)} exp.`} />
+            </div>
+  
+            <div style={{ marginTop: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: ZONE_GRID, columnGap: 4, paddingBottom: 8, fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>
+                <span>ZONE</span>
+                <span style={{ textAlign: 'center' }}>FG</span>
+                <span style={{ textAlign: 'center' }}>FG%</span>
+                <span style={{ textAlign: 'center' }}>SHARE</span>
+                <span style={{ textAlign: 'right' }}>VS AVG</span>
+              </div>
+              {t.rows.map(r => {
+                const d = r.pct - r.lgPct;
+                const pctColor = d > 0.015 ? GREEN : d < -0.015 ? RED : 'white';
+                return (
+                  <div key={r.key} style={{ display: 'grid', gridTemplateColumns: ZONE_GRID, columnGap: 4, alignItems: 'center', padding: '10px 0', borderTop: '1px solid #131313' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: '#e4e4e7' }}>{r.label}</div>
+                      {r.range && <div style={{ fontSize: 10, fontWeight: 500, color: MUTED, marginTop: 1 }}>{r.range}</div>}
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#a1a1aa', textAlign: 'center', whiteSpace: 'nowrap' }}>{r.fgm}-{r.fga}</span>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: pctColor }}>{r.fga > 0 ? `${Math.round(r.pct * 100)}%` : '—'}</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: r.pctRank ? rankTone(r.pctRank) : MUTED, marginTop: 1, minHeight: 12 }}>{r.pctRank ? ordinal(r.pctRank) : ''}</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800 }}>{Math.round(r.share * 100)}%</div>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: MUTED, marginTop: 1, minHeight: 12 }}>{r.shareRank ? ordinal(r.shareRank) : ''}</div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 800, textAlign: 'right', color: signColor(r.vsAvg) }}>{signed(r.vsAvg)}</span>
+                  </div>
+                );
+              })}
+            </div>
+  
+            <Note>
+              {t.pts} points on {t.fga} field goal attempts ({(t.pts / t.fga).toFixed(2)} per shot){filtered ? '' : `, ${me.gp} games`}. FG% is colored against the league average in each zone. Vs avg = points above or below what an average shooter scores on the same shots. {filtered
+                ? 'Filtered view: zones are built from ESPN shot locations, so there are no NBA ranks or opponent bars. '
+                : `Small numbers are the NBA rank among ${teams.length} teams (FG%: 1st = best; Share: 1st = most of their shots). `}
+              Corner 3s are along the baseline, where the line is 22 ft; above-the-break 3s are every other 3.
+            </Note>
+          </div>
+        )}
+  
+        {!filtered && (
+          <div style={{ marginTop: 28 }}>
+            <SectionTitle>Shot quality vs shot making</SectionTitle>
+            <QualityScatter teams={teams} me={me} teamAbbr={teamAbbr} />
+          </div>
+        )}
+      </div>
+    );
+  }
 
 /* ────────────────────────────────────────────────────────────────────────────
    Tab: Assists (by zone)
@@ -1117,6 +1235,384 @@ function AssistsTab({ teams, me, teamAbbr, season, haptic }) {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+   Tab: Visuals (generator: pick a visualization, set options, Show graph, snap it)
+──────────────────────────────────────────────────────────────────────────── */
+
+const f2 = v => v.toFixed(2);
+const gpOf = t => Math.max(t.gp, 1);
+const dv = (a, b) => (b > 0 ? a / b : null);
+const x100 = v => (v == null ? null : v * 100);
+const zoneTot = t => ZONES.reduce((s, z) => s + t.z[z.key][1], 0);
+
+// To add a stat: add a row. fn gets a team-totals object (or the opponent-totals object) and returns a number or null.
+const SCATTER_STATS = [
+  { key: 'ortg', label: 'Offensive rating', group: 'Ratings', fmt: f1, fn: t => x100(dv(t.pts, t.offPoss)) },
+  { key: 'drtg', label: 'Defensive rating', group: 'Ratings', fmt: f1, teamOnly: true, fn: t => x100(dv(t.opp, t.defPoss)) },
+  { key: 'net', label: 'Net rating', group: 'Ratings', fmt: signed, teamOnly: true, fn: t => {
+    const a = x100(dv(t.pts, t.offPoss)), b = x100(dv(t.opp, t.defPoss));
+    return a == null || b == null ? null : a - b;
+  } },
+  { key: 'pace', label: 'Pace', group: 'Ratings', fmt: f1, fn: t => t.pace },
+  { key: 'ppg', label: 'Points per game', group: 'Ratings', fmt: f1, fn: t => t.pts / gpOf(t) },
+  { key: 'oppg', label: 'Points allowed per game', group: 'Ratings', fmt: f1, teamOnly: true, fn: t => t.opp / gpOf(t) },
+
+  { key: 'efg', label: 'eFG%', group: 'Shooting', fmt: pct1, fn: t => t.efg },
+  { key: 'ts', label: 'True shooting %', group: 'Shooting', fmt: pct1, fn: t => t.ts },
+  { key: 'fg', label: 'FG%', group: 'Shooting', fmt: pct1, fn: t => dv(t.fg2m + t.fg3m, t.fg2a + t.fg3a) },
+  { key: 'fg2', label: '2PT%', group: 'Shooting', fmt: pct1, fn: t => dv(t.fg2m, t.fg2a) },
+  { key: 'fg3', label: '3PT%', group: 'Shooting', fmt: pct1, fn: t => dv(t.fg3m, t.fg3a) },
+  { key: 'ft', label: 'FT%', group: 'Shooting', fmt: pct1, fn: t => dv(t.ftm, t.fta) },
+  { key: 'fg3a', label: '3PT attempts per game', group: 'Shooting', fmt: f1, fn: t => t.fg3a / gpOf(t) },
+  { key: 'fg2a', label: '2PT attempts per game', group: 'Shooting', fmt: f1, fn: t => t.fg2a / gpOf(t) },
+  { key: 'fta', label: 'FT attempts per game', group: 'Shooting', fmt: f1, fn: t => t.fta / gpOf(t) },
+  { key: 'rate3', label: '3PT attempt rate', group: 'Shooting', fmt: pct1, fn: t => dv(t.fg3a, t.fg2a + t.fg3a) },
+  { key: 'ftrate', label: 'FT rate (FTM / FGA)', group: 'Shooting', fmt: pct1, fn: t => dv(t.ftm, t.fg2a + t.fg3a) },
+
+  { key: 'tovp', label: 'Turnovers per possession', group: 'Possessions', fmt: pct1, fn: t => dv(t.tov, t.offPoss) },
+  { key: 'tov', label: 'Turnovers per game', group: 'Possessions', fmt: f1, fn: t => t.tov / gpOf(t) },
+  { key: 'ast', label: 'Assists per game', group: 'Possessions', fmt: f1, fn: t => totalAst(t) / gpOf(t) },
+  { key: 'astp', label: 'Assisted FG%', group: 'Possessions', fmt: pct1, fn: t => dv(totalAst(t), t.fg2m + t.fg3m) },
+  { key: 'oreb', label: 'Offensive rebound rate', group: 'Possessions', fmt: pct1, teamOnly: true, fn: t => t.oreb },
+
+  ...ZONES.flatMap(z => [
+    { key: `${z.key}-fg`, label: `${z.label} FG%`, group: 'Shot zones', fmt: pct1, fn: t => t.z && dv(t.z[z.key][0], t.z[z.key][1]) },
+    { key: `${z.key}-freq`, label: `${z.label} frequency`, group: 'Shot zones', fmt: pct1, fn: t => t.z && dv(t.z[z.key][1], zoneTot(t)) },
+  ]),
+];
+
+const statOf = key => SCATTER_STATS.find(s => s.key === key);
+const axisLabel = (s, side) => (side === 'opp' ? `Opp ${s.label}` : s.label);
+
+const seasonOptions = s => {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(s));
+  if (!m) return [String(s)];
+  const y = +m[1];
+  return Array.from({ length: 6 }, (_, i) => `${y - i}-${String((y - i + 1) % 100).padStart(2, '0')}`);
+};
+
+const niceTicks = (lo, hi, n = 5) => {
+  const span = hi - lo || 1, raw = span / n;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(s => s >= raw);
+  const out = [];
+  for (let i = Math.ceil(lo / step); i * step <= hi + 1e-9; i++) out.push(+(i * step).toFixed(10));
+  return out;
+};
+
+function GenSelect({ label, value, onChange, children, flex = 1 }) {
+  return (
+    <label style={{ flex, minWidth: 0 }}>
+      <div style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em', marginBottom: 4 }}>{label}</div>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="bg-zinc-900 text-white rounded-xl"
+        style={{ width: '100%', fontSize: 13, fontWeight: 600, padding: '8px 10px', border: '1px solid #171717' }}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function StatOptions({ side }) {
+  const groups = [...new Set(SCATTER_STATS.map(s => s.group))];
+  return groups.map(g => (
+    <optgroup key={g} label={g}>
+      {SCATTER_STATS.filter(s => s.group === g && (side === 'team' || !s.teamOnly)).map(s => (
+        <option key={s.key} value={s.key}>{s.label}</option>
+      ))}
+    </optgroup>
+  ));
+}
+
+function useLoaded(loader, abbr, season, enabled) {
+  const [st, setSt] = useState({ status: 'idle', data: null });
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let dead = false;
+    setSt(s => ({ status: 'loading', data: s.data }));
+    loader(abbr, season, d => { if (!dead) setSt({ status: 'loading', data: d }); })
+      .then(d => { if (!dead) setSt({ status: 'ready', data: d }); })
+      .catch(() => { if (!dead) setSt(s => ({ status: 'error', data: s.data })); });
+    return () => { dead = true; };
+  }, [loader, abbr, season, enabled]);
+  return st;
+}
+
+// Camera: render the card to a PNG (pre-rendered when ready so the share sheet opens instantly), then share or download.
+function useSnap(cardRef, name, ready, dep, haptic) {
+  const fileRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const render = async () => {
+    const opts = { pixelRatio: 2, cacheBust: true, backgroundColor: '#000' };
+    await toPng(cardRef.current, opts); // Safari drops images/fonts on the first pass
+    const url = await toPng(cardRef.current, opts);
+    const blob = await (await fetch(url)).blob();
+    return { url, file: new File([blob], `${name}.png`, { type: 'image/png' }) };
+  };
+  useEffect(() => {
+    fileRef.current = null;
+    if (!ready) return undefined;
+    let dead = false;
+    const id = setTimeout(() => {
+      if (cardRef.current) render().then(r => { if (!dead) fileRef.current = r; }).catch(() => {});
+    }, 600);
+    return () => { dead = true; clearTimeout(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, name, dep]);
+  const snap = async () => {
+    if (!ready || busy || !cardRef.current) return;
+    haptic('light');
+    setBusy(true);
+    try {
+      const r = fileRef.current || await render();
+      if (navigator.canShare && navigator.canShare({ files: [r.file] })) {
+        await navigator.share({ files: [r.file] });
+      } else {
+        const a = document.createElement('a');
+        a.href = r.url; a.download = r.file.name; a.click();
+      }
+    } catch (e) { /* share sheet dismissed or capture failed */ }
+    setBusy(false);
+  };
+  return { snap, busy };
+}
+
+function ScatterChart({ d, xLabel, yLabel, hl, onHl }) {
+  const W = 500, H = 440, PL = 52, PR = 18, PT = 16, PB = 46;
+  const { list, xs, ys, slope, mx, my } = d;
+  const ext = k => {
+    const v = list.map(p => p[k]);
+    const lo = Math.min(...v), hi = Math.max(...v), pad = (hi - lo) * 0.1 || 0.01;
+    return [lo - pad, hi + pad];
+  };
+  const [x0, x1] = ext('x'), [y0, y1] = ext('y');
+  const sx = v => PL + ((v - x0) / (x1 - x0)) * (W - PL - PR);
+  const sy = v => PT + (1 - (v - y0) / (y1 - y0)) * (H - PT - PB);
+  const q = { fill: '#71717a', fontSize: 11, fontFamily: 'ui-monospace, monospace' };
+  const ordered = [...list].sort((a, b) => (a.abbr === hl) - (b.abbr === hl));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <defs><clipPath id="sc-plot"><rect x={PL} y={PT} width={W - PL - PR} height={H - PT - PB} /></clipPath></defs>
+      {niceTicks(x0, x1).map(v => (
+        <g key={`x${v}`}>
+          <line x1={sx(v)} x2={sx(v)} y1={PT} y2={H - PB} stroke="#18181b" />
+          <text x={sx(v)} y={H - PB + 16} textAnchor="middle" {...q}>{xs.fmt(v)}</text>
+        </g>
+      ))}
+      {niceTicks(y0, y1).map(v => (
+        <g key={`y${v}`}>
+          <line x1={PL} x2={W - PR} y1={sy(v)} y2={sy(v)} stroke="#18181b" />
+          <text x={PL - 6} y={sy(v) + 4} textAnchor="end" {...q}>{ys.fmt(v)}</text>
+        </g>
+      ))}
+      <line
+        x1={sx(x0)} y1={sy(my + slope * (x0 - mx))} x2={sx(x1)} y2={sy(my + slope * (x1 - mx))}
+        stroke="#3f3f46" strokeDasharray="4 4" clipPath="url(#sc-plot)"
+      />
+      {ordered.map(p => {
+        const on = p.abbr === hl;
+        return (
+          <g key={p.abbr} onClick={() => onHl(p.abbr)} style={{ cursor: 'pointer' }}>
+            <circle cx={sx(p.x)} cy={sy(p.y)} r="11" fill="transparent" />
+            <circle cx={sx(p.x)} cy={sy(p.y)} r={on ? 7.5 : 4.5} fill={on ? ACCENT : '#71717a'} fillOpacity={on ? 1 : 0.85} stroke={on ? '#fff' : 'none'} strokeWidth="2" />
+            <text x={sx(p.x) + (on ? 12 : 8)} y={sy(p.y) + 3.5} fontSize={on ? 13 : 9} fontWeight={on ? 800 : 600} fill={on ? '#60a5fa' : '#a1a1aa'}>{p.abbr}</text>
+          </g>
+        );
+      })}
+      <text x={(PL + W - PR) / 2} y={H - 8} textAnchor="middle" {...q}>{xLabel} →</text>
+      <text x="12" y={(PT + H - PB) / 2} textAnchor="middle" transform={`rotate(-90 12 ${(PT + H - PB) / 2})`} {...q}>{yLabel} →</text>
+    </svg>
+  );
+}
+
+function VisualsTab({ teams, opp, teamAbbr, season, haptic }) {
+  const [kind, setKind] = useState('scatter');
+  const [draft, setDraft] = useState({ season: String(season), x: 'ortg', xSide: 'team', y: 'drtg', ySide: 'team' });
+  const [spec, setSpec] = useState(null);
+  const [res, setRes] = useState({ status: 'idle' });
+  const [hl, setHl] = useState(teamAbbr);
+  const [netDraft, setNetDraft] = useState(teamAbbr);
+  const [netTeam, setNetTeam] = useState(null);
+  const [sel, setSel] = useState(null);
+  const cardRef = useRef(null);
+
+  const set = (k, v) => setDraft(x => ({ ...x, [k]: v }));
+  const setSide = (statKey, sideKey, v) => setDraft(x => ({
+    ...x,
+    [sideKey]: v,
+    [statKey]: v === 'opp' && statOf(x[statKey]).teamOnly ? 'efg' : x[statKey],
+  }));
+
+  const generate = async () => {
+    haptic('light');
+    if (kind === 'network') { setSel(null); setNetTeam(netDraft); return; }
+    const d = { ...draft };
+    setRes({ status: 'loading' });
+    try {
+      let tms = teams, op = opp;
+      if (d.season !== String(season)) {
+        [tms, op] = await Promise.all([loadTeamTotals(d.season), loadOppTotals(d.season).catch(() => null)]);
+      }
+      setSpec(d);
+      setRes({ status: 'ready', teams: tms, opp: op });
+    } catch (e) {
+      setRes({ status: 'error' });
+    }
+  };
+
+  // scatter data
+  const pts = useMemo(() => {
+    if (res.status !== 'ready' || !spec) return null;
+    const xs = statOf(spec.x), ys = statOf(spec.y);
+    const xa = spec.xSide === 'opp' ? res.opp : res.teams;
+    const ya = spec.ySide === 'opp' ? res.opp : res.teams;
+    if (!xa || !ya) return { error: "Opponent data isn't available for this season." };
+    const list = [];
+    res.teams.forEach(t => {
+      if (!(t.gp > 0)) return;
+      const a = findTeam(xa, t.abbr), b = findTeam(ya, t.abbr);
+      if (!a || !b) return;
+      const x = xs.fn(a), y = ys.fn(b);
+      if (Number.isFinite(x) && Number.isFinite(y)) list.push({ abbr: t.abbr, x, y });
+    });
+    if (list.length < 3) return { error: 'Not enough data for this season.' };
+    const n = list.length;
+    const mx = list.reduce((s, p) => s + p.x, 0) / n, my = list.reduce((s, p) => s + p.y, 0) / n;
+    let sxx = 0, syy = 0, sxy = 0;
+    list.forEach(p => { const dx = p.x - mx, dy = p.y - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
+    return {
+      list, xs, ys, mx, my,
+      slope: sxx > 0 ? sxy / sxx : 0,
+      r: sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : 0,
+    };
+  }, [res, spec]);
+
+  // assist network data
+  const plays = useLoaded(loadTeamPlays, netTeam, season, kind === 'network' && !!netTeam);
+  const net = useMemo(() => buildNetwork(plays.data), [plays.data]);
+  const abbrs = useMemo(() => teams.map(t => t.abbr).sort(), [teams]);
+
+  const scatterReady = kind === 'scatter' && !!pts && !pts.error;
+  const netReady = kind === 'network' && !!net && plays.status === 'ready';
+  const ready = scatterReady || netReady;
+  const cardKey = kind === 'scatter'
+    ? `${spec ? JSON.stringify(spec) : ''}|${hl}`
+    : `${netTeam}|${sel}|${plays.data ? 1 : 0}`;
+  const { snap, busy } = useSnap(cardRef, kind === 'scatter' ? 'scatter' : `${netTeam}-assist-network`, ready, cardKey, haptic);
+
+  const skeleton = <div className="skeleton rounded-2xl" style={{ height: 240, marginTop: 20 }} />;
+  let result = null;
+  if (kind === 'scatter') {
+    if (res.status === 'loading') result = skeleton;
+    else if (res.status === 'error') result = <div style={{ marginTop: 20 }}><Empty>Couldn't load that season.</Empty></div>;
+    else if (pts && pts.error) result = <div style={{ marginTop: 20 }}><Empty>{pts.error}</Empty></div>;
+    else if (pts) {
+      const xl = axisLabel(pts.xs, spec.xSide), yl = axisLabel(pts.ys, spec.ySide);
+      const me2 = pts.list.find(p => p.abbr === hl);
+      result = (
+        <div ref={cardRef} style={{ marginTop: 20, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 16px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>{yl} vs {xl}</div>
+            <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{spec.season}</div>
+          </div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>r = {pts.r.toFixed(2)} across {pts.list.length} teams</div>
+          <div style={{ marginTop: 12 }}>
+            <ScatterChart d={pts} xLabel={xl} yLabel={yl} hl={hl} onHl={a => { haptic('selection'); setHl(a); }} />
+          </div>
+          {me2 && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8, marginTop: 12 }}>
+              <Box value={pts.xs.fmt(me2.x)} label={`${hl} · ${xl}`} />
+              <Box value={pts.ys.fmt(me2.y)} label={`${hl} · ${yl}`} />
+            </div>
+          )}
+          <div style={{ marginTop: 14, fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE · PBPSTATS</div>
+        </div>
+      );
+    }
+  } else if (netTeam) {
+    if (net) {
+      result = (
+        <div ref={cardRef} style={{ marginTop: 20, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 16px 14px' }}>
+          <div style={{ ...heading, fontSize: 20, fontWeight: 700 }}>{netTeam} · Assist network</div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 4 }}>Arrows run from passer to scorer. Number = assists given.</div>
+          <NetworkGraph net={net} sel={sel} onSel={id => { haptic('selection'); setSel(id); }} />
+          <div style={{ marginTop: 8, fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE · ESPN</div>
+        </div>
+      );
+    } else if (plays.status === 'error') {
+      result = <div style={{ marginTop: 20 }}><Empty>Assist network isn't available right now.</Empty></div>;
+    } else result = skeleton;
+  }
+
+  const loading = res.status === 'loading';
+  return (
+    <div>
+      <div style={{ display: 'grid', gap: 12 }}>
+        <GenSelect label="VISUALIZATION" value={kind} onChange={v => { haptic('selection'); setKind(v); }}>
+          <option value="scatter">Scatter plot</option>
+          <option value="network">Assist network</option>
+        </GenSelect>
+
+        {kind === 'scatter' ? (
+          <>
+            <GenSelect label="SEASON" value={draft.season} onChange={v => set('season', v)}>
+              {seasonOptions(season).map(s => <option key={s} value={s}>{s}</option>)}
+            </GenSelect>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <GenSelect label="X AXIS" value={draft.x} onChange={v => set('x', v)} flex={2}><StatOptions side={draft.xSide} /></GenSelect>
+              <GenSelect label="X AXIS TYPE" value={draft.xSide} onChange={v => setSide('x', 'xSide', v)}>
+                <option value="team">Team</option>
+                <option value="opp">Opponent</option>
+              </GenSelect>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <GenSelect label="Y AXIS" value={draft.y} onChange={v => set('y', v)} flex={2}><StatOptions side={draft.ySide} /></GenSelect>
+              <GenSelect label="Y AXIS TYPE" value={draft.ySide} onChange={v => setSide('y', 'ySide', v)}>
+                <option value="team">Team</option>
+                <option value="opp">Opponent</option>
+              </GenSelect>
+            </div>
+          </>
+        ) : (
+          <GenSelect label="TEAM" value={netDraft} onChange={setNetDraft}>
+            {abbrs.map(a => <option key={a} value={a}>{a}</option>)}
+          </GenSelect>
+        )}
+
+        <button
+          onClick={generate}
+          disabled={loading}
+          className="w-full rounded-full bg-blue-600 text-white font-bold text-sm"
+          style={{ padding: '10px 0', border: 'none', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}
+        >
+          {loading ? 'Loading…' : 'Show graph'}
+        </button>
+      </div>
+
+      {result && ready && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+          <span style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>
+            {kind === 'scatter' ? 'Tap a team to highlight it' : 'Tap a player to isolate their passes'}
+          </span>
+          <button
+            onClick={snap}
+            disabled={busy}
+            aria-label="Share as image"
+            className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center"
+            style={{ border: 'none', cursor: 'pointer', opacity: busy ? 0.4 : 1 }}
+          >
+            <Camera size={16} color="white" />
+          </button>
+        </div>
+      )}
+      {result}
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
    Page: opened from the team page. Same overlay pattern as the roster and compare screens.
 ──────────────────────────────────────────────────────────────────────────── */
 
@@ -1211,6 +1707,8 @@ export default function TeamAdvanced({ teamAbbr, onClose, onHaptic }) {
     body = <Empty>No games played yet this season.</Empty>;
   } else if (tab === 'team') {
     body = <TeamTab teams={state.teams} opp={state.opp} me={me} oppMe={oppMe} teamAbbr={teamAbbr} season={season} />;
+} else if (tab === 'visuals') {
+    body = <VisualsTab teams={state.teams} opp={state.opp} me={me} oppMe={oppMe} teamAbbr={teamAbbr} season={season} haptic={haptic} />;
   } else if (tab === 'factors') {
     body = <FactorsTab teams={state.teams} me={me} />;
   } else if (tab === 'shots') {
