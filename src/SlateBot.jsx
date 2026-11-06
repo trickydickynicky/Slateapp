@@ -26,7 +26,7 @@
    gamelog column map (parseGamelog) and intents. Everything else (fetch
    layer, index, parser, UI) is league-agnostic.
    ===================================================================== */
-   import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+   import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
    import { MessageCircle, X, Trash2, Send } from 'lucide-react';
    
    /* =====================================================================
@@ -2019,6 +2019,63 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
      const idxPromise = useRef(null); // shared by StrictMode's double mount so the index is built once
      const listRef = useRef(null);
      const inputRef = useRef(null);
+
+     /* Draggable bubble: drag it anywhere, it snaps to the nearest corner and remembers it */
+     const [corner, setCorner] = useState(() => {
+       const c = ls.get('sb_corner');
+       return ['tl', 'tr', 'bl', 'br'].includes(c) ? c : (side === 'right' ? 'br' : 'bl');
+     });
+     const bubbleRef = useRef(null);
+     const dragRef = useRef(null);
+     const flipRef = useRef(null);
+     const suppressClick = useRef(false);
+
+     // slide from where the bubble was dropped to its snapped corner
+     const playFlip = useCallback(() => {
+       const el = bubbleRef.current;
+       const from = flipRef.current;
+       if (!el || !from) return;
+       flipRef.current = null;
+       el.style.transition = 'none';
+       el.style.transform = 'none';
+       const to = el.getBoundingClientRect();
+       el.style.transform = `translate(${from.x - to.left}px, ${from.y - to.top}px)`;
+       void el.offsetWidth;
+       el.style.transition = 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+       el.style.transform = '';
+     }, []);
+     useLayoutEffect(() => { playFlip(); }, [corner, playFlip]);
+
+     const onBubbleDown = (e) => {
+       if (open) return;
+       const el = bubbleRef.current;
+       dragRef.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, r: el.getBoundingClientRect(), moved: false };
+       el.setPointerCapture?.(e.pointerId);
+     };
+     const onBubbleMove = (e) => {
+       const d = dragRef.current;
+       if (!d || d.id !== e.pointerId) return;
+       let dx = e.clientX - d.sx, dy = e.clientY - d.sy;
+       if (!d.moved && Math.hypot(dx, dy) < 8) return;   // under 8px is still a tap
+       const el = bubbleRef.current;
+       if (!d.moved) { d.moved = true; el.style.transition = 'none'; }
+       dx = Math.min(Math.max(dx, -d.r.left), window.innerWidth - d.r.right);
+       dy = Math.min(Math.max(dy, -d.r.top), window.innerHeight - d.r.bottom);
+       el.style.transform = `translate(${dx}px, ${dy}px)`;
+     };
+     const onBubbleUp = (e) => {
+       const d = dragRef.current;
+       if (!d || d.id !== e.pointerId) return;
+       dragRef.current = null;
+       if (!d.moved) return;   // a tap: onClick opens the chat
+       suppressClick.current = true;
+       setTimeout(() => { suppressClick.current = false; }, 80);
+       const r = bubbleRef.current.getBoundingClientRect();
+       flipRef.current = { x: r.left, y: r.top };
+       const next = `${r.top + r.height / 2 < window.innerHeight / 2 ? 't' : 'b'}${r.left + r.width / 2 < window.innerWidth / 2 ? 'l' : 'r'}`;
+       ls.set('sb_corner', next);
+       if (next === corner) playFlip(); else setCorner(next);
+     };
    
      /* The chat lives in React state only. Remove anything older versions saved. */
      useEffect(() => { OLD_STORAGE_KEYS.forEach((k) => { ss.del(k); ls.del(k); }); }, []);
@@ -2179,9 +2236,9 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
    
      const clear = () => { setMessages([]); ctxRef.current = {}; };
    
-     const isRight = side === 'right';
-     const sideBubble = isRight ? 'right-4' : 'left-4';
-     const sideSheet = isRight ? 'sm:right-4' : 'sm:left-4';
+     const isTop = corner[0] === 't';
+     const isLeft = corner[1] === 'l';
+     const sheetPos = `${isLeft ? 'sm:left-4' : 'sm:right-4'} ${isTop ? 'sm:top-[calc(env(safe-area-inset-top,0px)+80px)] sm:bottom-auto' : 'sm:top-auto sm:bottom-[calc(var(--sb-bottom)+64px)]'}`;
      const canSend = !busy && !!input.trim();
    
      return (
@@ -2199,9 +2256,20 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
          <button
            type="button"
            aria-label={open ? 'Close Slate assistant' : 'Open Slate assistant'}
-           onClick={() => setOpen((o) => !o)}
-           className={`fixed z-[160] ${sideBubble} w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-[0_0_12px_rgba(37,99,235,0.7)] active:scale-95 transition-transform duration-150 ${open ? 'max-sm:hidden' : ''}`}
-           style={{ bottom: 'calc(var(--sb-bottom) + env(safe-area-inset-bottom, 0px))' }}
+           ref={bubbleRef}
+           onPointerDown={onBubbleDown}
+           onPointerMove={onBubbleMove}
+           onPointerUp={onBubbleUp}
+           onPointerCancel={onBubbleUp}
+           onTransitionEnd={(e) => { if (e.propertyName === 'transform') e.currentTarget.style.transition = ''; }}
+           onClick={() => { if (suppressClick.current) return; setOpen((o) => !o); }}
+           className={`fixed z-[160] select-none w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-[0_0_12px_rgba(37,99,235,0.7)] active:scale-95 transition-transform duration-150 ${open ? 'max-sm:hidden' : ''}`}
+           style={{
+            [isLeft ? 'left' : 'right']: 16,
+            [isTop ? 'top' : 'bottom']: isTop ? 'calc(env(safe-area-inset-top, 0px) + 16px)' : 'calc(var(--sb-bottom) + env(safe-area-inset-bottom, 0px))',
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+          }}
          >
            {open ? <X size={24} /> : <MessageCircle size={24} />}
          </button>
@@ -2212,7 +2280,7 @@ const [vp, setVp] = useState(null); // visual viewport {h, top} on phones while 
            aria-label="Slate assistant"
            aria-hidden={!open}
            style={vp ? { top: vp.top, height: vp.h } : undefined}
-           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto sm:top-auto ${sideSheet} sm:bottom-[calc(var(--sb-bottom)+64px)] sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
+           className={`fixed z-[161] inset-x-0 top-0 h-[100dvh] flex flex-col bg-black text-white overflow-hidden transition-[transform,opacity,visibility] duration-300 ease-out sm:inset-x-auto ${sheetPos} sm:w-[380px] sm:h-[min(640px,78vh)] sm:rounded-2xl sm:border sm:border-zinc-800 ${open ? 'translate-y-0 opacity-100 visible' : 'translate-y-full opacity-0 invisible pointer-events-none'}`}
          >
            {/* sticky header */}
            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 backdrop-blur-md border-b border-white/5" style={{ ...HEADER_BG, paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>

@@ -2232,7 +2232,8 @@ console.log('🏀 FULL DATA:', data);
     </button>
     <button
       onClick={() => { trigger('light'); openStandings(); }}
-      className="text-blue-500 font-semibold text-sm hover:text-blue-400"
+      className="font-semibold text-sm"
+      style={{ color: '#2563eb' }}
     >
       Standings
     </button>

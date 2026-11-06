@@ -893,9 +893,10 @@ function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
         <Pills items={VIEWS} value={view} onChange={v => { haptic('selection'); setView(v); }} />
   
         <div style={{ marginBottom: 14 }}>
-          <button
+        <button
+            className="text-blue-500 hover:text-blue-400"
             onClick={() => { haptic('light'); setShowFilters(s => !s); }}
-            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, color: filtered ? ACCENT : MUTED, cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
             {filtered ? `Filtered · ${[player !== ALL && player, type !== ALL && type].filter(Boolean).join(' · ')}` : 'Filter by player or shot type'} {showFilters ? '▴' : '▾'}
           </button>
