@@ -261,8 +261,8 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
       {rows.length > 0 && (
         <div className="mt-3 text-xs text-gray-500 space-y-1">
                  {enough && <div>{filterGarbage ? 'Excludes garbage time' : 'Includes garbage time'}</div>}
-                 {rows.some(r => r.gp < SMALL_SAMPLE_GP) && <div>Some teams have played fewer than {SMALL_SAMPLE_GP} games, so early numbers swing a lot.</div>}
-          {isNet && <div>xWin% is Pythagorean (exponent 14). Small gray numbers are league ranks.</div>}
+                 {!(isNet && showChart) && rows.some(r => r.gp < SMALL_SAMPLE_GP) && <div>Some teams have played fewer than {SMALL_SAMPLE_GP} games, so early numbers swing a lot.</div>}
+                 {isNet && !showChart && <div>xWin% is Pythagorean (exponent 14). Small gray numbers are league ranks.</div>}
           {!isNet && <div>{side === 'off' ? 'Offense' : 'Defense (what opponents did against them)'}. Small gray numbers are league ranks.</div>}
           {error && <div>Couldn't refresh everything. Showing saved data.</div>}
         </div>
