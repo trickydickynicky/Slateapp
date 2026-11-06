@@ -54,7 +54,7 @@ function useSnap(cardRef, name, ready, dep, haptic) {
   const fileRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const render = async () => {
-    const opts = { pixelRatio: 3, backgroundColor: '#000' };
+    const opts = { pixelRatio: 4, backgroundColor: '#000' };
     await toPng(cardRef.current, opts); // Safari drops images/fonts on the first pass
     const url = await toPng(cardRef.current, opts);
     const blob = await (await fetch(url)).blob();
@@ -378,17 +378,14 @@ function LandscapeFull({ d, hl, onToggle, onClose, logos, sub }) {
 export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
   const haptic = typeof onHaptic === 'function' ? onHaptic : () => {};
   const d = useMemo(() => buildLandscape(rows), [rows]);
-  const [picked, setPicked] = useState(null);   // null = default (top 3 by net); array once the user touches it
+  const [picked, setPicked] = useState([]);
   const [full, setFull] = useState(false);
   const cardRef = useRef(null);
 
-  const hl = picked ?? (d ? d.top3 : []);
+  const hl = picked;
   const toggle = abbr => {
     haptic('selection');
-    setPicked(cur => {
-      const now = cur ?? (d ? d.top3 : []);
-      return now.includes(abbr) ? now.filter(x => x !== abbr) : [...now, abbr];
-    });
+    setPicked(cur => (cur.includes(abbr) ? cur.filter(x => x !== abbr) : [...cur, abbr]));
   };
 
   const abbrs = useMemo(() => (d ? d.list.map(r => r.abbr).sort() : []), [d]);
@@ -448,7 +445,7 @@ export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
         <div style={{ marginTop: 10 }}>
           <Landscape w={500} h={560} view={d.base} d={d} hl={hl} onToggle={toggle} logos={logoState.map} R={13} guard={() => false} />
         </div>
-        <div style={{ marginTop: 8, padding: '0 4px', fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE · ESPN</div>
+        <div style={{ marginTop: 8, padding: '0 4px', fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE</div>
       </div>
 
       <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, marginTop: 14 }}>
