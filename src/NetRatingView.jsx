@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, lazy, Suspense } from 'react';
 import { useNetRating } from './netRatingdata';
 import { buildRows } from './netRatingengine';
+const NetRatingChart = lazy(() => import('./NetRatingChart'));
 
 /* ============================================================================
    Net Rating + Four Factors views for the standings page.
@@ -165,6 +166,7 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
   const [side, setSide] = useState('off');
   const [netSort, setNetSort] = useState({ key: 'net', dir: 'desc' });
   const [ffSort, setFfSort] = useState({ key: 'efg', dir: 'desc' });
+  const [showChart, setShowChart] = useState(false);
 
   const gameList = useMemo(() => Object.values(games), [games]);
   const enough = gameList.length > 0
@@ -204,6 +206,14 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
           Filter garbage time
         </Chip>
         {!isNet && <Pills options={[['off', 'Offense'], ['def', 'Defense']]} value={side} onChange={changeSide} />}
+        {isNet && (
+          <button
+            onClick={() => { haptic('light'); setShowChart(v => !v); }}
+            className="flex-shrink-0 ml-auto px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold shadow-[0_0_12px_rgba(37,99,235,0.7)]"
+          >
+            {showChart ? 'Table' : 'Chart'}
+          </button>
+        )}
       </div>
 
       {/* progress, in the same quiet style as the rest of the page */}
@@ -231,6 +241,10 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
             {!isNet && <div className="text-center text-xs text-gray-500 mt-3">Four Factors needs play-by-play data, so it appears once enough games are processed.</div>}
           </div>
         )
+      ) : isNet && showChart ? (
+        <Suspense fallback={<div className="skeleton rounded-2xl" style={{ height: 240 }} />}>
+          <NetRatingChart rows={baseRows} filterGarbage={filterGarbage && enough} onHaptic={haptic} />
+        </Suspense>
       ) : (
         <RatingTable
           rows={rows}
