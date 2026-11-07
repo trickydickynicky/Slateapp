@@ -163,6 +163,18 @@ function Landscape({ w, h, view, d, hl, onToggle, logos, R, fs, guard, svgRef, h
   const ordered = [...d.list].sort((a, b) => isOn(a.abbr) - isOn(b.abbr));
   const sideOf = p => (sx(p.ortg) < PL + pw * 0.62 ? 1 : -1);   // which side of the logo the text goes
   const strokeTxt = { stroke: '#000', strokeWidth: 3, paintOrder: 'stroke', style: { pointerEvents: 'none' } };
+  // short arrow from a label back to its logo (s = 1: label on the right, -1: label on the left)
+  const arrow = (cx, cy, s, color) => {
+    const tip = cx + s * (R + 3);
+    const head = tip + s * 6;
+    const tail = cx + s * (R + 20);
+    return (
+      <g style={{ pointerEvents: 'none' }}>
+        <line x1={tail} y1={cy} x2={head} y2={cy} stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        <polygon points={`${tip},${cy} ${head},${cy - 3.5} ${head},${cy + 3.5}`} fill={color} />
+      </g>
+    );
+  };
 
   return (
     <svg
@@ -219,32 +231,42 @@ function Landscape({ w, h, view, d, hl, onToggle, logos, R, fs, guard, svgRef, h
         {ordered.filter(p => !isOn(p.abbr) && d.caps[p.abbr]).map(p => {
           const cx = sx(p.ortg), cy = sy(p.drtg), s = sideOf(p);
           const c = d.caps[p.abbr];
-          return c.map((line, i) => (
-            <text
-              key={`${p.abbr}${line.label}`}
-              x={cx + s * (R + 6)} y={cy + (i - (c.length - 1) / 2) * 13}
-              textAnchor={s > 0 ? 'start' : 'end'} dominantBaseline="central"
-              fontSize={fs ? 12 : 11} fontWeight="800" fill={line.color} {...strokeTxt}
-            >
-              {line.label}
-            </text>
-          ));
+          return (
+            <g key={p.abbr}>
+              {arrow(cx, cy, s, c[0].color)}
+              {c.map((line, i) => (
+                <text
+                  key={line.label}
+                  x={cx + s * (R + 24)} y={cy + (i - (c.length - 1) / 2) * 13}
+                  textAnchor={s > 0 ? 'start' : 'end'} dominantBaseline="central"
+                  fontSize={fs ? 12 : 11} fontWeight="800" fill={line.color} {...strokeTxt}
+                >
+                  {line.label}
+                </text>
+              ))}
+            </g>
+          );
         })}
 
         {/* rank call-outs for selected teams */}
         {ordered.filter(p => isOn(p.abbr)).map(p => {
           const cx = sx(p.ortg), cy = sy(p.drtg), s = sideOf(p);
           const lines = [`#${d.rNet[p.abbr]} Net`, `#${d.rOff[p.abbr]} Offense`, `#${d.rDef[p.abbr]} Defense`];
-          return lines.map((t, i) => (
-            <text
-              key={`${p.abbr}${i}`}
-              x={cx + s * (R + 7)} y={cy + (i - 1) * 13}
-              textAnchor={s > 0 ? 'start' : 'end'} dominantBaseline="central"
-              fontSize={fs ? 12 : 11} fontWeight={i === 0 ? 800 : 700} fill={i === 0 ? '#fff' : '#d4d4d8'} {...strokeTxt}
-            >
-              {t}
-            </text>
-          ));
+          return (
+            <g key={p.abbr}>
+              {arrow(cx, cy, s, '#a1a1aa')}
+              {lines.map((t, i) => (
+                <text
+                  key={i}
+                  x={cx + s * (R + 24)} y={cy + (i - 1) * 13}
+                  textAnchor={s > 0 ? 'start' : 'end'} dominantBaseline="central"
+                  fontSize={fs ? 12 : 11} fontWeight={i === 0 ? 800 : 700} fill={i === 0 ? '#fff' : '#d4d4d8'} {...strokeTxt}
+                >
+                  {t}
+                </text>
+              ))}
+            </g>
+          );
         })}
       </g>
 
