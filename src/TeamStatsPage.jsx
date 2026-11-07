@@ -221,9 +221,10 @@ function RecentDifferentials({ games, onGameClick }) {
                   {win ? `+${d}` : d}
                 </span>
               </div>
-              <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, marginTop: 4, whiteSpace: 'nowrap' }}>
-                {g.isHome ? 'vs' : '@'} {g.opponent}
-              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 6, lineHeight: 1.15 }}>
+  <span style={{ fontSize: 9, color: '#52525b', fontWeight: 600 }}>{g.isHome ? 'vs' : '@'}</span>
+  <span style={{ fontSize: 11, color: '#a1a1aa', fontWeight: 700 }}>{g.opponent}</span>
+</span>
             </button>
           );
         })}
