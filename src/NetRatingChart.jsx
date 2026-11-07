@@ -231,17 +231,21 @@ function Landscape({ w, h, view, d, hl, onToggle, logos, R, fs, guard, svgRef, h
         {ordered.filter(p => !isOn(p.abbr) && d.caps[p.abbr]).map(p => {
           const cx = sx(p.ortg), cy = sy(p.drtg), s = sideOf(p);
           const c = d.caps[p.abbr];
+          const words = [];
+          c.forEach((line, gi) => line.label.split(' ').forEach(word => words.push({ word, color: line.color, gi })));
+          const LH = fs ? 13 : 12;
           return (
             <g key={p.abbr}>
               {arrow(cx, cy, s, c[0].color)}
-              {c.map((line, i) => (
+              {words.map((w2, i) => (
                 <text
-                  key={line.label}
-                  x={cx + s * (R + 24)} y={cy + (i - (c.length - 1) / 2) * 13}
+                  key={i}
+                  x={cx + s * (R + 24)}
+                  y={cy + (i - (words.length - 1) / 2) * LH + (w2.gi - (c.length - 1) / 2) * 5}
                   textAnchor={s > 0 ? 'start' : 'end'} dominantBaseline="central"
-                  fontSize={fs ? 12 : 11} fontWeight="800" fill={line.color} {...strokeTxt}
+                  fontSize={fs ? 12 : 11} fontWeight="800" fill={w2.color} {...strokeTxt}
                 >
-                  {line.label}
+                  {w2.word}
                 </text>
               ))}
             </g>
