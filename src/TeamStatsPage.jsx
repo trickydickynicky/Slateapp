@@ -4,37 +4,22 @@ import TeamSchedule from './TeamSchedule';
 
 const TeamAdvanced = lazy(() => import('./TeamAdvanced'));
 import { SeasonLineups } from './GameLineups';
+import { teamColors, teamFullNames, logoUrl, ordinal, lift } from './slateShared';
+import { TEAM_STAT_BY_LABEL } from './statConfig';
+export { ordinal, lift };
 
 /* ────────────────────────────────────────────────────────────────────────────
    Constants
 ──────────────────────────────────────────────────────────────────────────── */
 
-const teamColors = {
-  ATL:'#E03A3E',BOS:'#007A33',BKN:'#000000',CHA:'#1D1160',CHI:'#CE1141',
-  CLE:'#860038',DAL:'#00538C',DEN:'#0E2240',DET:'#C8102E',GS:'#1D428A',
-  HOU:'#CE1141',IND:'#002D62',LAC:'#C8102E',LAL:'#552583',MEM:'#5D76A9',
-  MIA:'#98002E',MIL:'#00471B',MIN:'#0C2340',NO:'#0C2340',NY:'#006BB6',
-  OKC:'#007AC1',ORL:'#0077C0',PHI:'#006BB6',PHX:'#1D1160',POR:'#E03A3E',
-  SAC:'#5A2D81',SA:'#C4CED4',TOR:'#CE1141',UTAH:'#002B5C',WSH:'#002B5C',
-};
 
-const teamFullNames = {
-  ATL:'Atlanta Hawks',BOS:'Boston Celtics',BKN:'Brooklyn Nets',CHA:'Charlotte Hornets',
-  CHI:'Chicago Bulls',CLE:'Cleveland Cavaliers',DAL:'Dallas Mavericks',DEN:'Denver Nuggets',
-  DET:'Detroit Pistons',GS:'Golden State Warriors',HOU:'Houston Rockets',IND:'Indiana Pacers',
-  LAC:'LA Clippers',LAL:'Los Angeles Lakers',MEM:'Memphis Grizzlies',MIA:'Miami Heat',
-  MIL:'Milwaukee Bucks',MIN:'Minnesota Timberwolves',NO:'New Orleans Pelicans',NY:'New York Knicks',
-  OKC:'Oklahoma City Thunder',ORL:'Orlando Magic',PHI:'Philadelphia 76ers',PHX:'Phoenix Suns',
-  POR:'Portland Trail Blazers',SAC:'Sacramento Kings',SA:'San Antonio Spurs',TOR:'Toronto Raptors',
-  UTAH:'Utah Jazz',WSH:'Washington Wizards',
-};
 
 const ACCENT = '#2563eb';   // blue-600, the app accent
 const MUTED = '#6b7280';
 const GREEN = '#22c55e';
 const RED = '#ef4444';
 const heading = { fontFamily: 'Rajdhani, sans-serif' };   // titles only
-const logoUrl = abbr => `https://a.espncdn.com/i/teamlogos/nba/500/${abbr}.png`;
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    Pure helpers (exported so they can be tested)
@@ -45,11 +30,7 @@ const num = v => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export const ordinal = n => {
-  const v = Math.abs(n) % 100;
-  const sfx = v >= 11 && v <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[v % 10] || 'th');
-  return `${n}${sfx}`;
-};
+
 
 /** "10-5" -> ".667" (same style as the record pct). Returns '' if it can't be parsed. */
 export const pctFromRecord = str => {
@@ -70,19 +51,7 @@ export const pctFromRecord = str => {
     return `${pw}-${season - pw}`;
   };
 
-/** Dark team colors disappear on black, so lighten them for bars. */
-export function lift(hex) {
-  try {
-    const n = parseInt(String(hex).slice(1), 16);
-    const r = (n >> 16) & 255; const g = (n >> 8) & 255; const b = n & 255;
-    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-    if (lum > 0.18) return hex;
-    const m = c => Math.round(c + (255 - c) * 0.5);
-    return `rgb(${m(r)}, ${m(g)}, ${m(b)})`;
-  } catch (e) {
-    return '#3B82F6';
-  }
-}
+
 
 /** Team stats response + league rankings -> the two rows of the stat grid. */
 export function buildTeamCells(stats, ranks) {
@@ -150,25 +119,40 @@ export function buildCompareRows(a, b) {
    Presentational pieces
 ──────────────────────────────────────────────────────────────────────────── */
 
-function Stat({ label, value, sub, subColor, valueColor }) {
+function Stat({ label, value, sub, subColor, valueColor, onSubClick }) {
+  const subStyle = { fontSize: 11, color: subColor || MUTED, fontWeight: subColor ? 700 : 500, marginTop: 3, minHeight: 14 };
   return (
     <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
       <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</span>
       <span style={{ fontSize: 20, fontWeight: 800, color: valueColor || 'white', lineHeight: 1.15, marginTop: 2, whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>
         {value}
       </span>
-      <span style={{ fontSize: 11, color: subColor || MUTED, fontWeight: subColor ? 700 : 500, marginTop: 3, minHeight: 14 }}>
-        {sub || ''}
-      </span>
+      {onSubClick && sub ? (
+        <button
+          onClick={onSubClick}
+          aria-label={`${label} leaders`}
+          className="rounded-md transition-colors active:bg-zinc-800"
+          style={{ ...subStyle, lineHeight: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px', margin: '-5px -10px -8px', minHeight: 0 }}
+        >
+          {sub}
+        </button>
+      ) : (
+        <span style={subStyle}>{sub || ''}</span>
+      )}
     </div>
   );
 }
 
 const rankTone = rank => (rank <= 10 ? GREEN : rank > 20 ? '#f87171' : null);
 
-function RankedStat({ cell }) {
+function RankedStat({ cell, onRankClick }) {
   const has = Number.isFinite(cell.rank);
-  return <Stat label={cell.l} value={cell.v} sub={has ? ordinal(cell.rank) : ''} subColor={has ? rankTone(cell.rank) : null} />;
+  return (
+    <Stat
+      label={cell.l} value={cell.v} sub={has ? ordinal(cell.rank) : ''} subColor={has ? rankTone(cell.rank) : null}
+      onSubClick={has && onRankClick ? () => onRankClick(cell) : undefined}
+    />
+  );
 }
 
 function SectionTitle({ children }) {
@@ -302,7 +286,7 @@ function ComparePicker({ currentAbbr, onPick, onClose }) {
 export default function TeamStatsPage({
   teamInfo, stats, loading, leagueRankings,
   isFavorite, onToggleFavorite, onOpenStandings, onOpenRoster,
-  onRecentGameClick, onTeamClick, loadTeamStats, onHaptic, onOpenSalary,
+  onRecentGameClick, onTeamClick, loadTeamStats, onHaptic, onOpenSalary, onOpenLeaderboard,
 }) {
     const [pickerOpen, setPickerOpen] = useState(false);
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -312,6 +296,13 @@ export default function TeamStatsPage({
 
   const abbr = teamInfo?.abbr;
   const logo = teamInfo?.logo || (abbr ? logoUrl(abbr) : null);
+
+  const openRank = c => {
+    const cfg = TEAM_STAT_BY_LABEL[c.l];
+    if (!cfg) return;
+    haptic('light');
+    onOpenLeaderboard && onOpenLeaderboard('teams', cfg.key, { highlightId: abbr });
+  };
 
   const pickCompare = async other => {
     haptic('light');
@@ -456,11 +447,11 @@ export default function TeamStatsPage({
       ) : (
         <div style={{ marginTop: 18 }}>
           <div style={grid(7)}>
-            {cells.offense.map(c => <RankedStat key={c.l} cell={c} />)}
+          {cells.offense.map(c => <RankedStat key={c.l} cell={c} onRankClick={openRank} />)}
           </div>
           <div className="flex justify-center" style={{ marginTop: 16 }}>
             {cells.defense.map(c => (
-              <div key={c.l} style={{ width: `${100 / 7}%` }}><RankedStat cell={c} /></div>
+                          <div key={c.l} style={{ width: `${100 / 7}%` }}><RankedStat cell={c} onRankClick={openRank} /></div>
             ))}
           </div>
         </div>

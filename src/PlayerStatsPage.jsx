@@ -1,30 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Zap } from 'lucide-react';
 import PlayerRecentGames from './PlayerRecentGames';
+import { teamColors, teamFullNames, ordinal } from './slateShared';
+import { useLeagueRanks } from './leagueRanks';
+export { ordinal };
 
 /* ────────────────────────────────────────────────────────────────────────────
    Constants
 ──────────────────────────────────────────────────────────────────────────── */
 
-const teamColors = {
-  ATL:'#E03A3E',BOS:'#007A33',BKN:'#000000',CHA:'#1D1160',CHI:'#CE1141',
-  CLE:'#860038',DAL:'#00538C',DEN:'#0E2240',DET:'#C8102E',GS:'#1D428A',
-  HOU:'#CE1141',IND:'#002D62',LAC:'#C8102E',LAL:'#552583',MEM:'#5D76A9',
-  MIA:'#98002E',MIL:'#00471B',MIN:'#0C2340',NO:'#0C2340',NY:'#006BB6',
-  OKC:'#007AC1',ORL:'#0077C0',PHI:'#006BB6',PHX:'#1D1160',POR:'#E03A3E',
-  SAC:'#5A2D81',SA:'#C4CED4',TOR:'#CE1141',UTAH:'#002B5C',WSH:'#002B5C',
-};
 
-const teamFullNames = {
-  ATL:'Atlanta Hawks',BOS:'Boston Celtics',BKN:'Brooklyn Nets',CHA:'Charlotte Hornets',
-  CHI:'Chicago Bulls',CLE:'Cleveland Cavaliers',DAL:'Dallas Mavericks',DEN:'Denver Nuggets',
-  DET:'Detroit Pistons',GS:'Golden State Warriors',HOU:'Houston Rockets',IND:'Indiana Pacers',
-  LAC:'LA Clippers',LAL:'Los Angeles Lakers',MEM:'Memphis Grizzlies',MIA:'Miami Heat',
-  MIL:'Milwaukee Bucks',MIN:'Minnesota Timberwolves',NO:'New Orleans Pelicans',NY:'New York Knicks',
-  OKC:'Oklahoma City Thunder',ORL:'Orlando Magic',PHI:'Philadelphia 76ers',PHX:'Phoenix Suns',
-  POR:'Portland Trail Blazers',SAC:'Sacramento Kings',SA:'San Antonio Spurs',TOR:'Toronto Raptors',
-  UTAH:'Utah Jazz',WSH:'Washington Wizards',
-};
 
 const ACCENT = '#2563eb';   // blue-600, the app accent
 const MUTED = '#6b7280';
@@ -58,11 +43,7 @@ const pair = str => {
   return [num(p[0]), num(p[1])];
 };
 
-export const ordinal = n => {
-  const v = Math.abs(n) % 100;
-  const sfx = v >= 11 && v <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[v % 10] || 'th');
-  return `${n}${sfx}`;
-};
+
 
 /**
  * One season's averages (the shape App.jsx builds in nbaPlayerStats.currentSeason) -> two rows of cells.
@@ -99,21 +80,21 @@ export function buildSeasonCells(s, mode = 'avg', pmTotal) {
   return {
     row1: [
       { l: 'G',   v: has(s.gp) ? String(s.gp) : '—', rank: ['gamesPlayed', /^gamesPlayed$/i] },
-      { l: 'PTS', v: rate(s.pts), rank: rk('avgPoints', 'points') },
-      { l: 'REB', v: rate(s.reb), rank: rk('avgRebounds', ['rebounds', 'totalRebounds', /^(total)?rebounds$/i]) },
-      { l: 'AST', v: rate(s.ast), rank: rk('avgAssists', 'assists') },
-      { l: 'STL', v: rate(s.stl), rank: rk('avgSteals', 'steals') },
-      { l: 'BLK', v: rate(s.blk), rank: rk('avgBlocks', 'blocks') },
-      { l: 'TO',  v: rate(s.to),  rank: rk('avgTurnovers', 'turnovers') },
+      { l: 'PTS', key: 'pts', v: rate(s.pts), rank: rk('avgPoints', 'points') },
+      { l: 'REB', key: 'reb', v: rate(s.reb), rank: rk('avgRebounds', ['rebounds', 'totalRebounds', /^(total)?rebounds$/i]) },
+      { l: 'AST', key: 'ast', v: rate(s.ast), rank: rk('avgAssists', 'assists') },
+      { l: 'STL', key: 'stl', v: rate(s.stl), rank: rk('avgSteals', 'steals') },
+      { l: 'BLK', key: 'blk', v: rate(s.blk), rank: rk('avgBlocks', 'blocks') },
+      { l: 'TO',  key: 'to',  v: rate(s.to),  rank: rk('avgTurnovers', 'turnovers') },
     ],
     row2: [
-      { l: 'MIN',  v: rate(s.min), rank: rk(['avgMinutes', 'minutesPerGame', /^avgMin/i], ['minutes', 'totalMinutes', /^(total)?minutes$/i]) },
-      { l: 'FG%',  v: pct(s.fg_pct), rank: rkAvg('fieldGoalPct'), sub: made(fgm, fga) },
-      { l: '3P%',  v: pct(s.three_p_pct), rank: rkAvg(['threePointPct', 'threePointFieldGoalPct', /^threePoint(Field)?(Goal)?Pct$/i]), sub: made(tpm, tpa) },
-      { l: '3PA',  v: rate(tpa), rank: rk('avgThreePointFieldGoalsAttempted', 'threePointFieldGoalsAttempted') },
-      { l: 'FT%',  v: pct(s.ft_pct), rank: rkAvg('freeThrowPct'), sub: made(ftm, fta) },
-      { l: 'FTA',  v: rate(fta), rank: rk('avgFreeThrowsAttempted', 'freeThrowsAttempted') },
-      { l: 'TS%',  v: ts, rank: ['trueShootingPct'] },
+      { l: 'MIN',  key: 'min', v: rate(s.min), rank: rk(['avgMinutes', 'minutesPerGame', /^avgMin/i], ['minutes', 'totalMinutes', /^(total)?minutes$/i]) },
+      { l: 'FG%',  key: 'fgPct', v: pct(s.fg_pct), rank: rkAvg('fieldGoalPct'), sub: made(fgm, fga) },
+      { l: '3P%',  key: 'threePct', v: pct(s.three_p_pct), rank: rkAvg(['threePointPct', 'threePointFieldGoalPct', /^threePoint(Field)?(Goal)?Pct$/i]), sub: made(tpm, tpa) },
+      { l: '3PA',  key: 'tpa', v: rate(tpa), rank: rk('avgThreePointFieldGoalsAttempted', 'threePointFieldGoalsAttempted') },
+      { l: 'FT%',  key: 'ftPct', v: pct(s.ft_pct), rank: rkAvg('freeThrowPct'), sub: made(ftm, fta) },
+      { l: 'FTA',  key: 'fta', v: rate(fta), rank: rk('avgFreeThrowsAttempted', 'freeThrowsAttempted') },
+      { l: 'TS%',  key: 'ts', v: ts, rank: ['trueShootingPct'] },
     ],
     row3: [
         { l: '+/-', v: pmVal },
@@ -197,72 +178,9 @@ function useCachedFetch(cache, url, parse, enabled) {
    Presentational pieces
 ──────────────────────────────────────────────────────────────────────────── */
 
-/* League-wide ranks for stats ESPN doesn't rank itself (avg minutes, total rebounds) */
-const LEAGUE_URL = (yr, page) =>
-    `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/statistics/byathlete?region=us&lang=en&season=${yr}&seasontype=2&limit=500&page=${page}`;
-  const LEAGUE_STATS = ['avgMinutes', 'minutes', 'rebounds', 'avgRebounds'];
-  const MIN_GP_SHARE = 0.5;   // per-game ranks only count players with >= 50% of the max games played
-  const leagueCache = new Map();   // season -> { at, rows }
+
   
-  async function fetchLeagueRows(yr, signal) {
-    const hit = leagueCache.get(yr);
-    if (hit && Date.now() - hit.at < TTL) return hit.rows;
-    const getPage = p =>
-      fetch(LEAGUE_URL(yr, p), { signal }).then(r => {
-        if (!r.ok) throw new Error(`ESPN ${r.status}`);
-        return r.json();
-      });
-    const first = await getPage(1);
-    const pages = first?.pagination?.pages || 1;
-    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => getPage(i + 2)));
-    const defs = first?.categories || [];
-    const rows = [];
-    [first, ...rest].forEach(j => {
-      (j?.athletes || []).forEach(a => {
-        const row = { id: String(a?.athlete?.id), gp: 0 };
-        defs.forEach(def => {
-          const cat = (a?.categories || []).find(c => c.name === def.name);
-          (def.names || []).forEach((n, i) => {
-            if (n === 'gamesPlayed') row.gp = num(cat?.values?.[i]);
-            else if (LEAGUE_STATS.includes(n)) row[n] = num(cat?.values?.[i]);
-          });
-        });
-        rows.push(row);
-      });
-    });
-    leagueCache.set(yr, { at: Date.now(), rows });
-    return rows;
-  }
-  
-  function leagueRanks(rows, playerId) {
-    const me = rows.find(r => r.id === String(playerId));
-    if (!me) return {};
-    const maxGp = rows.reduce((m, r) => Math.max(m, r.gp), 0);
-    const qualified = rows.filter(r => r.gp >= maxGp * MIN_GP_SHARE);
-    const out = {};
-    LEAGUE_STATS.forEach(k => {
-      if (!(k in me)) return;
-      const pool = k.startsWith('avg') ? qualified : rows;
-      out[k] = ordinal(1 + pool.filter(r => r.id !== me.id && (r[k] ?? 0) > me[k]).length);
-    });
-    return out;
-  }
-  
-  function useLeagueRanks(playerId, season) {
-    const [ranks, setRanks] = useState(null);
-    useEffect(() => {
-      if (playerId == null || season == null) return undefined;
-      setRanks(null);
-      const controller = new AbortController();
-      fetchLeagueRows(season, controller.signal)
-        .then(rows => setRanks(leagueRanks(rows, playerId)))
-        .catch(() => {});
-      return () => controller.abort();
-    }, [playerId, season]);
-    return ranks;
-  }
-  
-  function Headshot({ src, name, size, ring }) {
+export function Headshot({ src, name, size, ring }) {
   if (!src) {
     return (
       <div
@@ -277,30 +195,42 @@ const LEAGUE_URL = (yr, page) =>
     <img
       src={src}
       alt={name}
+      loading="lazy"
       className="object-cover flex-shrink-0"
       style={{ width: size, height: size, borderRadius: size, background: '#18181b', border: ring ? `2px solid ${ring}` : 'none' }}
     />
   );
 }
 
-function Stat({ label, value, rank, sub }) {
+function Stat({ label, value, rank, sub, onRankClick }) {
   const top = rank && parseInt(rank, 10) <= 10;
+  const rankStyle = { fontSize: 11, color: top ? GREEN : MUTED, fontWeight: top ? 700 : 500, marginTop: 3, minHeight: 14 };
   return (
     <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
       <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</span>
       <span style={{ fontSize: 20, fontWeight: 800, color: 'white', lineHeight: 1.15, marginTop: 2, whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>
         {value}
       </span>
-      <span style={{ fontSize: 11, color: top ? GREEN : MUTED, fontWeight: top ? 700 : 500, marginTop: 3, minHeight: 14 }}>
-        {rank || sub || ''}
-      </span>
+      {onRankClick && rank ? (
+        <button
+          onClick={onRankClick}
+          aria-label={`${label} leaders`}
+          className="rounded-md transition-colors active:bg-zinc-800"
+          style={{ ...rankStyle, lineHeight: '14px', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px', margin: '-5px -10px -8px', minHeight: 0 }}
+        >
+          {rank}
+        </button>
+      ) : (
+        <span style={rankStyle}>{rank || sub || ''}</span>
+      )}
     </div>
   );
 }
 
-function StatGrid({ cells, ranks }) {
+function StatGrid({ cells, ranks, mode, onRank }) {
   const grid = { display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', columnGap: 2, rowGap: 6 };
   const rankOf = c => {
+    if (c.key && mode === 'avg' && ranks?.[c.key]) return ranks[c.key];   // shared helper first
     if (!c.rank || !ranks) return null;
     for (const n of c.rank) {
       if (n instanceof RegExp) {
@@ -312,19 +242,17 @@ function StatGrid({ cells, ranks }) {
     }
     return null;
   };
+  const cell = c => (
+    <Stat
+      key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub}
+      onRankClick={mode === 'avg' && c.key && onRank && rankOf(c) ? () => onRank(c.key) : undefined}
+    />
+  );
   return (
     <div style={{ marginTop: 22 }}>
-      <div style={grid}>
-        {cells.row1.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
-      </div>
-      <div style={{ ...grid, marginTop: 16 }}>
-      {cells.row2.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
-      </div>
-      {cells.row3?.length > 0 && (
-        <div style={{ ...grid, marginTop: 16 }}>
-          {cells.row3.map(c => <Stat key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} />)}
-        </div>
-      )}
+      <div style={grid}>{cells.row1.map(cell)}</div>
+      <div style={{ ...grid, marginTop: 16 }}>{cells.row2.map(cell)}</div>
+      {cells.row3?.length > 0 && <div style={{ ...grid, marginTop: 16 }}>{cells.row3.map(cell)}</div>}
     </div>
   );
 }
@@ -432,7 +360,7 @@ function SplitsPanel({ playerId, season }) {
 export default function PlayerStatsPage({
   player, selectedGame, gameDetails, selectedTeam,
   stats, loading, seasons = [], season,
-  onSeasonChange, onTeamClick, onCompare, onHaptic,
+  onSeasonChange, onTeamClick, onCompare, onHaptic, onOpenLeaderboard,
 }) {
   const [mode, setMode] = useState('avg');
   const [showSplits, setShowSplits] = useState(false);
@@ -458,10 +386,10 @@ export default function PlayerStatsPage({
   const ranksUrl = player?.id != null && season != null ? RANKS_URL(player.id, season) : null;
   const ranksState = useCachedFetch(ranksCache, ranksUrl, parseRanks, !!ranksUrl);
   const ranksBase = ranksState.status === 'ready' ? ranksState.data : null;
-  const leagueRk = useLeagueRanks(player?.id, season);
+  const sharedRk = useLeagueRanks(player?.id, season);
   const ranks = useMemo(
-    () => (ranksBase || leagueRk ? { ...leagueRk, ...ranksBase } : null),
-    [ranksBase, leagueRk]
+    () => (ranksBase || sharedRk ? { ...sharedRk, ...ranksBase } : null),
+    [ranksBase, sharedRk]
   );
   const cells = buildSeasonCells(current, mode, ranks?.__pmv);
 
@@ -535,7 +463,15 @@ export default function PlayerStatsPage({
       ) : current ? (
         <>
           <ModeToggle mode={mode} onChange={m => { haptic('selection'); setMode(m); }} />
-          <StatGrid cells={cells} ranks={ranks} />
+          <StatGrid
+            cells={cells}
+            ranks={ranks}
+            mode={mode}
+            onRank={key => {
+              haptic('light');
+              onOpenLeaderboard && onOpenLeaderboard('players', key, { season, highlightId: String(player?.id) });
+            }}
+          />
 
           <button
             onClick={() => { haptic('light'); setShowSplits(v => !v); }}

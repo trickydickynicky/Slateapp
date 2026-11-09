@@ -13,6 +13,7 @@ import PlayerStatsPage from './PlayerStatsPage';
 import TeamSchedule from './TeamSchedule';
 import TeamStatsPage from './TeamStatsPage';
 import SalaryCap from './SalaryCap';
+import Leaderboards from './Leaderboards';
 import GameLineups from './GameLineups';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
@@ -159,6 +160,7 @@ const [selectedGamePlayer, setSelectedGamePlayer] = useState(null);
 const [showFavorites, setShowFavorites] = useState(false);
 const [showRoster, setShowRoster] = useState(false);
 const [showSalary, setShowSalary] = useState(false);
+const [leaderboard, setLeaderboard] = useState(null);   // { scope, statKey, season?, highlightId? }
 const [rosterData, setRosterData] = useState(null);
 const [pregameMatchupStats, setPregameMatchupStats] = useState(null);
 const [winProbabilities, setWinProbabilities] = useState(() => {
@@ -181,6 +183,8 @@ const teamStatsRef = useRef(null);
 const nbaPlayerRef = useRef(null);
 const rosterRef = useRef(null);
 const salaryRef = useRef(null);
+const leaderboardRef = useRef(null);
+const lbStandingsRef = useRef(null);
 const { trigger } = useWebHaptics();
 const [showReplay, setShowReplay] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
@@ -453,6 +457,56 @@ const fetchGameTeamRecords = async (awayAbbr, homeAbbr) => {
       el.removeEventListener('touchend', onTouchEnd);
     };
   }, [showSalary, salaryRef.current]);
+  useEffect(() => {
+    if (!leaderboard || !leaderboardRef.current) return;
+    const el = leaderboardRef.current;
+    const onClose = () => setLeaderboard(null);
+    let startX = null, startY = null, dragging = false;
+    const onTouchStart = (e) => {
+      if (e.touches[0].clientX > 30) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dragging = false;
+    };
+    const onTouchMove = (e) => {
+      if (startX === null) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (!dragging) {
+        if (Math.abs(dy) > Math.abs(dx)) { startX = null; return; }
+        if (dx > 10) dragging = true;
+      }
+      if (dragging) {
+        e.preventDefault();
+        el.style.transform = `translateX(${dx}px)`;
+        el.style.opacity = `${1 - Math.min(dx / window.innerWidth, 1) * 0.3}`;
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (!dragging) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx / window.innerWidth > 0.35) {
+        el.style.transition = 'transform 0.25s cubic-bezier(0.22,1,0.36,1), opacity 0.25s ease';
+        el.style.transform = 'translateX(100%)';
+        el.style.opacity = '0';
+        setTimeout(onClose, 250);
+      } else {
+        el.style.transition = 'transform 0.3s cubic-bezier(0.22,1,0.36,1), opacity 0.2s ease';
+        el.style.transform = 'translateX(0)';
+        el.style.opacity = '1';
+      }
+      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }, 320);
+      startX = null; dragging = false;
+    };
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [!!leaderboard]);
   // Handle app visibility changes - refresh data when user returns
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -2189,6 +2243,63 @@ console.log('🏀 FULL DATA:', data);
     return date1.getDate() === date2.getDate() &&
            date1.getMonth() === date2.getMonth() &&
            date1.getFullYear() === date2.getFullYear();
+  };
+
+  /* ───── Leaderboards ───── */
+  const openLeaderboard = (scope, statKey, opts = {}) => setLeaderboard({ scope, statKey, ...opts });
+
+  // ESPN season year = the year the season ends (2026-27 -> 2027); a new season starts in October
+  const nbaSeasonYear = (() => { const d = new Date(); return d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear(); })();
+  const leaderboardSeasons = Array.from({ length: 12 }, (_, i) => {
+    const y = nbaSeasonYear - i;
+    return { year: y, displayName: `${y - 1}-${String(y).slice(2)}` };
+  });
+
+  // Light team loader for the Teams list: 1 request per team + one shared standings call
+  const loadTeamStatsLite = async (abbr) => {
+    if (!lbStandingsRef.current) {
+      lbStandingsRef.current = fetch('https://site.api.espn.com/apis/v2/sports/basketball/nba/standings')
+        .then(r => r.json())
+        .catch(e => { lbStandingsRef.current = null; throw e; });
+    }
+    const [standData, statsData] = await Promise.all([
+      lbStandingsRef.current,
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${espnTeamIds[abbr]}/statistics`).then(r => r.json()),
+    ]);
+    const entry = standData.children?.flatMap(c => c.standings.entries).find(e => e.team.abbreviation === abbr);
+    return {
+      stats: statsData.results?.stats?.categories || [],
+      record: { oppg: entry?.stats?.find(s => s.name === 'avgPointsAgainst')?.displayValue },
+    };
+  };
+
+  const openPlayerFromLeaderboard = (p) => {
+    setLeaderboard(null);
+    handlePlayerStatsClick(p.name, p.id, p.headshot, p.teamAbbr, p.teamLogo, null, p.position);
+  };
+
+  const openTeamFromLeaderboard = (teamAbbr, teamLogo) => {
+    setLeaderboard(null);
+    const logo = teamLogo || `https://a.espncdn.com/i/teamlogos/nba/500/${teamAbbr}.png`;
+    if (selectedNBAPlayer) {
+      // opened from a player page: same hand-off the player page's own team button uses
+      const returnTo = { player: selectedNBAPlayer, prevInfo: selectedTeamInfo };
+      setSelectedNBAPlayer(null);
+      setNbaPlayerStats(null);
+      setSelectedStatSeason(null);
+      setAvailableSeasons([]);
+      setShowRoster(false);
+      setRosterData(null);
+      setCompareTeam(null);
+      setCompareTeamStats(null);
+      setIsCompareMode(false);
+      setSlideDirection('right');
+      setSelectedTeamInfo({ abbr: teamAbbr, logo, returnTo });
+      setTeamStats(null);
+      fetchTeamStats(teamAbbr);
+    } else {
+      handleTeamClick(teamAbbr, logo);
+    }
   };
 
   if (sport === 'MLB') return <MLBApp sport={sport} setSport={setSport} />;
@@ -3938,6 +4049,7 @@ onClick={(e) => {
             onRecentGameClick={handleRecentGameClick}
             loadTeamStats={getTeamStatsData}
             onOpenSalary={() => setShowSalary(true)}
+            onOpenLeaderboard={openLeaderboard}
             onOpenRoster={async () => {
               setShowRoster(true);
               if (!rosterData) {
@@ -3995,6 +4107,7 @@ onClick={(e) => {
           season={selectedStatSeason}
           onHaptic={trigger}
           onCompare={() => setShowPlayerComparison(true)}
+          onOpenLeaderboard={openLeaderboard}
           onSeasonChange={(newSeason) => {
             setSelectedStatSeason(newSeason);
             if (nbaPlayerStats?.allSeasonsData?.[newSeason]) {
@@ -4186,6 +4299,29 @@ onClick={(e) => {
       <div className="max-w-2xl mx-auto">
       <BackButton onClick={() => { trigger('light'); setShowSalary(false); }} />
       <SalaryCap teamInfo={selectedTeamInfo} onHaptic={trigger} />
+      </div>
+    </div>
+  </div>
+)}
+
+{leaderboard && (
+  <div ref={leaderboardRef} className="fixed inset-0 bg-black bg-opacity-100 z-[185] overflow-y-auto" style={{ animation: 'slideInRight 0.3s ease-out' }}>
+    <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+      <div className="max-w-2xl mx-auto">
+      <BackButton
+          onClick={() => { trigger('light'); setLeaderboard(null); }}
+        />
+        <Leaderboards
+          key={`${leaderboard.scope}-${leaderboard.statKey}-${leaderboard.highlightId}`}
+          initial={leaderboard}
+          seasons={leaderboardSeasons}
+          currentSeason={nbaSeasonYear}
+          leagueRankings={leagueRankings}
+          loadTeamStats={loadTeamStatsLite}
+          onPlayerClick={openPlayerFromLeaderboard}
+          onTeamClick={openTeamFromLeaderboard}
+          onHaptic={trigger}
+        />
       </div>
     </div>
   </div>
