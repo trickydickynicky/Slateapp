@@ -204,7 +204,7 @@ export function Headshot({ src, name, size, ring }) {
 
 function Stat({ label, value, rank, sub, onRankClick }) {
   const top = rank && parseInt(rank, 10) <= 10;
-  const rankStyle = { fontSize: 11, color: top ? GREEN : MUTED, fontWeight: top ? 700 : 500, marginTop: 3, minHeight: 14 };
+  const rankStyle = { fontSize: 11, color: top ? GREEN : MUTED, fontWeight: top ? 700 : 500, marginTop: 3, minHeight: 14, lineHeight: '14px' };
   return (
     <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
       <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</span>
