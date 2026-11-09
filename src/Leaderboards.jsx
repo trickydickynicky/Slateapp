@@ -215,7 +215,7 @@ export default function Leaderboards({
   return (
     <div style={{ marginTop: -34, paddingBottom: 'calc(120px + env(safe-area-inset-bottom))' }}>
               {/* Controls */}
-      <div style={{ position: 'sticky', top: 'env(safe-area-inset-top)', zIndex: 5, background: '#000', borderBottom: '1px solid #171717' }}>
+      <div style={{ position: 'sticky', top: 'env(safe-area-inset-top)', zIndex: 5, background: '#000'}}>
       <div className="flex items-center" style={{ paddingLeft: 36, minHeight: 32 }}>
           <ScopeToggle scope={scope} onChange={changeScope} />
         </div>
