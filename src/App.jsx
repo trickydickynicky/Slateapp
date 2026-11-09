@@ -15,6 +15,8 @@ import TeamStatsPage from './TeamStatsPage';
 import SalaryCap from './SalaryCap';
 import Leaderboards from './Leaderboards';
 import GameLineups from './GameLineups';
+import RecentMatchups from './RecentMatchups';
+import PlayerAverages, { sortByAverages } from './PlayerAverages';
 import Momentum from './Momentum';
 import BackButton from './BackButton';
 import useOnCourt from './useOnCourt';
@@ -190,6 +192,7 @@ const [showReplay, setShowReplay] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
 
 const liveOnCourt = useOnCourt(gameDetails, !!selectedGame?.isLive);
+
 
 // Live games: keep the box score and plays fresh (the page only refreshed when you came back to the app)
 useEffect(() => {
@@ -1725,6 +1728,15 @@ console.log('🏀 FULL DATA:', data);
           setSelectedGame(null);
           setGameDetails(null);
         }, 50);
+      } else if (previous.type === 'game') {
+        // back from a past matchup: restore the pregame game as it was
+        setSelectedGame(previous.data);
+        setGameDetails(previous.details);
+        setSelectedTeam(previous.selectedTeam || 'away');
+        setPregameMatchupStats(previous.matchupStats || null);
+        setTimeout(() => {
+          if (gameDetailScrollRef.current) gameDetailScrollRef.current.scrollTop = previous.scrollTop || 0;
+        }, 50);
       } else if (previous.type === 'home') {
         setSelectedGame(null);
         setGameDetails(null);
@@ -2221,6 +2233,25 @@ console.log('🏀 FULL DATA:', data);
     fetchGameDetails(recentGame.gameId);
   };
   
+  // Open a past matchup from the pregame Game tab. Back returns to the pregame game exactly as it was.
+  const handleMatchupClick = (past) => {
+    setNavigationStack(prev => [...prev, {
+      type: 'game',
+      data: selectedGame,
+      details: gameDetails,
+      selectedTeam,
+      matchupStats: pregameMatchupStats,
+      scrollTop: gameDetailScrollRef.current?.scrollTop || 0,
+    }]);
+    setSlideDirection('right');
+    gameDetailScrollRef.current?.scrollTo(0, 0);
+    setSelectedGame({ ...past, awayRecord: '', homeRecord: '', isFinal: true, isPreGame: false, isLive: false });
+    setSelectedTeam('away');
+    setGameDetails(null);          // fresh rosters/box score for the new game (same as the scoreboard swipe)
+    setPregameMatchupStats(null);
+    fetchGameDetails(past.id);
+  };
+
   const generateDateRange = () => {
     const dates = [];
     const today = new Date();
@@ -3496,6 +3527,18 @@ const statsToCompare = [
         })()}
       </div>
 
+
+
+    {/* Recent Matchups */}
+    <RecentMatchups
+      key={selectedGame.id}
+      awayAbbr={selectedGame.awayTeam}
+      homeAbbr={selectedGame.homeTeam}
+      awayId={espnTeamIds[selectedGame.awayTeam]}
+      homeId={espnTeamIds[selectedGame.homeTeam]}
+      onGameClick={(g) => { trigger('light'); handleMatchupClick(g); }}
+    />
+
     {/* Head-to-Head Matchup Bars */}
     {pregameMatchupStats ? (
       <div className="bg-black rounded-2xl p-4 mt-3">
@@ -3634,7 +3677,7 @@ const statsToCompare = [
     })) || [];
   
 // Combine roster with injured-only players and sort
-const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
+const fullRoster = sortByAverages([...(roster || []), ...injuredOnlyPlayers]).sort((a, b) => {
   // Get injury status for both players
   const aInjury = teamInjuryData?.injuries?.find(inj => inj.athlete.id === a.id);
   const bInjury = teamInjuryData?.injuries?.find(inj => inj.athlete.id === b.id);
@@ -3667,7 +3710,7 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
     
     return (
       <div key={idx} className="flex justify-between items-center py-2 border-b border-zinc-800 last:border-0">
-        <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
         {player.headshot?.href || player.headshot ? (
   <img 
     src={player.headshot?.href || player.headshot}
@@ -3705,16 +3748,16 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
   {player.displayName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
 </div>
 <span className="text-gray-400 text-sm w-6">{player.jersey}</span>
-<div className="flex flex-col flex-1">
-  <span className={player.isInjuredOnly ? 'text-gray-500' : ''}>
+<div className="flex flex-col flex-1 min-w-0">
+<span className={`truncate ${player.isInjuredOnly ? 'text-gray-500' : ''}`}>
     {player.displayName}
   </span>
   {playerInjury ? (
-  <span className="text-xs text-red-500">
+    <span className="text-xs text-red-500 truncate">
     {playerInjury.status} - {playerInjury.details?.type || 'Injury'}
   </span>
 ) : (
-  <span className="text-xs text-green-500">
+  <span className="text-xs text-green-500 truncate">
     Active
   </span>
 )}
@@ -3736,6 +3779,7 @@ const fullRoster = [...(roster || []), ...injuredOnlyPlayers].sort((a, b) => {
   })()}
 </div>
         </div>
+        <PlayerAverages playerId={player.id} dim={!!player.isInjuredOnly} />
         {!selectedGame.isPreGame && playerStats && (
           <div className="flex gap-4 text-sm">
             <span className="text-gray-400">MIN: {playerStats.stats?.[0] || '0'}</span>
