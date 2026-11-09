@@ -2453,9 +2453,9 @@ console.log('🏀 FULL DATA:', data);
     ))}
   </div>
 </div>
-<div className="mt-2 overflow-x-auto scrollbar-hide py-4"
+<div className="mt-2 -mx-4 overflow-x-auto scrollbar-hide py-4"
   style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}>
-  <div className="flex gap-2">
+  <div className="flex gap-2 px-4 w-max">
     {generateDateRange().map((date, idx) => {
       const { month, day, dayOfWeek } = formatDateHeader(date);
       const isSelected = isSameDay(date, selectedDate);
