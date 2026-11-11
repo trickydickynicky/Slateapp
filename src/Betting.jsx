@@ -718,11 +718,11 @@ async function getKeyInjuries(athleteId, teamId, propKey) {
 
         {/* prop-type toggle bar (replaces the date strip) */}
         <div
-          className="mt-2 overflow-x-auto scrollbar-hide py-4"
+               className="mt-2 -mx-4 overflow-x-auto scrollbar-hide py-4"
           style={{ animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both' }}
         >
-          <div className="flex gap-2">
-            {PROP_TYPES.map((p) => {
+                  <div className="flex gap-2 px-4 w-max">
+                  {PROP_TYPES.map((p) => {
               const selected = p.key === propKey;
               return (
                 <button
@@ -749,9 +749,9 @@ async function getKeyInjuries(athleteId, teamId, propKey) {
 
       <div className="px-4 -mt-3 pb-8">
         {/* game selector */}
-        <div className="overflow-x-auto scrollbar-hide pb-3">
-          <div className="flex gap-2">
-            {[{ id: 'top', label: 'Top Edges' }, ...games.map((g) => ({ id: g.id, label: chipLabel(g) }))].map((c) => (
+        <div className="-mx-4 overflow-x-auto scrollbar-hide pb-3">
+        <div className="flex gap-2 px-4 w-max">
+        {[{ id: 'top', label: 'Top Edges' }, ...games.map((g) => ({ id: g.id, label: chipLabel(g) }))].map((c) => (
               <button
                 key={c.id}
                 onClick={() => {
