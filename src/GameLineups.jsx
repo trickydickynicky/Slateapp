@@ -284,7 +284,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
 
   return (
     <div className={`bg-black rounded-2xl px-4 pb-4 ${compact ? 'pt-0' : 'pt-4 mt-3'}`}>
-            <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 -mx-4">
         <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           {title}
         </h5>
