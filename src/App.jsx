@@ -4065,7 +4065,7 @@ onClick={(e) => {
                       gameDetails={gameDetails}
                       side={selectedTeam}
                       onHaptic={trigger}
-                      logo={logo}
+                                           logo="/slate-logo.png"
                       abbr={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
                       oppAbbr={selectedTeam === 'away' ? selectedGame.homeTeam : selectedGame.awayTeam}
                     />

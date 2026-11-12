@@ -159,7 +159,9 @@ function useLogoData(src) {
     let dead = false;
     (async () => {
       try {
-        const blob = await (await fetch(src)).blob();
+        const res0 = await fetch(src);
+        const blob = await res0.blob();
+        if (!res0.ok || !blob.type.startsWith('image/')) return; // e.g. dev server returned index.html
         const url = await new Promise((res, rej) => {
           const r = new FileReader();
           r.onload = () => res(r.result);
