@@ -273,15 +273,25 @@ function ShotFull({ shown, fouls, legend, onClose }) {
   const pinch = useRef(0);
   const travel = useRef(0);
   const moved = useRef(false);
+  const boxRef = useRef(null);
+  const [size, setSize] = useState({ w: 360, h: 600 });
   const [view, setView] = useState({ cx: CW / 2, cy: CH / 2, w: CW });
   const [active, setActive] = useState(null);
-  const h = (view.w * CH) / CW;
+  // viewBox follows the screen's aspect ratio, so the court runs edge to edge with no letterboxing
+  const h = (view.w * size.h) / size.w;
   const k = Math.sqrt(view.w / CW);
 
-  const perPx = () => {
-    const r = svgRef.current.getBoundingClientRect();
-    return 1 / Math.min(r.width / view.w, r.height / h);
-  };
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return undefined;
+    const upd = () => setSize({ w: el.clientWidth || 360, h: el.clientHeight || 600 });
+    upd();
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const perPx = () => view.w / size.w;
   const zoom = (f) => setView((v) => ({ ...v, w: Math.min(CW * 1.3, Math.max(CW / 8, v.w / f)) }));
 
   useEffect(() => {
@@ -330,15 +340,14 @@ function ShotFull({ shown, fouls, legend, onClose }) {
           <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer' }}><X size={22} /></button>
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, padding: '0 8px' }}>
+      <div ref={boxRef} style={{ flex: 1, minHeight: 0 }}>
         <svg
           ref={svgRef}
           viewBox={`${view.cx - view.w / 2} ${view.cy - h / 2} ${view.w} ${h}`}
-          style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
+          style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none', background: '#000' }}
           onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={onUp}
           onClick={() => { if (!moved.current) setActive(null); }}
         >
-          <rect x={view.cx - view.w} y={view.cy - h} width={view.w * 2} height={h * 2} fill="#0a0a0a" />
           <CourtLines />
           <ShotLayer shown={shown} fouls={fouls} active={active} k={k} onPick={(s, e) => { e.stopPropagation(); if (!moved.current) setActive(s); }} />
         </svg>
