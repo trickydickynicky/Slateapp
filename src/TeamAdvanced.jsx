@@ -820,8 +820,9 @@ function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
     const [showFilters, setShowFilters] = useState(false);
     const [player, setPlayer] = useState(ALL);
     const [type, setType] = useState(ALL);
+const [game, setGame] = useState(ALL);
   
-    const filtered = player !== ALL || type !== ALL;
+const filtered = player !== ALL || type !== ALL || game !== ALL;
     const needShots = view === 'dots' || showFilters || filtered;
   
     // Shot locations are the heavy part: only load for the dots view, the filter panel, or an active filter.
@@ -835,13 +836,13 @@ function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
       return () => { dead = true; };
     }, [needShots, teamAbbr, season, retry]);
   
-    useEffect(() => { setPlayer(ALL); setType(ALL); }, [teamAbbr]);
+    useEffect(() => { setPlayer(ALL); setType(ALL); setGame(ALL); }, [teamAbbr]);
   
     const lg = useMemo(() => leagueAvg(teams), [teams]);
     const teamZones = useMemo(() => buildZones(teams, me, oppMe), [teams, me, oppMe]);
     const shown = useMemo(
-      () => dots.shots.filter(s => (player === ALL || s[3] === player) && (type === ALL || s[4] === type)),
-      [dots.shots, player, type]
+      () => dots.shots.filter(s => (player === ALL || s[3] === player) && (type === ALL || s[4] === type) && (game === ALL || s[5] === game)),
+      [dots.shots, player, type, game]
     );
     const t = useMemo(
       () => (filtered ? buildZonesFromShots(shown, lg) : teamZones),
@@ -853,7 +854,8 @@ function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
         dots.shots.forEach(s => { if (s[i] && s[i] !== '?') m[s[i]] = (m[s[i]] || 0) + 1; });
         return Object.entries(m).sort((a, b) => b[1] - a[1]);
       };
-      return { players: count(3), types: count(4) };
+      const games = [...new Set(dots.shots.map(s => s[5]).filter(Boolean))].reverse();
+      return { players: count(3), types: count(4), games };
     }, [dots.shots]);
   
     if (!teamZones) return <Empty>Shot zone data isn't available yet.</Empty>;
@@ -898,15 +900,19 @@ function ShotsTab({ teams, me, oppMe, teamAbbr, season, haptic }) {
             onClick={() => { haptic('light'); setShowFilters(s => !s); }}
             style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
           >
-            {filtered ? `Filtered · ${[player !== ALL && player, type !== ALL && type].filter(Boolean).join(' · ')}` : 'Filter by player or shot type'} {showFilters ? '▴' : '▾'}
+            {filtered ? `Filtered · ${[player !== ALL && player, type !== ALL && type, game !== ALL && game].filter(Boolean).join(' · ')}` : 'Filter by player, shot type or game'} {showFilters ? '▴' : '▾'}
           </button>
           {showFilters && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10, alignItems: 'flex-end' }}>
+          <GenSelect label="GAME" value={game} onChange={v => { haptic('selection'); setGame(v); }} flex="1 1 100%">
+            <option value={ALL}>All</option>
+            {options.games.map(g => <option key={g} value={g}>{g}</option>)}
+          </GenSelect>
               <FilterSelect label="PLAYER" value={player} onChange={v => { haptic('selection'); setPlayer(v); }} options={options.players} />
               <FilterSelect label="SHOT TYPE" value={type} onChange={v => { haptic('selection'); setType(v); }} options={options.types} />
               {filtered && (
                 <button
-                  onClick={() => { haptic('light'); setPlayer(ALL); setType(ALL); }}
+                onClick={() => { haptic('light'); setPlayer(ALL); setType(ALL); setGame(ALL); }}
                   style={{ background: 'none', border: 'none', color: ACCENT, fontSize: 12, fontWeight: 700, padding: '10px 4px', cursor: 'pointer' }}
                 >
                   Reset

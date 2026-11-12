@@ -106,9 +106,19 @@ async function run(abbr, season, emit) {
   const sched = await getJson(`${BASE}/teams/${encodeURIComponent(String(abbr).toLowerCase())}/schedule?seasontype=2`);
   const teamId = sched?.team?.id;
   if (!teamId) throw new Error('no team id');
-  const ids = (sched.events || [])
-    .filter(e => e.competitions?.[0]?.status?.type?.completed)
-    .map(e => e.id);
+  const done = (sched.events || []).filter(e => e.competitions?.[0]?.status?.type?.completed);
+  const ids = done.map(e => e.id);
+
+  // label per game, e.g. "11/5 vs BOS" or "11/7 @ NYK"
+  const labels = {};
+  done.forEach(e => {
+    const comp = e.competitions?.[0];
+    const me = (comp?.competitors || []).find(c => String(c.team?.id) === String(teamId));
+    const opp = (comp?.competitors || []).find(c => String(c.team?.id) !== String(teamId));
+    const d = new Date(e.date);
+    const date = Number.isNaN(+d) ? '' : `${d.getMonth() + 1}/${d.getDate()} `;
+    labels[e.id] = `${date}${me?.homeAway === 'away' ? '@' : 'vs'} ${opp?.team?.abbreviation || '?'}`;
+  });
 
     const key = `espnShots:v4:${season}:${abbr}`;
   let cache = { games: {}, names: {} };
@@ -118,7 +128,7 @@ async function run(abbr, season, emit) {
   } catch (e) { /* ignore */ }
 
   const snap = () => ({
-    shots: ids.flatMap(id => cache.games[id]?.s || []),
+    shots: ids.flatMap(id => (cache.games[id]?.s || []).map(s => [...s, labels[id]])),
     pairs: ids.flatMap(id => cache.games[id]?.a || []),
     box: ids.map(id => cache.games[id]?.t).filter(Boolean),
     names: cache.names,
@@ -169,6 +179,6 @@ export function loadTeamPlays(abbr, season, onProgress) {
 }
 
 export const loadTeamShots = (abbr, season, onProgress) => {
-    const label = d => d.shots.map(([x, y, m, pid, ti]) => [x, y, m, d.names[pid] || (pid ? '?' : ''), TYPES[ti] || 'Jumper']);
+  const label = d => d.shots.map(([x, y, m, pid, ti, game]) => [x, y, m, d.names[pid] || (pid ? '?' : ''), TYPES[ti] || 'Jumper', game]);
     return loadTeamPlays(abbr, season, onProgress && (d => onProgress(label(d)))).then(label);
   };
