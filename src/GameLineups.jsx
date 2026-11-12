@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
+import { Camera } from 'lucide-react';
+import { renderLineupsImage, shareImage, warmLineupImage } from './lineupImage';
 
 const SUMMARY_URL = id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
 const PREFIX = 'lineups:v3:';
@@ -214,6 +216,8 @@ function LineupsView({ title, teams, loading = false, progress = '', emptyText =
   const [teamIdx, setTeamIdx] = useState(0);
   const [filter, setFilter] = useState({});    // playerId -> 'in' | 'out'
   const [showAll, setShowAll] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  useEffect(() => { warmLineupImage(); }, []);
 
   const team = teams?.[teamIdx];
 
@@ -244,6 +248,33 @@ function LineupsView({ title, teams, loading = false, progress = '', emptyText =
     { sec: 0, pts: 0, opp: 0, poss: 0 }
   );
 
+  const shareLineups = async () => {
+    if (sharing || !team || rows.length === 0) return;
+    trigger('light');
+    setSharing(true);
+    try {
+      const pick = mode => Object.entries(filter).filter(([, v]) => v === mode).map(([id]) => team.players[id] || id);
+      const w = pick('in');
+      const wo = pick('out');
+      const subtitle = [w.length ? `With ${w.join(', ')}` : null, wo.length ? `Without ${wo.join(', ')}` : null]
+        .filter(Boolean).join('   ·   ') || 'All lineups';
+      const blob = await renderLineupsImage({
+        title: `${team.abbr} ${title}`,
+        subtitle,
+        countText: rows.length > shown.length
+          ? `Top ${shown.length} of ${rows.length} lineups by minutes`
+          : `${rows.length} lineup${rows.length === 1 ? '' : 's'}, by minutes`,
+        rows: shown.map(l => ({
+          name: l.ids.map(id => team.players[id] || id).join(', '),
+          cells: statCells(l.sec, l.pts, l.opp, l.poss),
+        })),
+        combined: active ? statCells(tot.sec, tot.pts, tot.opp, tot.poss) : null,
+      });
+      await shareImage(blob, `slate-${team.abbr}-lineups.png`, `${team.abbr} ${title}`);
+    } catch (e) { /* nothing to do: the button just re-enables */ }
+    setSharing(false);
+  };
+
   const renderCells = cells =>
     cells.map((c, i) => (
       <span key={i} className={`flex-shrink-0 text-center ${c.c}`} style={{ width: COLS[i][1] }}>{c.t}</span>
@@ -253,9 +284,22 @@ function LineupsView({ title, teams, loading = false, progress = '', emptyText =
 
   return (
     <div className="bg-black rounded-2xl p-4 mt-3">
-      <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
-        {title}
-      </h5>
+            <div className="flex items-center justify-between mb-3">
+        <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
+          {title}
+        </h5>
+        {hasRows && (
+          <button
+            onClick={shareLineups}
+            disabled={sharing || loading}
+            aria-label="Share as image"
+            className="text-gray-400 active:text-white disabled:opacity-40 transition-colors"
+            style={{ background: 'none', border: 'none', padding: 4, margin: -4, cursor: 'pointer' }}
+          >
+            <Camera className="w-5 h-5" />
+          </button>
+        )}
+      </div>
       {progress && <div className="text-[11px] text-gray-500 mb-3">{progress}</div>}
 
       {teams === null || (loading && !hasRows) ? (
@@ -278,7 +322,8 @@ function LineupsView({ title, teams, loading = false, progress = '', emptyText =
             </div>
           )}
 
-          <div className="flex overflow-x-auto gap-2 pb-2 -mx-4 px-4">
+<div className="overflow-x-auto -mx-8 scrollbar-hide">
+          <div className="flex gap-2 pb-2 px-8 w-max">
             {chips.map(id => {
               const m = filter[id];
               return (
@@ -295,14 +340,15 @@ function LineupsView({ title, teams, loading = false, progress = '', emptyText =
                 </button>
               );
             })}
-          </div>
-          <div className="text-[11px] text-gray-500 mb-3">Tap once for lineups with him, twice for lineups without him, three times to clear.</div>
+            </div>
+            </div>
+            <div className="text-[11px] text-gray-500 mb-3">Tap once for lineups with him, twice for lineups without him, three times to clear.</div>
 
           {rows.length === 0 ? (
             <div className="text-xs text-gray-500 text-center py-4 border-t border-zinc-800">No lineups match</div>
           ) : (
             <>
-              <div className="overflow-x-auto -mx-4 pl-2 pr-4">
+                           <div className="overflow-x-auto -mx-8 pl-6 pr-8">
                 <div className="w-max min-w-full">
                   <div className="flex items-center text-[10px] text-gray-500 mb-1">
                     <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W }}>LINEUP</span>

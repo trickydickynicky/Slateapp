@@ -197,7 +197,8 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
   return (
     <div>
       {/* controls */}
-      <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-hide">
+      <div className="-mx-4 mb-3 overflow-x-auto scrollbar-hide">
+      <div className="flex items-center gap-2 px-4 w-max min-w-full">
         <Chip
           active={filterGarbage && enough}
           disabled={!enough}
@@ -211,9 +212,10 @@ export default function NetRatingView({ view, espnTeamIds, onTeamClick, onHaptic
             onClick={() => { haptic('light'); setShowChart(v => !v); }}
             className="flex-shrink-0 ml-auto px-3 py-1 rounded-full bg-blue-600 text-white text-xs font-bold shadow-[0_0_12px_rgba(37,99,235,0.7)]"
           >
-            {showChart ? 'Table' : 'Chart'}
+                 {showChart ? 'Table' : 'Chart'}
           </button>
         )}
+      </div>
       </div>
 
       {/* progress, in the same quiet style as the rest of the page */}
