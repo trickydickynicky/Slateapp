@@ -460,7 +460,7 @@ export default function ShotChart({ gameDetails, side, onHaptic, logo, abbr, opp
           <span>{fgm}-{fga} FG</span>
           <span>{tpm}-{tpa} 3PT</span>
           <span>{fga ? `${efg.toFixed(1)}%` : '–'} eFG</span>
-          {foulsShown.length > 0 && <span>◇ {foulsShown.length} fouled</span>}
+       
         </div>
     </>
   );
