@@ -21,6 +21,7 @@ import Momentum from './Momentum';
 import BackButton from './BackButton';
 import useOnCourt from './useOnCourt';
 import NetRatingView from './NetRatingView';
+import ShotChart from './ShotChart';
 const GameReplay = lazy(() => import('./GameReplay'));
 
 const fmtAmerican = (v) => {
@@ -4059,6 +4060,15 @@ onClick={(e) => {
                       </div>
                     </div>
                     <GameLineups gameId={selectedGame.id} />
+                    <ShotChart
+                      key={`${selectedGame.id}-${selectedTeam}`}
+                      gameDetails={gameDetails}
+                      side={selectedTeam}
+                      onHaptic={trigger}
+                      logo={logo}
+                      abbr={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
+                      oppAbbr={selectedTeam === 'away' ? selectedGame.homeTeam : selectedGame.awayTeam}
+                    />
                   </div>
                 )}
                 </div>
