@@ -283,7 +283,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
   const hasRows = !!team && team.lineups.length > 0;
 
   return (
-    <div className={`bg-black rounded-2xl px-4 pb-4 ${compact ? 'pt-0' : 'pt-4 mt-3'}`}>
+    <div className={`bg-black rounded-2xl pb-4 ${compact ? 'pt-0' : 'pt-4 mt-3'}`}>
       <div className="flex items-center justify-between mb-3 -mx-4">
         <h5 className="text-xs font-semibold text-gray-400 uppercase tracking-widest" style={{ fontFamily: 'Rajdhani, sans-serif' }}>
           {title}
@@ -294,7 +294,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
             disabled={sharing || loading}
             aria-label="Share as image"
             className="text-gray-500 active:text-white disabled:opacity-40 transition-colors"
-            style={{ background: 'none', border: 'none', padding: 4, margin: '-4px -16px -4px -4px', cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', padding: 4, margin: -4, cursor: 'pointer' }}
           >
             <Camera className="w-5 h-5" />
           </button>
