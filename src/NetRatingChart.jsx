@@ -72,27 +72,35 @@ const loadImg = src => new Promise((res, rej) => {
 
 /* Adds a black strip with the Slate logo above the captured card.
    Done after the capture, so the page itself never shows it. */
-async function addLogoBand(shot, logo, ratio) {
-  if (!logo) return shot;
-  try {
-    const [card, mark] = await Promise.all([loadImg(shot), loadImg(logo)]);
-      // same proportions as the lineups image: logo height is 3.25% of the width, 2.75% from the top
-      const top = Math.round(card.width * 0.0275);
-      const h = Math.round(card.width * 0.0325);
-      const band = top + h;
-    const c = document.createElement('canvas');
-    c.width = card.width;
-    c.height = card.height + band;
-    const ctx = c.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.drawImage(mark, 16 * ratio, top, (mark.width / mark.height) * h, h);
-    ctx.drawImage(card, 0, band);
-    return c.toDataURL('image/png');
-  } catch (e) {
-    return shot;   // if anything goes wrong, share the plain card
+   async function addLogoBand(shot, logo, ratio) {
+    if (!logo) return shot;
+    try {
+      const [card, mark] = await Promise.all([loadImg(shot), loadImg(logo)]);
+      const cut = Math.round(17 * ratio);                    // inside the card's top padding, just below the rounded corners
+      const h = Math.round(card.width * 0.0325);             // same logo size as the lineups image
+      const band = h + Math.round(10 * ratio);               // room for the logo plus a small gap above the title
+      const bw = Math.max(1, Math.round(ratio));             // the card's 1px border
+      const c = document.createElement('canvas');
+      c.width = card.width;
+      c.height = card.height + band;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, c.width, c.height);
+      // top edge of the card (border + rounded corners)
+      ctx.drawImage(card, 0, 0, card.width, cut, 0, 0, card.width, cut);
+      // keep the side borders running down through the new gap
+      ctx.fillStyle = '#171717';
+      ctx.fillRect(0, cut, bw, band);
+      ctx.fillRect(card.width - bw, cut, bw, band);
+      // logo, lined up with the title's left edge
+      ctx.drawImage(mark, Math.round(17 * ratio), cut, (mark.width / mark.height) * h, h);
+      // the rest of the card, pushed down
+      ctx.drawImage(card, 0, cut, card.width, card.height - cut, 0, cut + band, card.width, card.height - cut);
+      return c.toDataURL('image/png');
+    } catch (e) {
+      return shot;   // if anything goes wrong, share the plain card
+    }
   }
-}
 
 /* camera: pre-render the card to a PNG, then share or download */
 function useSnap(cardRef, name, ready, dep, haptic) {
