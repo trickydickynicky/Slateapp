@@ -293,8 +293,8 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
             onClick={shareLineups}
             disabled={sharing || loading}
             aria-label="Share as image"
-            className="text-gray-400 active:text-white disabled:opacity-40 transition-colors"
-            style={{ background: 'none', border: 'none', padding: 4, margin: -4, cursor: 'pointer' }}
+            className="text-gray-500 active:text-white disabled:opacity-40 transition-colors"
+            style={{ background: 'none', border: 'none', padding: 4, margin: '-4px -16px -4px -4px', cursor: 'pointer' }}
           >
             <Camera className="w-5 h-5" />
           </button>
