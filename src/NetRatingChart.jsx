@@ -63,6 +63,37 @@ function useSlateLogo() {
   return st;
 }
 
+const loadImg = src => new Promise((res, rej) => {
+  const i = new Image();
+  i.onload = () => res(i);
+  i.onerror = rej;
+  i.src = src;
+});
+
+/* Adds a black strip with the Slate logo above the captured card.
+   Done after the capture, so the page itself never shows it. */
+async function addLogoBand(shot, logo, ratio) {
+  if (!logo) return shot;
+  try {
+    const [card, mark] = await Promise.all([loadImg(shot), loadImg(logo)]);
+      // same proportions as the lineups image: logo height is 3.25% of the width, 2.75% from the top
+      const top = Math.round(card.width * 0.0275);
+      const h = Math.round(card.width * 0.0325);
+      const band = top + h;
+    const c = document.createElement('canvas');
+    c.width = card.width;
+    c.height = card.height + band;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(mark, 16 * ratio, top, (mark.width / mark.height) * h, h);
+    ctx.drawImage(card, 0, band);
+    return c.toDataURL('image/png');
+  } catch (e) {
+    return shot;   // if anything goes wrong, share the plain card
+  }
+}
+
 /* camera: pre-render the card to a PNG, then share or download */
 function useSnap(cardRef, name, ready, dep, haptic) {
   const fileRef = useRef(null);
@@ -70,7 +101,8 @@ function useSnap(cardRef, name, ready, dep, haptic) {
   const render = async () => {
     const opts = { pixelRatio: 4, backgroundColor: '#000' };
     await toPng(cardRef.current, opts); // Safari drops images/fonts on the first pass
-    const url = await toPng(cardRef.current, opts);
+    const shot = await toPng(cardRef.current, opts);
+    const url = await addLogoBand(shot, logoCache.get('__slate'), opts.pixelRatio);
     const blob = await (await fetch(url)).blob();
     return { url, file: new File([blob], `${name}.png`, { type: 'image/png' }) };
   };
@@ -478,15 +510,15 @@ export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
       </div>
 
       <div ref={cardRef} style={{ marginTop: 6, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 12px 14px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 24, padding: '0 4px' }}>
-          {slate.src ? <img src={slate.src} alt="Slate" style={{ height: 24, width: 'auto' }} /> : <span />}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, padding: '0 4px' }}>
+          <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>Efficiency Landscape</div>
           <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{today}</div>
         </div>
-        <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15, padding: '0 4px', marginTop: 10 }}>Efficiency Landscape</div>
         <div style={{ fontSize: 12, color: MUTED, marginTop: 4, padding: '0 4px' }}>{sub}</div>
         <div style={{ marginTop: 10 }}>
-          <Landscape w={500} h={560} view={d.base} d={d} hl={hl} onToggle={toggle} logos={logoState.map} R={13} guard={() => false} />
+        <Landscape w={500} h={560} view={d.base} d={d} hl={hl} onToggle={toggle} logos={logoState.map} R={13} guard={() => false} />
         </div>
+        <div style={{ marginTop: 8, padding: '0 4px', fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE</div>
       
       </div>
 
