@@ -6,6 +6,8 @@ import { toPng } from 'html-to-image';
 /* Same look as the Shots tab in TeamAdvanced: flat, small type, blue made / gray missed. */
 
 const MUTED = '#6b7280';
+/* Screenshot card width. Logo height is 3.25% of it and top padding 2.75%, same proportions as the lineups image. */
+const SNAP_W = 420;
 const BLUE = '#3b82f6';
 const ALL = 'all';
 const heading = { fontFamily: 'Rajdhani, sans-serif' };
@@ -490,10 +492,10 @@ export default function ShotChart({ gameDetails, side, onHaptic, logo, abbr, opp
       {chartBody()}
 
       {/* Off-screen copy with logo + title, used only for the screenshot */}
-      <div aria-hidden="true" style={{ position: 'absolute', left: -10000, top: 0, width: 420, pointerEvents: 'none' }}>
-        <div ref={cardRef} style={{ background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '16px 14px 12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 24, padding: '0 4px' }}>
-            {logoData ? <img src={logoData} alt="Slate" style={{ height: 24, width: 'auto' }} /> : <span />}
+      <div aria-hidden="true" style={{ position: 'absolute', left: -10000, top: 0, width: SNAP_W, pointerEvents: 'none' }}>
+        <div ref={cardRef} style={{ background: '#000', border: '1px solid #171717', borderRadius: 16, padding: `${(SNAP_W * 0.0275).toFixed(2)}px 14px 12px` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
+            {logoData ? <img src={logoData} alt="Slate" style={{ height: SNAP_W * 0.0325, width: 'auto' }} /> : <span />}
             <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{today}</div>
           </div>
           <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15, padding: '0 4px', marginTop: 10 }}>{abbr ? `${abbr} ` : ''}Shot Chart</div>
