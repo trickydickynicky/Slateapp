@@ -526,7 +526,7 @@ export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
         <div style={{ marginTop: 10 }}>
         <Landscape w={500} h={560} view={d.base} d={d} hl={hl} onToggle={toggle} logos={logoState.map} R={13} guard={() => false} />
         </div>
-        <div style={{ marginTop: 8, padding: '0 4px', fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE</div>
+      
       
       </div>
 
