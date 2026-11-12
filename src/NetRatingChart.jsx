@@ -49,6 +49,20 @@ function useLogos(abbrs) {
   return st;
 }
 
+/* the Slate logo as a data URL, so it survives the screenshot */
+function useSlateLogo() {
+  const [st, setSt] = useState(() => ({ src: logoCache.get('__slate') || null, done: logoCache.has('__slate') }));
+  useEffect(() => {
+    if (st.done) return undefined;
+    let dead = false;
+    toDataUrl('/slate-logo.png')
+      .then(u => { logoCache.set('__slate', u); if (!dead) setSt({ src: u, done: true }); })
+      .catch(() => { if (!dead) setSt({ src: null, done: true }); });   // no logo is fine, just no logo
+    return () => { dead = true; };
+  }, [st.done]);
+  return st;
+}
+
 /* camera: pre-render the card to a PNG, then share or download */
 function useSnap(cardRef, name, ready, dep, haptic) {
   const fileRef = useRef(null);
@@ -416,7 +430,8 @@ export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
 
   const abbrs = useMemo(() => (d ? d.list.map(r => r.abbr).sort() : []), [d]);
   const logoState = useLogos(abbrs);
-  const ready = !!d && logoState.done;
+  const slate = useSlateLogo();
+  const ready = !!d && logoState.done && slate.done;
   const { snap, busy } = useSnap(cardRef, 'efficiency-landscape', ready, `${d ? d.sig : ''}|${hl.join(',')}|${filterGarbage ? 1 : 0}`, haptic);
 
   if (!d) {
@@ -463,15 +478,16 @@ export default function NetRatingChart({ rows, filterGarbage, onHaptic }) {
       </div>
 
       <div ref={cardRef} style={{ marginTop: 6, background: '#000', border: '1px solid #171717', borderRadius: 16, padding: '18px 12px 14px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, padding: '0 4px' }}>
-          <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15 }}>Efficiency Landscape</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 24, padding: '0 4px' }}>
+          {slate.src ? <img src={slate.src} alt="Slate" style={{ height: 24, width: 'auto' }} /> : <span />}
           <div style={{ fontSize: 11, color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{today}</div>
         </div>
+        <div style={{ ...heading, fontSize: 20, fontWeight: 700, lineHeight: 1.15, padding: '0 4px', marginTop: 10 }}>Efficiency Landscape</div>
         <div style={{ fontSize: 12, color: MUTED, marginTop: 4, padding: '0 4px' }}>{sub}</div>
         <div style={{ marginTop: 10 }}>
           <Landscape w={500} h={560} view={d.base} d={d} hl={hl} onToggle={toggle} logos={logoState.map} R={13} guard={() => false} />
         </div>
-        <div style={{ marginTop: 8, padding: '0 4px', fontSize: 10, color: MUTED, fontWeight: 700, letterSpacing: '0.08em' }}>SLATE</div>
+      
       </div>
 
       <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, marginTop: 14 }}>
