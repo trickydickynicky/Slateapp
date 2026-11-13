@@ -23,6 +23,10 @@ const ALIASES = {
   stl: ['steals', 'stl'],
   blk: ['blocks', 'blk'],
   usg: ['usage', 'usgpct', 'usg'],
+  offPoss: ['offposs'],
+  defPoss: ['defposs'],
+  plusMinus: ['plusminus'],
+  oppPts: ['opponentpoints'],
 };
 
 const toNum = v => {

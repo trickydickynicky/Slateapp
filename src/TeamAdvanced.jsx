@@ -2222,6 +2222,7 @@ function PlayerScatterFull({ d, xLabel, yLabel, sub, hl, onToggle, onClose, logo
     setRes({ status: 'loading' });
     try {
       const rows = await loadPlayerTotals(d.season, d.seasonType);
+      console.log('PLAYER ROW KEYS', Object.keys(rows[0] || {}), rows.find(r => r.min > 500));
       setSpec(d);
       setHl([]);
       setRes({ status: 'ready', rows });

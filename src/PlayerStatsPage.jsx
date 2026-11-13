@@ -3,6 +3,7 @@ import { Zap } from 'lucide-react';
 import PlayerRecentGames from './PlayerRecentGames';
 import { teamColors, teamFullNames, ordinal } from './slateShared';
 import { useLeagueRanks } from './leagueRanks';
+import { usePlayerOnOff } from './usePlayerOnOff';
 export { ordinal };
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -97,7 +98,7 @@ export function buildSeasonCells(s, mode = 'avg', pmTotal) {
       { l: 'TS%',  key: 'ts', v: ts, rank: ['trueShootingPct'] },
     ],
     row3: [
-        { l: '+/-', v: pmVal },
+      { l: '+/-', v: pmVal, color: pmN > 0 ? GREEN : pmN < 0 ? '#ef4444' : undefined },
     ],
   };
 }
@@ -202,13 +203,13 @@ export function Headshot({ src, name, size, ring }) {
   );
 }
 
-function Stat({ label, value, rank, sub, onRankClick }) {
+function Stat({ label, value, rank, sub, onRankClick, valueColor }) {
   const top = rank && parseInt(rank, 10) <= 10;
   const rankStyle = { fontSize: 11, color: top ? GREEN : MUTED, fontWeight: top ? 700 : 500, marginTop: 3, minHeight: 14, lineHeight: '14px' };
   return (
     <div className="flex flex-col items-center" style={{ minWidth: 0 }}>
       <span style={{ fontSize: 10, color: MUTED, fontWeight: 600, letterSpacing: '0.04em' }}>{label}</span>
-      <span style={{ fontSize: 20, fontWeight: 800, color: 'white', lineHeight: 1.15, marginTop: 2, whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>
+      <span style={{ fontSize: 20, fontWeight: 800, color: valueColor || 'white', lineHeight: 1.15, marginTop: 2, whiteSpace: 'nowrap', letterSpacing: '-0.02em' }}>
         {value}
       </span>
       {onRankClick && rank ? (
@@ -244,7 +245,7 @@ function StatGrid({ cells, ranks, mode, onRank }) {
   };
   const cell = c => (
     <Stat
-      key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub}
+    key={c.l} label={c.l} value={c.v} rank={rankOf(c)} sub={c.sub} valueColor={c.color}
       onRankClick={mode === 'avg' && c.key && onRank && rankOf(c) ? () => onRank(c.key) : undefined}
     />
   );
@@ -252,7 +253,7 @@ function StatGrid({ cells, ranks, mode, onRank }) {
     <div style={{ marginTop: 22 }}>
       <div style={grid}>{cells.row1.map(cell)}</div>
       <div style={{ ...grid, marginTop: 16 }}>{cells.row2.map(cell)}</div>
-      {cells.row3?.length > 0 && <div style={{ ...grid, marginTop: 16 }}>{cells.row3.map(cell)}</div>}
+      {cells.row3?.length > 0 && <div style={{ ...grid, gridTemplateColumns: 'repeat(4, minmax(0, 55px))', justifyContent: 'center', columnGap: 6, marginTop: 16 }}>{cells.row3.map(cell)}</div>}
     </div>
   );
 }
@@ -391,7 +392,20 @@ export default function PlayerStatsPage({
     () => (ranksBase || sharedRk ? { ...sharedRk, ...ranksBase } : null),
     [ranksBase, sharedRk]
   );
-  const cells = buildSeasonCells(current, mode, ranks?.__pmv);
+  const onoff = usePlayerOnOff(player?.name, season);
+  const cells = buildSeasonCells(current, mode, onoff ? onoff.pmTotal : ranks?.__pmv);
+  if (onoff) {
+    const f = v => v.toFixed(1);
+    cells.row3 = [
+      ...(cells.row3 || []).map(c => (c.l === '+/-' ? { ...c, key: 'pm', rank: ['__pm'] } : c)),
+      { l: 'ORTG', key: 'ortg', v: f(onoff.ortg), rank: ['__ortg'] },
+      { l: 'DRTG', key: 'drtg', v: f(onoff.drtg), rank: ['__drtg'] },
+      { l: 'NET', key: 'net', v: `${onoff.net > 0 ? '+' : ''}${f(onoff.net)}`, rank: ['__net'], color: onoff.net > 0 ? GREEN : onoff.net < 0 ? '#ef4444' : undefined },
+    ];
+  }
+  const ranksAll = onoff?.ranks
+  ? { ...ranks, __ortg: ordinal(onoff.ranks.ortg), __drtg: ordinal(onoff.ranks.drtg), __net: ordinal(onoff.ranks.net), __pm: ordinal(onoff.ranks.pm), pm: ordinal(onoff.ranks.pm), ortg: ordinal(onoff.ranks.ortg), drtg: ordinal(onoff.ranks.drtg), net: ordinal(onoff.ranks.net) }
+    : ranks;
 
   return (
     <div>
@@ -465,7 +479,7 @@ export default function PlayerStatsPage({
           <ModeToggle mode={mode} onChange={m => { haptic('selection'); setMode(m); }} />
           <StatGrid
             cells={cells}
-            ranks={ranks}
+            ranks={ranksAll}
             mode={mode}
             onRank={key => {
               haptic('light');

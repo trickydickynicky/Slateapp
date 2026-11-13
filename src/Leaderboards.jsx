@@ -4,8 +4,15 @@ import { PLAYER_STATS, TEAM_STATS, getStat } from './statConfig';
 import { fetchLeagueRows, peekLeagueRows, rankPlayers } from './leagueRanks';
 import { buildTeamCells } from './TeamStatsPage';
 import { Headshot } from './PlayerStatsPage';
+import { useOnOffRows, onOffOf, nameKey, QUAL_SHARE } from './usePlayerOnOff';
 
 const ROW_H = 56;
+const ONOFF_STATS = [
+  { key: 'ortg', label: 'ORTG', long: 'Offensive rating', decimals: 1, high: true },
+  { key: 'drtg', label: 'DRTG', long: 'Defensive rating', decimals: 1, high: false },
+  { key: 'net', label: 'NET', long: 'Net rating', decimals: 1, high: true },
+  { key: 'pm', label: '+/-', long: 'Plus/minus', decimals: 1, high: true },
+];
 const caret = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%232563eb' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`;
 const card = { background: '#0a0a0a', border: '1px solid #171717', color: MUTED, fontSize: 13, fontWeight: 600 };
 
@@ -137,12 +144,33 @@ export default function Leaderboards({
   const [tick, setTick] = useState(0);
   const [highlightId] = useState(initial.highlightId != null ? String(initial.highlightId) : null);
 
-  const stat = getStat(scope, statKey) || (scope === 'teams' ? TEAM_STATS : PLAYER_STATS)[0];
   const isTeams = scope === 'teams';
+  const onoffStat = !isTeams ? ONOFF_STATS.find(s => s.key === statKey) : null;
+  const stat = onoffStat || getStat(scope, statKey) || (scope === 'teams' ? TEAM_STATS : PLAYER_STATS)[0];
 
   /* Players */
   const { status, rows } = usePlayerRows(season, !isTeams, tick);
-  const ranked = useMemo(() => (!isTeams && rows ? rankPlayers(rows, stat) : []), [isTeams, rows, stat]);
+  const onoffRows = useOnOffRows(season, !isTeams && !!onoffStat);
+  const onoffRanked = useMemo(() => {
+    if (!onoffStat || !rows || !onoffRows) return [];
+    const maxMin = Math.max(...onoffRows.map(r => r.min));
+    const by = new Map();
+    onoffRows.filter(r => r.min >= QUAL_SHARE * maxMin).forEach(r => {
+      const k = nameKey(r.name);
+      if (!by.get(k) || r.min > by.get(k).min) by.set(k, r);
+    });
+    const list = [];
+    rows.forEach(r => {
+      const o = onOffOf(by.get(nameKey(r.name)));
+      if (o && o[onoffStat.key] != null) list.push({ ...r, value: o[onoffStat.key] });
+    });
+    list.sort((a, b) => (onoffStat.high ? b.value - a.value : a.value - b.value));
+    return list.map((r, i) => ({ ...r, rank: i + 1 }));
+  }, [onoffStat, rows, onoffRows]);
+  const ranked = useMemo(
+    () => (!isTeams && rows ? (onoffStat ? onoffRanked : rankPlayers(rows, stat)) : []),
+    [isTeams, rows, stat, onoffStat, onoffRanked]
+  );
   const teamOpts = useMemo(() => [...new Set((rows || []).map(r => r.team).filter(Boolean))].sort(), [rows]);
   const posOpts = useMemo(() => [...new Set((rows || []).map(r => r.pos).filter(Boolean))].sort(), [rows]);
   const playerItems = useMemo(
@@ -150,7 +178,7 @@ export default function Leaderboards({
       .filter(r => (!team || r.team === team) && (!pos || r.pos === pos))
       .map(r => ({
         id: r.id, rank: r.rank, name: r.name, sub: r.team, headshot: r.headshot,
-        value: r.value.toFixed(stat.decimals), raw: r,
+        value: (onoffStat && onoffStat.key !== 'ortg' && onoffStat.key !== 'drtg' && r.value > 0 ? '+' : '') + r.value.toFixed(stat.decimals), raw: r,
       })),
     [ranked, team, pos, stat]
   );
@@ -225,7 +253,7 @@ export default function Leaderboards({
             {seasons.map(s => <option key={s.year} value={s.year} className="bg-zinc-900">{s.displayName}</option>)}
           </Pick>
           <Pick label="Stat" width={`${stat.long.length * 8.5 + 20}px`} value={stat.key} onChange={e => { haptic('selection'); setStatKey(e.target.value); }}>
-            {(isTeams ? TEAM_STATS : PLAYER_STATS).map(s => <option key={s.key} value={s.key} className="bg-zinc-900">{s.long}</option>)}
+          {(isTeams ? TEAM_STATS : [...PLAYER_STATS, ...ONOFF_STATS]).map(s => <option key={s.key} value={s.key} className="bg-zinc-900">{s.long}</option>)}
           </Pick>
           {!isTeams && (
             <>
@@ -245,7 +273,7 @@ export default function Leaderboards({
       </div>
 
       {/* List */}
-      {!isTeams && status === 'loading' ? (
+      {!isTeams && (status === 'loading' || (!!onoffStat && !onoffRows)) ? (
         <div style={{ marginTop: 10 }}>
           {Array.from({ length: 10 }).map((_, i) => <div key={i} className="skeleton rounded-2xl" style={{ height: 48, marginTop: 8 }} />)}
         </div>

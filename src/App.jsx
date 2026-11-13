@@ -22,6 +22,7 @@ import BackButton from './BackButton';
 import useOnCourt from './useOnCourt';
 import NetRatingView from './NetRatingView';
 import ShotChart from './ShotChart';
+import { warmOnOff } from './usePlayerOnOff';
 const GameReplay = lazy(() => import('./GameReplay'));
 
 const fmtAmerican = (v) => {
@@ -191,6 +192,10 @@ const lbStandingsRef = useRef(null);
 const { trigger } = useWebHaptics();
 const [showReplay, setShowReplay] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
+useEffect(() => {
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 3000));
+  idle(() => warmOnOff());
+}, []);
 
 const liveOnCourt = useOnCourt(gameDetails, !!selectedGame?.isLive);
 
