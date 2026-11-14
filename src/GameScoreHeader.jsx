@@ -23,7 +23,7 @@ const DOT = 'min(var(--p, 0) * 4, 1)';         // 0 -> 1 as the header collapses
 
 /* A block that fades out early and collapses to zero height as --p rises, leaving no gap.
    Its natural height is measured (not guessed) so the collapse tracks the scroll exactly. */
-function Collapse({ children, speed = 3 }) {
+   function Collapse({ children, speed = 1.5 }) {
   const outer = useRef(null);
   const inner = useRef(null);
   useLayoutEffect(() => {
