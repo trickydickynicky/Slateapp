@@ -12,7 +12,8 @@ import React, { useEffect, useLayoutEffect, useRef } from 'react';
    re-render it in place without remounting or resetting the scroll position.
 ============================================================================ */
 
-const COLLAPSE_PX = 200;                       // scroll distance over which the header shrinks
+const COLLAPSE_PX = 100;                       // live / final: scroll distance over which the header shrinks
+const COLLAPSE_PX_PRE = 220;                   // pregame: longer, because the odds table adds height to collapse                 // scroll distance over which the header shrinks
 const heading = { fontFamily: 'Rajdhani, sans-serif' };
 const DIM = '#6b7280';                         // gray-500, the loser's score
 
@@ -121,6 +122,8 @@ export default function GameScoreHeader({
   const isPre = !!game.isPreGame;
   const isLive = !!game.isLive;
   const kind = isLive ? 'live' : isPre ? 'pre' : 'final';
+  const distRef = useRef(COLLAPSE_PX);
+  distRef.current = isPre ? COLLAPSE_PX_PRE : COLLAPSE_PX;
 
   /* 1) scroll -> --p (and whether the header is actually pinned, for the notch strip) */
   useEffect(() => {
@@ -133,7 +136,7 @@ export default function GameScoreHeader({
     let lastStuck = null;
     const apply = () => {
       raf = 0;
-      let p = Math.min(Math.max(scroller.scrollTop / COLLAPSE_PX, 0), 1);
+      let p = Math.min(Math.max(scroller.scrollTop / distRef.current, 0), 1);
       p = reduce ? (p > 0.4 ? 1 : 0) : Math.round(p * 1000) / 1000;
       // read layout first, then write
       const strip = stripRef.current;
@@ -152,6 +155,8 @@ export default function GameScoreHeader({
       sync.current = () => {};
     };
   }, [scrollRef, reduce]);
+
+  useEffect(() => { sync.current(); }, [kind]);
 
   /* 2) measure the collapsed height once (per game state) so the tab row can pin right under it */
   useEffect(() => {
