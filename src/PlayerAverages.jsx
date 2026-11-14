@@ -5,13 +5,37 @@ import { fetchLeagueRows, peekLeagueRows } from './leagueRanks';
 const seasonYear = (d = new Date()) => (d.getMonth() >= 9 ? d.getFullYear() + 1 : d.getFullYear());
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
 
+// Tiny id -> PPG map kept in localStorage so rosters can be sorted on the very first render
+let memMap = null;
+const MAP_MAX_AGE = 3 * 24 * 60 * 60 * 1000;
+function readPpgMap(year) {
+  if (memMap && memMap.year === year) return memMap.map;
+  try {
+    const raw = localStorage.getItem(`ppgmap_v1_${year}`);
+    if (raw) {
+      const o = JSON.parse(raw);
+      if (Date.now() - o.at < MAP_MAX_AGE) {
+        memMap = { year, map: new Map(Object.entries(o.m)) };
+        return memMap.map;
+      }
+    }
+  } catch (e) { /* ignore a bad cache */ }
+  return null;
+}
+function savePpgMap(year, rows) {
+  const m = {};
+  rows.forEach(r => { if (Number.isFinite(r.vals?.pts)) m[r.id] = +r.vals.pts.toFixed(1); });
+  memMap = { year, map: new Map(Object.entries(m)) };
+  try { localStorage.setItem(`ppgmap_v1_${year}`, JSON.stringify({ at: Date.now(), m })); } catch (e) { /* storage full */ }
+}
+
 // One shared league-wide request, however many rows ask at once
 let pending = null;
 let pendingYear = null;
 const load = year => {
   if (!pending || pendingYear !== year) {
     pendingYear = year;
-    pending = fetchLeagueRows(year).finally(() => { if (pendingYear === year) pending = null; });
+    pending = fetchLeagueRows(year).then(r => { savePpgMap(year, r); return r; }).finally(() => { if (pendingYear === year) pending = null; });
   }
   return pending;
 };
@@ -88,10 +112,17 @@ export default function PlayerAverages({ playerId, dim }) {
 }
 /** Sort a roster by season PPG (highest first). Players the league list doesn't carry keep their order, at the end. */
 export function sortByAverages(players) {
-    let rows = null;
-    try { rows = peekLeagueRows(seasonYear()); } catch (e) { /* not loaded yet */ }
-    if (!rows) return players;
-    const ppg = new Map(rows.map(r => [r.id, r.vals?.pts]));
+  const year = seasonYear();
+  let ppg = null;
+  try {
+    const rows = peekLeagueRows(year);
+    if (rows) {
+      if (!memMap || memMap.year !== year) savePpgMap(year, rows);
+      ppg = new Map(rows.map(r => [r.id, r.vals?.pts]));
+    }
+  } catch (e) { /* not loaded yet */ }
+  if (!ppg) ppg = readPpgMap(year);
+  if (!ppg) return players;
     const score = p => { const v = ppg.get(String(p.id)); return Number.isFinite(v) ? v : -1; };
     return players
       .map((p, i) => ({ p, i }))
