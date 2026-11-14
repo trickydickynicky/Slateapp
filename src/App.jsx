@@ -15,7 +15,6 @@ import TeamStatsPage from './TeamStatsPage';
 import SalaryCap from './SalaryCap';
 import Leaderboards from './Leaderboards';
 import GameLineups from './GameLineups';
-import GameScoreHeader from './GameScoreHeader';
 import RecentMatchups from './RecentMatchups';
 import PlayerAverages, { sortByAverages } from './PlayerAverages';
 import Momentum from './Momentum';
@@ -2852,41 +2851,168 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <BackButton onClick={() => { trigger('light'); closeModal(); }} />
-      <GameScoreHeader
-          game={selectedGame}
-          teamCities={teamCities}
-          records={gameTeamRecords}
-          openOdds={openingOdds[`${selectedGame.awayTeam}-${selectedGame.homeTeam}`]}
-          oddsSlot={selectedGame.isPreGame ? (() => {
-            const odds = bettingOdds[`${selectedGame.awayTeam}-${selectedGame.homeTeam}`];
-            if (!odds) return null;
-            return (
-              <OddsTable
-                game={selectedGame}
-                odds={odds}
-                awayProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame)}
-                homeProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame)}
-              />
-            );
-          })() : null}
-          scrollRef={gameDetailScrollRef}
-          swipe={{
-            x: scoreboardSwipeX,
-            active: isScoreboardSwiping,
-            handlers: {
-              onTouchStart: onScoreboardTouchStart,
-              onTouchMove: onScoreboardTouchMove,
-              onTouchEnd: onScoreboardTouchEnd,
-              onMouseDown: onScoreboardMouseDown,
-              onMouseMove: onScoreboardMouseMove,
-              onMouseUp: onScoreboardMouseUp,
-              onMouseLeave: onScoreboardMouseUp,
-            },
-          }}
-          onTeamClick={handleTeamClick}
-          abbreviateChannel={abbreviateChannel}
-          formatGameTime={formatGameTime}
-        />
+        <div
+className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab active:cursor-grabbing"
+  style={{
+    transform: `translateX(${scoreboardSwipeX}px)`,
+    transition: isScoreboardSwiping ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+    touchAction: 'pan-y',
+    userSelect: 'none',
+  }}
+  onTouchStart={onScoreboardTouchStart}
+  onTouchMove={onScoreboardTouchMove}
+  onTouchEnd={onScoreboardTouchEnd}
+  onMouseDown={onScoreboardMouseDown}
+  onMouseMove={onScoreboardMouseMove}
+  onMouseUp={onScoreboardMouseUp}
+  onMouseLeave={onScoreboardMouseUp}
+>
+<div className="flex items-start justify-between">
+            {/* AWAY TEAM - LEFT SIDE */}
+            <div 
+              className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => handleTeamClick(selectedGame.awayTeam, selectedGame.awayLogo)}
+            >
+  <img src={selectedGame.awayLogo} alt={selectedGame.awayTeam} className="w-10 h-10 mb-1" />
+  <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.awayTeam] || selectedGame.awayTeam}</span>
+
+  {selectedGame.awayRecord && (
+  <span className="text-xs text-gray-400">{selectedGame.awayRecord}</span>
+)}
+{gameTeamRecords?.[selectedGame.awayTeam]?.away && (
+  <span className="text-xs text-gray-600">{gameTeamRecords[selectedGame.awayTeam].away} away</span>
+)}
+      {!selectedGame.isPreGame && (
+  <span className={`text-4xl font-bold mt-3 ${
+    parseInt(selectedGame.awayScore) > parseInt(selectedGame.homeScore) ? 'text-white' : 'text-gray-500'
+  }`}>
+    {selectedGame.awayScore}
+  </span>
+)}
+    </div>
+
+{/* CENTER - TIME/LIVE/ODDS */}
+<div className="flex flex-col items-center px-4 pt-2 min-w-[90px]">
+{selectedGame.isLive && (
+    <div className="text-center">
+      <div className="flex items-center gap-1 justify-center mb-1">
+        <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-red-500 font-bold text-xs tracking-widest uppercase">Live</span>
+      </div>
+      <div className="text-xs text-gray-400">
+        {selectedGame.clock === '0.0' || selectedGame.clock === '0:00'
+          ? (selectedGame.period === 2 ? 'Half' : `End Q${selectedGame.period}`)
+          : `Q${selectedGame.period} • ${selectedGame.clock}`}
+      </div>
+      {selectedGame.allBroadcasts?.length > 0 && (() => {
+        const codes = [...new Set(selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).filter(Boolean))];
+        const shown = codes.filter(c => c !== 'NBALP');
+        const list = shown.length > 0 ? shown : codes;
+        return (
+          <div className="flex flex-col items-center mt-1">
+            {list.map((code, idx) => (
+              <div key={idx} className="text-xs text-gray-500">{code}</div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  )}
+
+{selectedGame.isPreGame && (
+    <div className="text-center">
+      <div className="text-gray-300 text-sm font-semibold">{formatGameTime(selectedGame.gameTime)}</div>
+      {selectedGame.allBroadcasts?.length > 0 && (() => {
+        const codes = [...new Set(selectedGame.allBroadcasts.map(ch => abbreviateChannel(ch)).filter(Boolean))];
+        const shown = codes.filter(c => c !== 'NBALP');
+        const list = shown.length > 0 ? shown : codes;
+        return (
+          <div className="text-xs text-gray-500 mt-0.5">
+            {list.join(' • ')}
+          </div>
+        );
+      })()}
+    </div>
+  )}
+
+  {selectedGame.isFinal && (
+    <div className="text-center">
+      <div className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</div>
+    </div>
+  )}
+
+{/* Spread / Covered - Final only */}
+{selectedGame.isFinal && (() => {
+    const gameKey = `${selectedGame.awayTeam}-${selectedGame.homeTeam}`;
+    const odds = openingOdds[gameKey];
+    if (!odds || odds.spread === undefined || odds.spread === null) return null;
+
+    const awayScore = parseInt(selectedGame.awayScore) || 0;
+    const homeScore = parseInt(selectedGame.homeScore) || 0;
+    const actualMargin = homeScore - awayScore;
+    let coveredTeam;
+
+    if (odds.spread === 0) {
+      coveredTeam = actualMargin > 0 ? selectedGame.homeTeam : selectedGame.awayTeam;
+    } else {
+      const favoriteCovered = odds.favoriteTeam === selectedGame.homeTeam
+        ? actualMargin > odds.spread
+        : -actualMargin > odds.spread;
+      coveredTeam = favoriteCovered
+        ? odds.favoriteTeam
+        : (odds.favoriteTeam === selectedGame.homeTeam ? selectedGame.awayTeam : selectedGame.homeTeam);
+    }
+
+    return (
+      <div className="mt-2 text-center">
+        <div className="text-xs text-orange-400">
+          {odds.spread === 0 ? "Pick'em" : `${odds.favoriteTeam} -${odds.spread}`}
+        </div>
+        <div className="text-xs text-orange-400 font-semibold">{coveredTeam} Covered</div>
+      </div>
+    );
+  })()}
+</div>
+
+  {/* HOME TEAM - RIGHT SIDE */}
+<div 
+  className="flex flex-col items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+  onClick={() => handleTeamClick(selectedGame.homeTeam, selectedGame.homeLogo)}
+>
+  <img src={selectedGame.homeLogo} alt={selectedGame.homeTeam} className="w-10 h-10 mb-1" />
+  <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[selectedGame.homeTeam] || selectedGame.homeTeam}</span>
+
+  {selectedGame.homeRecord && (
+  <span className="text-xs text-gray-400">{selectedGame.homeRecord}</span>
+)}
+{gameTeamRecords?.[selectedGame.homeTeam]?.home && (
+  <span className="text-xs text-gray-600">{gameTeamRecords[selectedGame.homeTeam].home} home</span>
+)}
+ {!selectedGame.isPreGame && (
+  <span className={`text-4xl font-bold mt-3 ${
+    parseInt(selectedGame.homeScore) > parseInt(selectedGame.awayScore) ? 'text-white' : 'text-gray-500'
+  }`}>
+    {selectedGame.homeScore}
+  </span>
+)}
+</div>
+ </div>
+
+ {selectedGame.isPreGame && (() => {
+    const odds = bettingOdds[`${selectedGame.awayTeam}-${selectedGame.homeTeam}`];
+    if (!odds) return null;
+    return (
+      <OddsTable
+        game={selectedGame}
+        odds={odds}
+        awayProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.awayTeam, selectedGame)}
+        homeProb={calculateWinProbability(odds.spread, odds.favoriteTeam, selectedGame.homeTeam, selectedGame)}
+      />
+    );
+  })()}
+
+</div>
+
 
 
 {/* Quarter-by-Quarter Breakdown */}
@@ -2985,10 +3111,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 />
 
 {/* Team Selection Tabs */}
-<div
-  className="flex gap-2 pb-3 pt-1 -mx-4 px-4 bg-black"
-  style={selectedGame.isPreGame ? undefined : { position: 'sticky', top: 'calc(env(safe-area-inset-top) + var(--hdr-h, 56px))', zIndex: 39 }}
->
+<div className="flex gap-2 mb-3">
 <button
 onClick={() => { trigger('selection'); setSelectedTeam('away'); }}
 className={`flex-1 py-2 rounded-xl font-bold text-base transition-colors ${
@@ -3020,9 +3143,9 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
               
 
 {loadingDetails ? (
-  <div className="text-center py-12 text-gray-400" style={{ minHeight: '70vh' }}>Loading details...</div>
+  <div className="text-center py-12 text-gray-400">Loading details...</div>
 ) : gameDetails ? (
-<div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both', minHeight: '70vh' }}>
+  <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
     {selectedTeam === 'game' && !selectedGame.isPreGame ? (
       /* TEAM COMPARISON VIEW */
       <div className="bg-black rounded-2xl p-4">
@@ -4293,4 +4416,3 @@ export default function App() {
     </>
   );
 }
-
