@@ -12,7 +12,7 @@ import React, { useEffect, useLayoutEffect, useRef } from 'react';
    re-render it in place without remounting or resetting the scroll position.
 ============================================================================ */
 
-const COLLAPSE_PX = 100;                       // scroll distance over which the header shrinks
+const COLLAPSE_PX = 200;                       // scroll distance over which the header shrinks
 const heading = { fontFamily: 'Rajdhani, sans-serif' };
 const DIM = '#6b7280';                         // gray-500, the loser's score
 
