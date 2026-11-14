@@ -2987,7 +2987,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 {/* Team Selection Tabs */}
 <div
   className="flex gap-2 pb-3 pt-1 -mx-4 px-4 bg-black"
-  style={{ position: 'sticky', top: 'calc(env(safe-area-inset-top) + var(--hdr-h, 56px))', zIndex: 39 }}
+  style={selectedGame.isPreGame ? undefined : { position: 'sticky', top: 'calc(env(safe-area-inset-top) + var(--hdr-h, 56px))', zIndex: 39 }}
 >
 <button
 onClick={() => { trigger('selection'); setSelectedTeam('away'); }}

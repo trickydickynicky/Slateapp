@@ -123,7 +123,7 @@ export default function GameScoreHeader({
   const isLive = !!game.isLive;
   const kind = isLive ? 'live' : isPre ? 'pre' : 'final';
   const distRef = useRef(COLLAPSE_PX);
-  distRef.current = isPre ? COLLAPSE_PX_PRE : COLLAPSE_PX;
+  distRef.current = isPre ? Infinity : COLLAPSE_PX;   // pregame: --p stays 0, never collapses
 
   /* 1) scroll -> --p (and whether the header is actually pinned, for the notch strip) */
   useEffect(() => {
@@ -245,7 +245,7 @@ export default function GameScoreHeader({
       ref={headerRef}
       className="-mx-4"
       style={{
-        position: 'sticky',
+        position: isPre ? 'relative' : 'sticky',
         top: 'env(safe-area-inset-top)',
         zIndex: 40,
         background: '#000',
