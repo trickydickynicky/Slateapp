@@ -13,7 +13,7 @@ import React, { useEffect, useLayoutEffect, useRef } from 'react';
 ============================================================================ */
 
 const COLLAPSE_PX = 100;                       // live / final: scroll distance over which the header shrinks
-const COLLAPSE_PX_PRE = 220;                   // pregame: longer, because the odds table adds height to collapse                 // scroll distance over which the header shrinks
+const COLLAPSE_PX_PRE = 320;            // pregame: longer, because the odds table adds height to collapse                 // scroll distance over which the header shrinks
 const heading = { fontFamily: 'Rajdhani, sans-serif' };
 const DIM = '#6b7280';                         // gray-500, the loser's score
 
@@ -299,7 +299,7 @@ export default function GameScoreHeader({
             />
           </div>
 
-          {oddsSlot ? <Collapse>{oddsSlot}</Collapse> : null}
+          {oddsSlot ? <Collapse speed={1}>{oddsSlot}</Collapse> : null}
         </div>
       </div>
     </div>
