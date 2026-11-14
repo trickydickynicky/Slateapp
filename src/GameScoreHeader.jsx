@@ -134,6 +134,7 @@ export default function GameScoreHeader({
     let raf = 0;
     let lastP = -1;
     let lastStuck = null;
+    let lastH = -1;
     const apply = () => {
       raf = 0;
       let p = Math.min(Math.max(scroller.scrollTop / distRef.current, 0), 1);
@@ -143,6 +144,8 @@ export default function GameScoreHeader({
       const inset = strip ? strip.offsetHeight : 0;
       const stuck = el.getBoundingClientRect().top <= scroller.getBoundingClientRect().top + inset + 1;
       if (p !== lastP) { lastP = p; el.style.setProperty('--p', String(p)); }
+      const hh = el.offsetHeight;
+      if (hh !== lastH) { lastH = hh; scroller.style.setProperty('--hdr-h', `${hh}px`); }
       if (strip && stuck !== lastStuck) { lastStuck = stuck; strip.style.opacity = stuck ? '1' : '0'; }
     };
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(apply); };
@@ -167,7 +170,7 @@ export default function GameScoreHeader({
     el.style.setProperty('--p', '1');              // measure fully collapsed, restored before anything paints
     const h = el.offsetHeight;
     if (prev) el.style.setProperty('--p', prev); else el.style.removeProperty('--p');
-    if (h > 0) scroller.style.setProperty('--hdr-h', `${h}px`);
+    sync.current();
   }, [scrollRef, kind]);
 
   /* 3) a different game (swipe, past matchup, back): start at the top and re-sync --p */
