@@ -191,7 +191,7 @@ export function getGameLineups(gameId) {
 
 /* ── shared table ── */
 
-const COLS = [['MIN', 44], ['PTS', 40], ['OPP', 40], ['+/-', 44], ['POSS', 46], ['OFF', 44], ['DEF', 44], ['NET', 46]];
+const COLS = [['MIN', 44, 'desc'], ['PTS', 40, 'desc'], ['OPP', 40, 'desc'], ['+/-', 44, 'desc'], ['POSS', 46, 'desc'], ['OFF', 44, 'desc'], ['DEF', 44, 'asc'], ['NET', 46, 'desc']];
 const NAME_W = 168;
 
 const statCells = (sec, pts, opp, poss) => {
@@ -200,14 +200,14 @@ const statCells = (sec, pts, opp, poss) => {
   const def = poss >= 1 ? Math.round((opp / poss) * 100) : null;
   const net = off != null && def != null ? off - def : null;
   return [
-    { t: fmtMin(sec), c: 'text-gray-400' },
-    { t: String(pts), c: '' },
-    { t: String(opp), c: '' },
-    { t: sg(pm), c: `font-bold ${pmCls(pm)}` },
-    { t: poss >= 1 ? String(Math.round(poss)) : '–', c: 'text-gray-400' },
-    { t: off == null ? '–' : String(off), c: '' },
-    { t: def == null ? '–' : String(def), c: '' },
-    { t: sg(net), c: `font-bold ${net == null ? 'text-gray-400' : pmCls(net)}` },
+    { t: fmtMin(sec), v: sec, c: 'text-gray-400' },
+    { t: String(pts), v: pts, c: '' },
+    { t: String(opp), v: opp, c: '' },
+    { t: sg(pm), v: pm, c: `font-bold ${pmCls(pm)}` },
+    { t: poss >= 1 ? String(Math.round(poss)) : '–', v: poss >= 1 ? poss : null, c: 'text-gray-400' },
+    { t: off == null ? '–' : String(off), v: off, c: '' },
+    { t: def == null ? '–' : String(def), v: def, c: '' },
+    { t: sg(net), v: net, c: `font-bold ${net == null ? 'text-gray-400' : pmCls(net)}` },
   ];
 };
 
@@ -217,6 +217,11 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
   const [filter, setFilter] = useState({});    // playerId -> 'in' | 'out'
   const [showAll, setShowAll] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [sort, setSort] = useState({ i: 0, dir: 'desc' });   // i = index into COLS
+  const onSort = i => {
+    trigger('selection');
+    setSort(s => (s.i === i ? { i, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { i, dir: COLS[i][2] }));
+  };
   useEffect(() => { warmLineupImage(); }, []);
 
   const team = teams?.[teamIdx];
@@ -231,8 +236,17 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
   const rows = useMemo(() => {
     if (!team) return [];
     const f = Object.entries(filter);
-    return team.lineups.filter(l => f.every(([id, m]) => (m === 'in' ? l.ids.includes(id) : !l.ids.includes(id))));
-  }, [team, filter]);
+    const list = team.lineups.filter(l => f.every(([id, m]) => (m === 'in' ? l.ids.includes(id) : !l.ids.includes(id))));
+    const val = l => statCells(l.sec, l.pts, l.opp, l.poss)[sort.i].v;
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return list.sort((a, b) => {
+      const x = val(a), y = val(b);
+      if (x == null && y == null) return b.sec - a.sec;
+      if (x == null) return 1;
+      if (y == null) return -1;
+      return x === y ? b.sec - a.sec : dir * (x - y);
+    });
+  }, [team, filter, sort]);
 
   const cycle = id => setFilter(f => {
     const n = { ...f };
@@ -262,8 +276,8 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
         title: `${team.abbr} ${title}`,
         subtitle,
         countText: rows.length > shown.length
-          ? `Top ${shown.length} of ${rows.length} lineups by minutes`
-          : `${rows.length} lineup${rows.length === 1 ? '' : 's'}, by minutes`,
+        ? `Top ${shown.length} of ${rows.length} lineups by ${COLS[sort.i][0]}`
+        : `${rows.length} lineup${rows.length === 1 ? '' : 's'}, by ${COLS[sort.i][0]}`,
         rows: shown.map(l => ({
           name: l.ids.map(id => team.players[id] || id).join(', '),
           cells: statCells(l.sec, l.pts, l.opp, l.poss),
@@ -309,7 +323,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
       ) : (
         <>
           {teams.length > 1 && (
-            <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5 mb-3 w-max">
+          <div className="flex bg-zinc-900 rounded-full p-0.5 gap-0.5 mb-3 w-max -ml-4">
               {teams.map((t, i) => (
                 <button
                   key={t.id}
@@ -323,8 +337,8 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
           )}
 
 <div className="overflow-x-auto -mx-8 scrollbar-hide">
-          <div className="flex gap-2 pb-2 px-8 w-max">
-            {chips.map(id => {
+  <div className="flex gap-2 pb-2 w-max" style={{ paddingLeft: 16, paddingRight: 32 }}>
+    {chips.map(id => {
               const m = filter[id];
               return (
                 <button
@@ -342,18 +356,26 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
             })}
             </div>
             </div>
-            <div className="text-[11px] text-gray-500 mb-3">Tap once for lineups with him, twice for lineups without him, three times to clear.</div>
+            <div className="text-[11px] text-gray-500 mb-3 -ml-4">Tap once for lineups with him, twice for lineups without him, three times to clear.</div>
 
           {rows.length === 0 ? (
             <div className="text-xs text-gray-500 text-center py-4 border-t border-zinc-800">No lineups match</div>
           ) : (
             <>
-                           <div className="overflow-x-auto -mx-8 pl-6 pr-8">
+                        <div className="overflow-x-auto -mx-8 pl-4 pr-8">
                 <div className="w-max min-w-full">
                   <div className="flex items-center text-[10px] text-gray-500 mb-1">
                     <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W }}>LINEUP</span>
-                    {COLS.map(([label, w]) => (
-                      <span key={label} className="flex-shrink-0 text-center" style={{ width: w }}>{label}</span>
+                    {COLS.map(([label, w], i) => (
+                      <span
+                        key={label}
+                        onClick={() => onSort(i)}
+                        className="flex-shrink-0 text-center py-1 cursor-pointer select-none whitespace-nowrap"
+                        style={{ width: w }}
+                      >
+                        {label}
+                        {sort.i === i && <span className="text-blue-500 text-[8px] ml-0.5">{sort.dir === 'asc' ? '▲' : '▼'}</span>}
+                      </span>
                     ))}
                   </div>
 
