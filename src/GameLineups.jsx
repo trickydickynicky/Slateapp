@@ -362,10 +362,10 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
             <div className="text-xs text-gray-500 text-center py-4 border-t border-zinc-800">No lineups match</div>
           ) : (
             <>
-                        <div className="overflow-x-auto -mx-8 pl-4 pr-8">
+                       <div className="overflow-x-auto -mx-8 pr-8">
                 <div className="w-max min-w-full">
                   <div className="flex items-center text-[10px] text-gray-500 mb-1">
-                    <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W }}>LINEUP</span>
+                  <span className="sticky left-0 z-10 bg-black flex-shrink-0" style={{ width: NAME_W + 16, paddingLeft: 16 }}>LINEUP</span>
                     {COLS.map(([label, w], i) => (
                       <span
                         key={label}
@@ -381,7 +381,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
 
                   {shown.map(l => (
                     <div key={l.key} className="flex items-center py-2 border-t border-zinc-800 text-xs">
-                      <span className="sticky left-0 z-10 bg-black flex-shrink-0 pr-2 text-gray-200 leading-snug" style={{ width: NAME_W }}>
+                 <span className="sticky left-0 z-10 bg-black flex-shrink-0 pr-2 text-gray-200 leading-snug" style={{ width: NAME_W + 16, paddingLeft: 16 }}>
                         {l.ids.map(id => team.players[id] || id).join(', ')}
                       </span>
                       {renderCells(statCells(l.sec, l.pts, l.opp, l.poss))}
@@ -390,7 +390,7 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
 
                   {active && (
                     <div className="flex items-center py-2 border-t border-zinc-700 text-xs font-bold">
-                      <span className="sticky left-0 z-10 bg-black flex-shrink-0 text-gray-400" style={{ width: NAME_W }}>Combined</span>
+    <span className="sticky left-0 z-10 bg-black flex-shrink-0 text-gray-400" style={{ width: NAME_W + 16, paddingLeft: 16 }}>Combined</span>
                       {renderCells(statCells(tot.sec, tot.pts, tot.opp, tot.poss))}
                     </div>
                   )}
