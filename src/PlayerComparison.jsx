@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, Camera } from 'lucide-react';
 import { useSwipeBack } from './useSwipeBack';
 import { useWebHaptics } from 'web-haptics/react';
+import { renderComparisonImage, warmComparisonImage } from './PlayerComparisonImage';
+import { shareImage } from './lineupImage';
 
 const teamColors = {
   'ATL': '#E03A3E', 'BOS': '#007A33', 'BKN': '#000000', 'CHA': '#1D1160',
@@ -237,6 +239,8 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
       .finally(() => setLoadingLeft(false));
   }, [basePlayer?.id]);
 
+  useEffect(() => { warmComparisonImage(); }, []);
+
   const handleSearch = q => {
     setSearchQuery(q);
     if (!q || q.trim().length < 2) { setSearchResults([]); return; }
@@ -302,16 +306,29 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
     return fga > 0 ? (((fgm + 0.5 * tpm) / fga) * 100).toFixed(1) : '0';
   };
 
+  const nz = v => parseFloat(v) || 0;
+  const att = (s, k, i) => nz((s[k] || '0-0').split('-')[i]);
+  const per36 = (s, k) => (nz(s.min) > 0 ? ((nz(s[k]) / nz(s.min)) * 36).toFixed(1) : '0');
+  const astTo = s => (nz(s.to) > 0 ? (nz(s.ast) / nz(s.to)).toFixed(1) : '0');
+  const stocks = s => (nz(s.stl) + nz(s.blk)).toFixed(1);
+  const ftRate = s => (att(s, 'fg', 1) > 0 ? ((att(s, 'ft', 1) / att(s, 'fg', 1)) * 100).toFixed(1) : '0');
+  const tpRate = s => (att(s, 'fg', 1) > 0 ? ((att(s, 'three_pt', 1) / att(s, 'fg', 1)) * 100).toFixed(1) : '0');
+
   const statGroups = [
     { label: 'SCORING', rows: [
       { label: 'PTS', lv: L.pts, rv: R.pts },
+      { label: 'FGA', lv: att(L, 'fg', 1).toFixed(1), rv: att(R, 'fg', 1).toFixed(1) },
       { label: 'FG%', lv: L.fg_pct, rv: R.fg_pct, isPercent: true },
+      { label: '3PM', lv: att(L, 'three_pt', 0).toFixed(1), rv: att(R, 'three_pt', 0).toFixed(1) },
+      { label: '3PA', lv: att(L, 'three_pt', 1).toFixed(1), rv: att(R, 'three_pt', 1).toFixed(1) },
       { label: '3P%', lv: L.three_p_pct, rv: R.three_p_pct, isPercent: true },
+      { label: 'FTA', lv: att(L, 'ft', 1).toFixed(1), rv: att(R, 'ft', 1).toFixed(1) },
       { label: 'FT%', lv: L.ft_pct, rv: R.ft_pct, isPercent: true },
     ]},
     { label: 'PLAYMAKING', rows: [
       { label: 'AST', lv: L.ast, rv: R.ast },
       { label: 'TO', lv: L.to, rv: R.to, inverse: true },
+      { label: 'AST/TO', lv: astTo(L), rv: astTo(R) },
     ]},
     { label: 'REBOUNDING', rows: [
       { label: 'REB', lv: L.reb, rv: R.reb },
@@ -321,6 +338,7 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
     { label: 'DEFENSE', rows: [
       { label: 'STL', lv: L.stl, rv: R.stl },
       { label: 'BLK', lv: L.blk, rv: R.blk },
+      { label: 'STK', lv: stocks(L), rv: stocks(R) },
       { label: 'PF', lv: L.pf, rv: R.pf, inverse: true },
     ]},
     { label: 'AVAILABILITY', rows: [
@@ -331,6 +349,13 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
     { label: 'ADVANCED', rows: [
       { label: 'TS%', lv: calcTS(L), rv: calcTS(R), isPercent: true },
       { label: 'eFG%', lv: calcEFG(L), rv: calcEFG(R), isPercent: true },
+      { label: 'FTr', lv: ftRate(L), rv: ftRate(R), isPercent: true },
+      { label: '3PAr', lv: tpRate(L), rv: tpRate(R), isPercent: true },
+    ]},
+    { label: 'PER 36 MIN', rows: [
+      { label: 'PTS', lv: per36(L, 'pts'), rv: per36(R, 'pts') },
+      { label: 'REB', lv: per36(L, 'reb'), rv: per36(R, 'reb') },
+      { label: 'AST', lv: per36(L, 'ast'), rv: per36(R, 'ast') },
     ]},
   ];
 
@@ -343,6 +368,21 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
   const searchPlaceholder = searchTarget === 'left' ? 'Searching left slot...' : 'Searching right slot...';
   const targetColor = searchTarget === 'left' ? leftColor : rightColor;
 
+  const handleCamera = async () => {
+    if (!showStats) return;
+    trigger('light');
+    try {
+      const blob = await renderComparisonImage({
+        left: { name: leftPlayer.name, team: leftPlayer.teamAbbr, season: leftStats.currentSeason.displayName, color: leftColor },
+        right: { name: rightPlayer.name, team: rightPlayer.teamAbbr, season: rightStats.currentSeason.displayName, color: rightColor },
+        groups: statGroups,
+      });
+      await shareImage(blob, 'player-comparison.png');
+    } catch (e) {
+      console.error('Comparison image failed', e);
+    }
+  };
+
   return (
     <div ref={screenRef} className="fixed inset-0 bg-black z-[160] overflow-y-auto" style={{ animation: 'slideInRight 0.3s cubic-bezier(0.22,1,0.36,1)' }}>
      <div style={{ minHeight: '100vh', padding: '0 16px 56px', maxWidth: 500, margin: '0 auto' }}>
@@ -350,7 +390,14 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
         {/* Header */}
 <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18, position: 'sticky', top: 0, zIndex: 50, padding: '12px 0', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', background: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 100%)', borderBottom: '1px solid rgba(255,255,255,0.05)', marginLeft: -16, marginRight: -16, paddingLeft: 16, paddingRight: 16 }}>
 <button onClick={() => { trigger('light'); onClose(); }} style={{ color: '#6b7280', fontSize: 26, fontWeight: 300, marginRight: 12, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1 }}>‹</button>
-  <h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
+<h2 style={{ fontSize: 24, fontWeight: 900, fontFamily: 'Rajdhani, sans-serif', margin: 0, color: 'white' }}>Compare Players</h2>
+  <button
+    onClick={handleCamera}
+    disabled={!showStats}
+    style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: showStats ? 'pointer' : 'default', padding: 4, lineHeight: 0, opacity: showStats ? 1 : 0.3 }}
+  >
+    <Camera style={{ width: 20, height: 20, color: '#6b7280' }} />
+  </button>
 </div>
 
         {/* Player Cards */}
