@@ -373,8 +373,8 @@ export default function PlayerComparison({ basePlayer, playerCache, onClose }) {
     trigger('light');
     try {
       const blob = await renderComparisonImage({
-        left: { name: leftPlayer.name, team: leftPlayer.teamAbbr, season: leftStats.currentSeason.displayName, color: leftColor },
-        right: { name: rightPlayer.name, team: rightPlayer.teamAbbr, season: rightStats.currentSeason.displayName, color: rightColor },
+        left: { name: leftPlayer.name, team: leftPlayer.teamAbbr, season: leftStats.currentSeason.displayName, color: leftColor, headshot: leftPlayer.headshot?.href || leftPlayer.headshot },
+        right: { name: rightPlayer.name, team: rightPlayer.teamAbbr, season: rightStats.currentSeason.displayName, color: rightColor, headshot: rightPlayer.headshot?.href || rightPlayer.headshot },
         groups: statGroups,
       });
       await shareImage(blob, 'player-comparison.png');

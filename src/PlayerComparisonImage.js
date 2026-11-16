@@ -44,9 +44,22 @@ const visible = hex => {
  * left / right: { name, team, season, color }
  * groups: [{ label, rows: [{ label, lv, rv, inverse?, isPercent? }] }]  (same shape as statGroups in PlayerComparison)
  */
+const loadImg = url => new Promise(res => {
+  if (!url) return res(null);
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => res(img);
+  img.onerror = () => res(null);
+  img.src = url;
+  setTimeout(() => res(null), 4000);
+});
+const loadPlayerImg = async p =>
+  (await loadImg(p.headshot)) || (await loadImg(p.team ? `https://a.espncdn.com/i/teamlogos/nba/500/${p.team}.png` : null));
+
 export async function renderComparisonImage({ left, right, groups }) {
   try { await document.fonts?.ready; } catch (e) { /* fonts are optional */ }
   const logo = await loadLogo();
+  const [leftImg, rightImg] = await Promise.all([loadPlayerImg(left), loadPlayerImg(right)]);
 
   const HEAD_H = 214;
   const FOOT_H = 64;
@@ -87,14 +100,28 @@ export async function renderComparisonImage({ left, right, groups }) {
 
   // player headers: color bar + name + team/season, mirrored on the right
   const headY = 128;
-  const sideW = CX - PAD - 36;
-  const drawPlayer = (p, isLeft) => {
+  const sideW = CX - PAD - 36 - 66;
+  const drawPlayer = (p, isLeft, img) => {
     const color = visible(p.color);
     const barX = isLeft ? PAD : W - PAD - 4;
     ctx.fillStyle = color;
     ctx.fillRect(barX, headY, 4, 54);
+    const S = 54;
+    const ix = isLeft ? PAD + 14 : W - PAD - 14 - S;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(ix + S / 2, headY + S / 2, S / 2, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(ix, headY, S, S);
+    if (img) {
+      const r = Math.max(S / img.width, S / img.height);
+      const w = img.width * r, h = img.height * r;
+      ctx.drawImage(img, ix + (S - w) / 2, headY + (S - h) / 4, w, h);
+    }
+    ctx.restore();
     ctx.textAlign = isLeft ? 'left' : 'right';
-    const x = isLeft ? PAD + 16 : W - PAD - 16;
+    const x = isLeft ? PAD + 80 : W - PAD - 80;
     ctx.fillStyle = '#fff';
     ctx.font = `800 24px ${HEAD}`;
     ctx.fillText(fit(ctx, p.name || '', sideW - 16), x, headY + 24);
@@ -103,8 +130,8 @@ export async function renderComparisonImage({ left, right, groups }) {
     ctx.fillText([p.team, p.season].filter(Boolean).join('   ·   '), x, headY + 46);
     ctx.textAlign = 'left';
   };
-  drawPlayer(left, true);
-  drawPlayer(right, false);
+  drawPlayer(left, true, leftImg);
+  drawPlayer(right, false, rightImg);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#6b7280';
   ctx.font = `800 12px ${HEAD}`;
@@ -178,8 +205,7 @@ export async function renderComparisonImage({ left, right, groups }) {
   ctx.fillRect(PAD, y, W - PAD * 2, 1);
   ctx.fillStyle = '#6b7280';
   ctx.font = `500 11px ${FONT}`;
-  ctx.fillText('Blue dot marks the better number in each stat (lower is better for TO and PF).', PAD, y + 24);
-  ctx.fillText('Averages from ESPN. TS% and eFG% calculated from those averages.', PAD, y + 42);
+
 
   return new Promise((res, rej) => canvas.toBlob(b => (b ? res(b) : rej(new Error('Could not create image'))), 'image/png'));
 }
