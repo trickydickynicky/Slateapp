@@ -30,7 +30,7 @@ const COLS = [
     ['PF', ['fouls', 'personalFouls', 'pf']],
     ['+/-', ['plusMinus', '+/-']],
   ];
-  const colW = (l) => (/^(FG|3PT|FT)$/.test(l) ? 50 : 42);
+  const colW = (l) => (/^(FG|3PT|FT)$/.test(l) ? 46 : 38);
   
   function parseGamelog(json) {
   const names = json?.names || json?.labels || [];
@@ -164,7 +164,7 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
 
   return (
     <div className="bg-black rounded-2xl p-4 mt-3">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 -ml-4">
         <h5
           className="text-xs font-semibold text-gray-400 uppercase tracking-widest"
           style={{ fontFamily: 'Rajdhani, sans-serif' }}
@@ -220,11 +220,11 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
           </div>
 
                   {/* game rows: full box score, scrolls sideways, date + opponent stay pinned */}
-          <div className="overflow-x-auto -mx-4 px-4">
+                  <div className="overflow-x-auto -mx-4 pr-4">
             <div className="w-max min-w-full">
               <div className="flex text-[10px] text-gray-500 mb-1">
-                <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex" style={{ width: 128 }}>
-                  <span style={{ width: 44 }}>DATE</span>
+              <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex" style={{ width: 128, paddingLeft: 16 }}>
+              <span style={{ width: 38 }}>DATE</span>
                   <span>OPP</span>
                 </div>
                 {boxCols.map((l) => (
@@ -235,8 +235,8 @@ export default function PlayerRecentGames({ playerId, color = '#3B82F6' }) {
               </div>
               {shown.map((g) => (
                 <div key={g.id} className="flex items-center border-t border-zinc-800 text-xs py-1.5">
-                  <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex items-center" style={{ width: 128 }}>
-                    <span className="text-gray-400" style={{ width: 44 }}>
+                                  <div className="sticky left-0 z-10 bg-black flex-shrink-0 flex items-center" style={{ width: 128, paddingLeft: 16 }}>
+                                  <span className="text-gray-400" style={{ width: 38 }}>
                       {g.date ? `${g.date.slice(5, 7)}/${g.date.slice(8, 10)}` : '–'}
                     </span>
                     <span className="flex items-center gap-1 min-w-0">
