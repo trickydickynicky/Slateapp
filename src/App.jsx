@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense } from 'react';
 import { useWebHaptics } from 'web-haptics/react';
 
 import logo from './assets/slate-logo.png';
@@ -198,6 +198,117 @@ useEffect(() => {
 }, []);
 
 const liveOnCourt = useOnCourt(gameDetails, !!selectedGame?.isLive);
+
+// ── swipe between AWAY / GAME / HOME tabs ──
+const GAME_TABS = ['away', 'game', 'home'];
+const tabTrackRef = useRef(null);
+const selectedTeamRef = useRef(selectedTeam);
+selectedTeamRef.current = selectedTeam;
+const [peek, setPeek] = useState(null);   // 'next' | 'prev' while a swipe is in progress
+
+useLayoutEffect(() => {
+  if (peek) return;
+  const el = tabTrackRef.current;
+  if (el) { el.style.transition = 'none'; el.style.transform = ''; }
+}, [peek, selectedTeam]);
+
+useEffect(() => {
+  const el = tabTrackRef.current;
+  if (!el) return undefined;
+  const wrap = el.parentElement;
+  let sx = null, sy = null, mode = null, dir = null, sc = null, busy = false, t0 = 0, timer = null;
+
+  const hScroller = (node) => {
+    while (node && node !== wrap) {
+      if (node.scrollWidth > node.clientWidth + 1) {
+        const ox = getComputedStyle(node).overflowX;
+        if (ox === 'auto' || ox === 'scroll') return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const onStart = (e) => {
+    if (busy || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX <= 30) return;   // left edge belongs to swipe-back
+    sx = t.clientX; sy = t.clientY; mode = null; dir = null; t0 = Date.now();
+    sc = hScroller(e.target);
+  };
+
+  const onMove = (e) => {
+    if (sx === null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (mode === null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (Math.abs(dy) > Math.abs(dx)) { sx = null; return; }
+      if (sc) {   // wide tables scroll first; swipe tabs only when the table is at its edge
+        const atLeft = sc.scrollLeft <= 1;
+        const atRight = sc.scrollLeft >= sc.scrollWidth - sc.clientWidth - 1;
+        if ((dx > 0 && !atLeft) || (dx < 0 && !atRight)) { sx = null; return; }
+      }
+      mode = 'h';
+      const i = GAME_TABS.indexOf(selectedTeamRef.current);
+      const n = dx < 0 ? i + 1 : i - 1;
+      if (n >= 0 && n < GAME_TABS.length) { dir = dx < 0 ? 'next' : 'prev'; setPeek(dir); }
+    }
+    if (e.cancelable) e.preventDefault();
+    if (dir && el.children.length < 2) return;   // neighbor pane not rendered yet
+    const W = wrap.clientWidth || window.innerWidth;
+    let off;
+    if (dir === 'next') off = Math.max(-W, Math.min(0, dx));
+    else if (dir === 'prev') off = Math.max(0, Math.min(W, dx));
+    else off = dx * 0.2;   // no tab in that direction: rubber-band
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dir === 'prev' ? off - W : off}px)`;
+  };
+
+  const settle = (commit, target, W) => {
+    const end = dir === 'prev' ? (commit ? 0 : -W) : (commit ? -W : 0);
+    busy = true;
+    el.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+    el.style.transform = `translateX(${end}px)`;
+    timer = setTimeout(() => {
+      if (commit && target) { trigger('selection'); setSelectedTeam(target); }
+      setPeek(null);
+      dir = null; busy = false;
+    }, 290);
+  };
+
+  const onEnd = (e) => {
+    if (sx === null || mode !== 'h') { sx = null; mode = null; return; }
+    const dx = e.changedTouches[0].clientX - sx;
+    const W = wrap.clientWidth || window.innerWidth;
+    const fast = Math.abs(dx) / Math.max(Date.now() - t0, 1) > 0.5;
+    const i = GAME_TABS.indexOf(selectedTeamRef.current);
+    const target = dir === 'next' ? GAME_TABS[i + 1] : dir === 'prev' ? GAME_TABS[i - 1] : null;
+    const rightWay = dir === 'next' ? dx < 0 : dx > 0;
+    const commit = !!dir && rightWay && Math.abs(dx) > 30 && (Math.abs(dx) > W * 0.3 || fast);
+    sx = null; mode = null;
+    settle(commit, target, W);
+  };
+
+  const onCancel = () => {
+    if (mode !== 'h') { sx = null; mode = null; return; }
+    const W = wrap.clientWidth || window.innerWidth;
+    sx = null; mode = null;
+    settle(false, null, W);
+  };
+
+  el.addEventListener('touchstart', onStart, { passive: true });
+  el.addEventListener('touchmove', onMove, { passive: false });
+  el.addEventListener('touchend', onEnd);
+  el.addEventListener('touchcancel', onCancel);
+  return () => {
+    el.removeEventListener('touchstart', onStart);
+    el.removeEventListener('touchmove', onMove);
+    el.removeEventListener('touchend', onEnd);
+    el.removeEventListener('touchcancel', onCancel);
+    clearTimeout(timer);
+  };
+}, [selectedGame?.id, !!gameDetails, loadingDetails]);
 
 
 // Live games: keep the box score and plays fresh (the page only refreshed when you came back to the app)
@@ -3145,8 +3256,11 @@ style={{ fontFamily: 'Rajdhani, sans-serif' }}
 {loadingDetails ? (
   <div className="text-center py-12 text-gray-400">Loading details...</div>
 ) : gameDetails ? (
-  <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both' }}>
-    {selectedTeam === 'game' && !selectedGame.isPreGame ? (
+  <div key={selectedGame.id} style={{ animation: 'fadeSlideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both', overflowX: 'clip' }}>
+   <div ref={tabTrackRef} style={{ display: 'flex', width: '100%' }}>
+    {(() => {
+      const renderTab = (selectedTeam) => (
+        selectedTeam === 'game' && !selectedGame.isPreGame ? (
       /* TEAM COMPARISON VIEW */
       <div className="bg-black rounded-2xl p-4">
         <div className="space-y-4">
@@ -4078,9 +4192,19 @@ onClick={(e) => {
                       <GameLineups gameId={selectedGame.id} />
                     </div>
                   </div>
-                )}
-                </div>
-              ) : null}
+                              )
+                            );
+                            const i = GAME_TABS.indexOf(selectedTeam);
+                            const shown = peek === 'next' && i < 2 ? [GAME_TABS[i], GAME_TABS[i + 1]]
+                              : peek === 'prev' && i > 0 ? [GAME_TABS[i - 1], GAME_TABS[i]]
+                              : [GAME_TABS[i]];
+                            return shown.map(t => (
+                              <div key={t} style={{ flex: '0 0 100%', minWidth: 0 }}>{renderTab(t)}</div>
+                            ));
+                          })()}
+                         </div>
+                                      </div>
+                                    ) : null}
             </div>
           </div>
         </div>
