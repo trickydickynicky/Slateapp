@@ -13,6 +13,20 @@ const ONOFF_STATS = [
   { key: 'net', label: 'NET', long: 'Net rating', decimals: 1, high: true },
   { key: 'pm', label: '+/-', long: 'Plus/minus', decimals: 1, high: true },
 ];
+/* 3P% only counts shooters with real volume: 3PA >= 30% of the league leader's 3PA */
+const MIN_3PA_TOTAL = 10; // minimum total 3-point attempts to qualify
+const isThreePct = s => !!s && (
+  (/3/.test(s.label || '') && /%/.test(s.label || '')) ||
+  (/3/.test(s.key || '') && /pct|%|percent/i.test(s.key || ''))
+);
+const findAttKey = rows => {
+  const sample = rows.find(Boolean);
+  if (!sample) return null;
+  const keys = Object.keys(sample);
+  return keys.find(k => /^(fg3a|3pa|tpa|threepa|3pt?a|fg3_?att\w*)$/i.test(k))
+    || keys.find(k => /3/.test(k) && /(a|att|attempts)$/i.test(k) && !/pct|%|percent|made|m$/i.test(k))
+    || null;
+};
 const caret = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%232563eb' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`;
 const card = { background: '#0a0a0a', border: '1px solid #171717', color: MUTED, fontSize: 13, fontWeight: 600 };
 
@@ -142,6 +156,7 @@ export default function Leaderboards({
   const [team, setTeam] = useState('');
   const [pos, setPos] = useState('');
   const [tick, setTick] = useState(0);
+  const [volOnly, setVolOnly] = useState(true);
   const [highlightId] = useState(initial.highlightId != null ? String(initial.highlightId) : null);
 
   const isTeams = scope === 'teams';
@@ -167,10 +182,16 @@ export default function Leaderboards({
     list.sort((a, b) => (onoffStat.high ? b.value - a.value : a.value - b.value));
     return list.map((r, i) => ({ ...r, rank: i + 1 }));
   }, [onoffStat, rows, onoffRows]);
-  const ranked = useMemo(
-    () => (!isTeams && rows ? (onoffStat ? onoffRanked : rankPlayers(rows, stat)) : []),
-    [isTeams, rows, stat, onoffStat, onoffRanked]
-  );
+  const ranked = useMemo(() => {
+    if (isTeams || !rows) return [];
+    if (onoffStat) return onoffRanked;
+    let base = rows;
+    if (volOnly && isThreePct(stat)) {
+      const total3pa = r => Math.round((Number(r.vals?.tpa) || 0) * (Number(r.gp) || 0));
+      base = rows.filter(r => total3pa(r) >= MIN_3PA_TOTAL);
+    }
+    return rankPlayers(base, stat);
+  }, [isTeams, rows, stat, onoffStat, onoffRanked, volOnly]);
   const teamOpts = useMemo(() => [...new Set((rows || []).map(r => r.team).filter(Boolean))].sort(), [rows]);
   const posOpts = useMemo(() => [...new Set((rows || []).map(r => r.pos).filter(Boolean))].sort(), [rows]);
   const playerItems = useMemo(
@@ -255,6 +276,17 @@ export default function Leaderboards({
           <Pick label="Stat" width={`${stat.long.length * 8.5 + 20}px`} value={stat.key} onChange={e => { haptic('selection'); setStatKey(e.target.value); }}>
           {(isTeams ? TEAM_STATS : [...PLAYER_STATS, ...ONOFF_STATS]).map(s => <option key={s.key} value={s.key} className="bg-zinc-900">{s.long}</option>)}
           </Pick>
+          {!isTeams && isThreePct(stat) && (
+  <button
+    onClick={() => { haptic('selection'); setVolOnly(v => !v); }}
+    className={`px-3 rounded-full text-xs font-bold flex-shrink-0 transition-all ${
+      volOnly ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.7)]' : 'bg-zinc-900 text-gray-400'
+    }`}
+    style={{ minHeight: 28 }}
+  >
+    Volume only
+  </button>
+)}
           {!isTeams && (
             <>
               <Pick label="Team" value={team} onChange={e => { haptic('selection'); setTeam(e.target.value); }}>
