@@ -202,6 +202,7 @@ const liveOnCourt = useOnCourt(gameDetails, !!selectedGame?.isLive);
 // ── swipe between AWAY / GAME / HOME tabs ──
 const GAME_TABS = ['away', 'game', 'home'];
 const tabTrackRef = useRef(null);
+const tabClaim = useRef(false);   // true while the tab swipe owns a gesture
 const selectedTeamRef = useRef(selectedTeam);
 selectedTeamRef.current = selectedTeam;
 const [peek, setPeek] = useState(null);   // 'next' | 'prev' while a swipe is in progress
@@ -252,7 +253,8 @@ useEffect(() => {
       mode = 'h';
       const i = GAME_TABS.indexOf(selectedTeamRef.current);
       const n = dx < 0 ? i + 1 : i - 1;
-      if (n >= 0 && n < GAME_TABS.length) { dir = dx < 0 ? 'next' : 'prev'; setPeek(dir); }
+      if (n < 0 || n >= GAME_TABS.length) { sx = null; mode = null; return; }   // edge tab: game swipe takes over
+      dir = dx < 0 ? 'next' : 'prev'; setPeek(dir); tabClaim.current = true;
     }
     if (e.cancelable) e.preventDefault();
     if (dir && el.children.length < 2) return;   // neighbor pane not rendered yet
@@ -266,6 +268,7 @@ useEffect(() => {
   };
 
   const settle = (commit, target, W) => {
+    tabClaim.current = false;
     const end = dir === 'prev' ? (commit ? 0 : -W) : (commit ? -W : 0);
     busy = true;
     el.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
@@ -309,6 +312,158 @@ useEffect(() => {
     clearTimeout(timer);
   };
 }, [selectedGame?.id, !!gameDetails, loadingDetails]);
+
+// ── swipe between GAMES (slides the whole page) ──
+const gameTrackRef = useRef(null);
+const goGameRef = useRef(null);
+const gamesLenRef = useRef(0);
+const gameIdxRef = useRef(0);
+gamesLenRef.current = liveGames.length;
+gameIdxRef.current = currentGameIndex;
+const [gamePeek, setGamePeek] = useState(null);
+
+useEffect(() => {
+  const i = liveGames.findIndex(g => g.id === selectedGame?.id);
+  if (i >= 0 && i !== currentGameIndex) setCurrentGameIndex(i);
+}, [selectedGame?.id, liveGames]);
+
+useLayoutEffect(() => {
+  if (gamePeek) return;
+  const el = gameTrackRef.current;
+  if (el) { el.style.transition = 'none'; el.style.transform = ''; }
+}, [gamePeek, selectedGame?.id]);
+
+useEffect(() => {
+  const el = gameTrackRef.current;
+  if (!el) return undefined;
+  const wrap = el.parentElement;
+  let sx = null, sy = null, mode = null, dir = null, sc = null, busy = false, t0 = 0, timer = null;
+
+  const hScroller = (node) => {
+    while (node && node !== wrap) {
+      if (node.scrollWidth > node.clientWidth + 1) {
+        const ox = getComputedStyle(node).overflowX;
+        if (ox === 'auto' || ox === 'scroll') return node;
+      }
+      node = node.parentElement;
+    }
+    return null;
+  };
+
+  const onStart = (e) => {
+    if (busy || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    if (t.clientX <= 30) return;   // left edge belongs to swipe-back
+    sx = t.clientX; sy = t.clientY; mode = null; dir = null; t0 = Date.now();
+    sc = hScroller(e.target);
+  };
+
+  const onMove = (e) => {
+    if (sx === null) return;
+    const t = e.touches[0];
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (mode === null) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (Math.abs(dy) > Math.abs(dx)) { sx = null; return; }
+      if (tabClaim.current) { sx = null; return; }   // the tab swipe has this one
+      if (sc) {
+        const atLeft = sc.scrollLeft <= 1;
+        const atRight = sc.scrollLeft >= sc.scrollWidth - sc.clientWidth - 1;
+        if ((dx > 0 && !atLeft) || (dx < 0 && !atRight)) { sx = null; return; }
+      }
+      mode = 'h';
+      const i = gameIdxRef.current;
+      const n = dx < 0 ? i + 1 : i - 1;
+      if (i >= 0 && n >= 0 && n < gamesLenRef.current) { dir = dx < 0 ? 'next' : 'prev'; setGamePeek(dir); }
+    }
+    if (e.cancelable) e.preventDefault();
+    if (dir && el.children.length < 2) return;   // neighbor pane not rendered yet
+    const W = wrap.clientWidth || window.innerWidth;
+    let off;
+    if (dir === 'next') off = Math.max(-W, Math.min(0, dx));
+    else if (dir === 'prev') off = Math.max(0, Math.min(W, dx));
+    else off = dx * 0.2;   // first/last game: rubber-band
+    el.style.transition = 'none';
+    el.style.transform = `translateX(${dir === 'prev' ? off - W : off}px)`;
+  };
+
+  const settle = (commit, W) => {
+    const end = dir === 'prev' ? (commit ? 0 : -W) : (commit ? -W : 0);
+    busy = true;
+    el.style.transition = 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+    el.style.transform = `translateX(${end}px)`;
+    const d = dir;
+    timer = setTimeout(() => {
+      if (commit && d && goGameRef.current) goGameRef.current(d);
+      setGamePeek(null);
+      dir = null; busy = false;
+    }, 290);
+  };
+
+  const onEnd = (e) => {
+    if (sx === null || mode !== 'h') { sx = null; mode = null; return; }
+    const dx = e.changedTouches[0].clientX - sx;
+    const W = wrap.clientWidth || window.innerWidth;
+    const fast = Math.abs(dx) / Math.max(Date.now() - t0, 1) > 0.5;
+    const rightWay = dir === 'next' ? dx < 0 : dx > 0;
+    const commit = !!dir && rightWay && Math.abs(dx) > 30 && (Math.abs(dx) > W * 0.3 || fast);
+    sx = null; mode = null;
+    settle(commit, W);
+  };
+
+  const onCancel = () => {
+    if (mode !== 'h') { sx = null; mode = null; return; }
+    const W = wrap.clientWidth || window.innerWidth;
+    sx = null; mode = null;
+    settle(false, W);
+  };
+
+  el.addEventListener('touchstart', onStart, { passive: true });
+  el.addEventListener('touchmove', onMove, { passive: false });
+  el.addEventListener('touchend', onEnd);
+  el.addEventListener('touchcancel', onCancel);
+  return () => {
+    el.removeEventListener('touchstart', onStart);
+    el.removeEventListener('touchmove', onMove);
+    el.removeEventListener('touchend', onEnd);
+    el.removeEventListener('touchcancel', onCancel);
+    clearTimeout(timer);
+  };
+}, [!!selectedGame]);
+
+// Lightweight preview of the neighboring game while you drag
+const renderGamePreview = (g) => (
+  <div>
+    <div className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2">
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col items-center flex-1">
+          <img src={g.awayLogo} alt={g.awayTeam} className="w-10 h-10 mb-1" />
+          <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[g.awayTeam] || g.awayTeam}</span>
+          {g.awayRecord && <span className="text-xs text-gray-400">{g.awayRecord}</span>}
+          {!g.isPreGame && <span className="text-4xl font-bold mt-3 text-white">{g.awayScore}</span>}
+        </div>
+        <div className="flex flex-col items-center px-4 pt-2 min-w-[90px] text-center">
+          {g.isLive && <span className="text-red-500 font-bold text-xs tracking-widest uppercase">Live</span>}
+          {g.isLive && <span className="text-xs text-gray-400">Q{g.period} • {g.clock}</span>}
+          {g.isPreGame && <span className="text-gray-300 text-sm font-semibold">{formatGameTime(g.gameTime)}</span>}
+          {g.isFinal && <span className="text-gray-400 text-xs font-bold tracking-widest uppercase">Final</span>}
+        </div>
+        <div className="flex flex-col items-center flex-1">
+          <img src={g.homeLogo} alt={g.homeTeam} className="w-10 h-10 mb-1" />
+          <span className="text-base font-bold whitespace-nowrap" style={{ fontFamily: 'Rajdhani, sans-serif' }}>{teamCities[g.homeTeam] || g.homeTeam}</span>
+          {g.homeRecord && <span className="text-xs text-gray-400">{g.homeRecord}</span>}
+          {!g.isPreGame && <span className="text-4xl font-bold mt-3 text-white">{g.homeScore}</span>}
+        </div>
+      </div>
+    </div>
+    <div className="flex gap-2 mb-3 mt-3">
+      {[g.awayTeam, 'Game', g.homeTeam].map((l, i) => (
+        <div key={i} className={`flex-1 py-2 rounded-xl font-bold text-base text-center ${i === 0 ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>{l}</div>
+      ))}
+    </div>
+    <div className="skeleton rounded-2xl" style={{ height: 260 }} />
+  </div>
+);
 
 
 // Live games: keep the box score and plays fresh (the page only refreshed when you came back to the app)
@@ -1882,6 +2037,8 @@ console.log('🏀 FULL DATA:', data);
     fetchGameTeamRecords(nextGame.awayTeam, nextGame.homeTeam);
   };
 
+  goGameRef.current = handleScoreboardSwipe;
+
   const onScoreboardTouchStart = (e) => {
     scoreboardSwipeStart.current = e.changedTouches[0].clientX;
     setIsScoreboardSwiping(true);
@@ -2962,6 +3119,12 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
   <div className="min-h-screen px-4 pb-8" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-2xl mx-auto">
       <BackButton onClick={() => { trigger('light'); closeModal(); }} />
+<div style={{ overflowX: 'clip' }}>
+<div ref={gameTrackRef} style={{ display: 'flex', width: '100%' }}>
+{gamePeek === 'prev' && currentGameIndex > 0 && liveGames[currentGameIndex - 1] && (
+  <div style={{ flex: '0 0 100%', minWidth: 0 }}>{renderGamePreview(liveGames[currentGameIndex - 1])}</div>
+)}
+<div style={{ flex: '0 0 100%', minWidth: 0 }}>
         <div
 className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab active:cursor-grabbing"
   style={{
@@ -2970,13 +3133,6 @@ className="bg-black rounded-2xl px-6 pt-4 pb-1 mb-2 select-none cursor-grab acti
     touchAction: 'pan-y',
     userSelect: 'none',
   }}
-  onTouchStart={onScoreboardTouchStart}
-  onTouchMove={onScoreboardTouchMove}
-  onTouchEnd={onScoreboardTouchEnd}
-  onMouseDown={onScoreboardMouseDown}
-  onMouseMove={onScoreboardMouseMove}
-  onMouseUp={onScoreboardMouseUp}
-  onMouseLeave={onScoreboardMouseUp}
 >
 <div className="flex items-start justify-between">
             {/* AWAY TEAM - LEFT SIDE */}
@@ -4202,9 +4358,15 @@ onClick={(e) => {
                               <div key={t} style={{ flex: '0 0 100%', minWidth: 0 }}>{renderTab(t)}</div>
                             ));
                           })()}
-                         </div>
-                                      </div>
-                                    ) : null}
+                          </div>
+                                       </div>
+                                     ) : null}
+                       </div>
+                       {gamePeek === 'next' && liveGames[currentGameIndex + 1] && (
+                         <div style={{ flex: '0 0 100%', minWidth: 0 }}>{renderGamePreview(liveGames[currentGameIndex + 1])}</div>
+                       )}
+                       </div>
+                       </div>
             </div>
           </div>
         </div>
