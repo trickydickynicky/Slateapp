@@ -323,6 +323,34 @@ gamesLenRef.current = liveGames.length;
 gameIdxRef.current = currentGameIndex;
 const [gamePeek, setGamePeek] = useState(null);
 
+// prefetch neighbor games so the swipe preview and the landing page have data immediately
+const detailsCache = useRef(new Map());
+const [, bumpCache] = useState(0);
+const prefetchGame = async (id) => {
+  if (!id || detailsCache.current.has(id)) return;
+  detailsCache.current.set(id, null);   // mark in flight
+  try {
+    const base = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
+    const data = await (await fetch(`${base}/summary?event=${id}`)).json();
+    const roster = async tid => (tid ? (await (await fetch(`${base}/teams/${tid}/roster`)).json()).athletes : null);
+    const [homeRoster, awayRoster] = await Promise.all([
+      roster(data.boxscore?.teams?.[1]?.team?.id),
+      roster(data.boxscore?.teams?.[0]?.team?.id),
+    ]);
+    detailsCache.current.set(id, { ...data, homeRoster, awayRoster });
+    if (detailsCache.current.size > 8) detailsCache.current.delete(detailsCache.current.keys().next().value);
+    bumpCache(n => n + 1);
+  } catch (e) { detailsCache.current.delete(id); }
+};
+
+useEffect(() => {
+  if (!gameDetails || !selectedGame) return undefined;
+  const t = setTimeout(() => {
+    [liveGames[currentGameIndex - 1], liveGames[currentGameIndex + 1]].forEach(g => g && prefetchGame(g.id));
+  }, 600);
+  return () => clearTimeout(t);
+}, [selectedGame?.id, !!gameDetails, currentGameIndex, liveGames.length]);
+
 useEffect(() => {
   const i = liveGames.findIndex(g => g.id === selectedGame?.id);
   if (i !== currentGameIndex) setCurrentGameIndex(i);
@@ -462,7 +490,30 @@ const renderGamePreview = (g) => (
         <div key={i} className={`flex-1 py-2 rounded-xl font-bold text-base text-center ${i === 0 ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-gray-300'}`} style={{ fontFamily: 'Rajdhani, sans-serif' }}>{l}</div>
       ))}
     </div>
-    <div className="skeleton rounded-2xl" style={{ height: 260 }} />
+    {(() => {
+      const d = detailsCache.current.get(g.id);
+      if (!d) return <div className="skeleton rounded-2xl" style={{ height: 260 }} />;
+      const box = d.boxscore?.players?.[0]?.statistics?.[0]?.athletes || [];
+      const rows = !g.isPreGame && box.length
+        ? [...box].sort((a, b) => (parseFloat(b.stats?.[0]) || 0) - (parseFloat(a.stats?.[0]) || 0)).slice(0, 10).map(p => ({
+            id: p.athlete.id, name: p.athlete.shortName, img: p.athlete.headshot?.href,
+            right: `${p.stats?.[0] || '-'} MIN · ${p.stats?.[1] || '-'} PTS · ${p.stats?.[5] || '-'} REB · ${p.stats?.[6] || '-'} AST`,
+          }))
+        : (d.awayRoster || []).slice(0, 10).map(p => ({
+            id: p.id, name: p.displayName, img: p.headshot?.href, right: p.position?.abbreviation || '',
+          }));
+      return (
+        <div className="bg-black rounded-2xl p-4">
+          {rows.map(r => (
+            <div key={r.id} className="flex items-center gap-3 py-2 border-b border-zinc-800 last:border-0">
+              {r.img ? <img src={r.img} alt="" className="w-10 h-10 rounded-full object-cover" /> : <div className="w-10 h-10 rounded-full bg-zinc-800" />}
+              <span className="flex-1 truncate text-sm">{r.name}</span>
+              <span className="text-xs text-gray-400 whitespace-nowrap">{r.right}</span>
+            </div>
+          ))}
+        </div>
+      );
+    })()}
   </div>
 );
 
@@ -2040,6 +2091,8 @@ console.log('🏀 FULL DATA:', data);
     setSelectedTeam('away');
     setGameDetails(null);
     setPregameMatchupStats(null);
+    const cached = detailsCache.current.get(nextGame.id);
+    if (cached) setGameDetails(cached);
     fetchGameDetails(nextGame.id);
     fetchGameTeamRecords(nextGame.awayTeam, nextGame.homeTeam);
   };
