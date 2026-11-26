@@ -4,7 +4,7 @@ import { Camera } from 'lucide-react';
 import { renderLineupsImage, shareImage, warmLineupImage } from './lineupImage';
 
 const SUMMARY_URL = id => `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=${id}`;
-const PREFIX = 'lineups:v3:';
+const PREFIX = 'lineups:v4:';
 const memCache = new Map();
 const pending = new Map();
 const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
@@ -25,6 +25,12 @@ const fmtMin = s => {
 };
 const sg = v => (v == null ? '–' : v > 0 ? `+${v}` : String(v));
 const pmCls = v => (v > 0 ? 'text-green-400' : v < 0 ? 'text-red-400' : 'text-gray-400');
+const isGarbage = (period, clock, a, h) => {
+  if (period !== 4) return false;
+  const left = clockSecs(clock);
+  const m = Math.abs(a - h);
+  return (m >= 20 && left <= 360) || (m >= 15 && left <= 240) || (m >= 10 && left <= 120);
+};
 
 /** ESPN summary JSON -> [{ id, abbr, players: {id: lastName}, lineups: [{ key, ids, sec, pts, opp, poss }] }] */
 export function computeLineups(j) {
@@ -35,7 +41,7 @@ export function computeLineups(j) {
 
   (j?.boxscore?.players || []).forEach(t => {
     const tid = String(t.team?.id);
-    teams[tid] = { id: tid, abbr: t.team?.abbreviation || tid, players: {}, stints: {} };
+    teams[tid] = { id: tid, abbr: t.team?.abbreviation || tid, players: {}, stints: {}, clean: {} };
     starters[tid] = [];
     (t.statistics?.[0]?.athletes || []).forEach(a => {
       const id = String(a.athlete?.id);
@@ -98,6 +104,7 @@ export function computeLineups(j) {
     else if (p.shootingPlay && num(p.pointsAttempted) > 0) ctr[tid].fga++;
   };
 
+  let gtHit = false;
   const state = {};
   tids.forEach(tid => { state[tid] = { on: new Set(starters[tid]) }; });
 
@@ -120,8 +127,12 @@ export function computeLineups(j) {
     if (dur <= 0 && !mine && !opp && dp <= 0) return;
     const ids = [...s.on].sort();
     const key = ids.join('-');
-    const e = teams[tid].stints[key] || (teams[tid].stints[key] = { key, ids, sec: 0, pts: 0, opp: 0, poss: 0 });
-    e.sec += Math.max(dur, 0); e.pts += mine; e.opp += opp; e.poss += Math.max(dp, 0);
+    const add = map => {
+      const e = map[key] || (map[key] = { key, ids, sec: 0, pts: 0, opp: 0, poss: 0 });
+      e.sec += Math.max(dur, 0); e.pts += mine; e.opp += opp; e.poss += Math.max(dp, 0);
+    };
+    add(teams[tid].stints);
+    if (!gtHit) add(teams[tid].clean);
   };
 
   let last = { t: 0, a: 0, h: 0 };
@@ -129,6 +140,11 @@ export function computeLineups(j) {
     const t = elapsed(p.period?.number, p.clock?.displayValue);
     const a = num(p.awayScore), h = num(p.homeScore);
     last = { t, a, h };
+    if (!gtHit && isGarbage(p.period?.number, p.clock?.displayValue, a, h)) {
+      tids.forEach(tid => close(tid, t, a, h));
+      gtHit = true;
+      tids.forEach(tid => { if (state[tid].on.size === 5) open(tid, t, a, h); });
+    }
     if (p.type?.text !== 'Substitution') { tally(p); continue; }
     const [inn, out] = p.participants || [];
     const tid = teamOf[String(inn?.athlete?.id)];
@@ -153,6 +169,7 @@ export function computeLineups(j) {
       abbr: teams[tid].abbr,
       players: teams[tid].players,
       lineups: Object.values(teams[tid].stints).sort((x, y) => y.sec - x.sec),
+      lineupsClean: Object.values(teams[tid].clean).sort((x, y) => y.sec - x.sec),
     }))
     .sort((a, b) => Number(isHome(a.id)) - Number(isHome(b.id)));
 }
@@ -224,7 +241,12 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
   };
   useEffect(() => { warmLineupImage(); }, []);
 
-  const team = teams?.[teamIdx];
+  const [noGT, setNoGT] = useState(false);
+  const base = teams?.[teamIdx];
+  const team = useMemo(
+    () => (base && noGT ? { ...base, lineups: base.lineupsClean || base.lineups } : base),
+    [base, noGT]
+  );
 
   const chips = useMemo(() => {
     if (!team) return [];
@@ -270,8 +292,9 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
       const pick = mode => Object.entries(filter).filter(([, v]) => v === mode).map(([id]) => team.players[id] || id);
       const w = pick('in');
       const wo = pick('out');
-      const subtitle = [w.length ? `With ${w.join(', ')}` : null, wo.length ? `Without ${wo.join(', ')}` : null]
-        .filter(Boolean).join('   ·   ') || 'All lineups';
+      let subtitle = [w.length ? `With ${w.join(', ')}` : null, wo.length ? `Without ${wo.join(', ')}` : null]
+      .filter(Boolean).join('   ·   ') || 'All lineups';
+      if (noGT) subtitle += '   ·   Garbage time excluded';
       const blob = await renderLineupsImage({
         title: `${team.abbr} ${title}`,
         subtitle,
@@ -336,6 +359,14 @@ function LineupsView({ title, teams, loading = false, progress = '', compact = f
             </div>
           )}
 
+<div className="-ml-4 mb-3">
+            <button
+              onClick={() => { trigger('selection'); setNoGT(v => !v); setFilter({}); setShowAll(false); }}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border ${noGT ? 'bg-blue-600 border-blue-600 text-white' : 'bg-zinc-900 border-zinc-700 text-gray-300'}`}
+            >
+              Exclude garbage time
+            </button>
+          </div>
 <div className="overflow-x-auto -mx-8 scrollbar-hide">
   <div className="flex gap-2 pb-2 w-max" style={{ paddingLeft: 16, paddingRight: 32 }}>
     {chips.map(id => {
@@ -428,16 +459,23 @@ export default function GameLineups({ gameId }) {
 function aggregate(perGame, abbr) {
   const players = {};
   const map = {};
+  const mapC = {};
   perGame.forEach(d => {
     const t = (d || []).find(x => x.abbr === abbr);
     if (!t) return;
     Object.assign(players, t.players);
-    t.lineups.forEach(l => {
-      const e = map[l.key] || (map[l.key] = { key: l.key, ids: l.ids, sec: 0, pts: 0, opp: 0, poss: 0 });
-      e.sec += l.sec; e.pts += l.pts; e.opp += l.opp; e.poss += l.poss;
+    [[t.lineups, map], [t.lineupsClean || t.lineups, mapC]].forEach(([list, target]) => {
+      list.forEach(l => {
+        const e = target[l.key] || (target[l.key] = { key: l.key, ids: l.ids, sec: 0, pts: 0, opp: 0, poss: 0 });
+        e.sec += l.sec; e.pts += l.pts; e.opp += l.opp; e.poss += l.poss;
+      });
     });
   });
-  return { id: abbr, abbr, players, lineups: Object.values(map).sort((a, b) => b.sec - a.sec) };
+  return {
+    id: abbr, abbr, players,
+    lineups: Object.values(map).sort((a, b) => b.sec - a.sec),
+    lineupsClean: Object.values(mapC).sort((a, b) => b.sec - a.sec),
+  };
 }
 
 export function SeasonLineups({ teamAbbr, schedule }) {

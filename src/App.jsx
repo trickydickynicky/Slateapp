@@ -4064,7 +4064,7 @@ onClick={(e) => {
 </table>
                       </div>
                     </div>
-                    <GameLineups gameId={selectedGame.id} />
+                 
                     <ShotChart
                       key={`${selectedGame.id}-${selectedTeam}`}
                       gameDetails={gameDetails}
@@ -4073,7 +4073,10 @@ onClick={(e) => {
                                            logo="/slate-logo.png"
                       abbr={selectedTeam === 'away' ? selectedGame.awayTeam : selectedGame.homeTeam}
                       oppAbbr={selectedTeam === 'away' ? selectedGame.homeTeam : selectedGame.awayTeam}
-                    />
+                      />
+                                     <div className="mt-4">
+                      <GameLineups gameId={selectedGame.id} />
+                    </div>
                   </div>
                 )}
                 </div>
