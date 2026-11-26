@@ -23,7 +23,7 @@ const sosOf = (games) => {
   return (pcts.reduce((a, b) => a + b, 0) / pcts.length).toFixed(3).replace(/^0/, '');
 };
 
-export default function TeamSchedule({ games = [], onTeamClick }) {
+export default function TeamSchedule({ games = [], onTeamClick, onGameClick, teamAbbr, teamLogo }) {
   const { trigger } = useWebHaptics();
   const [open, setOpen] = useState(false);
 
@@ -103,11 +103,24 @@ export default function TeamSchedule({ games = [], onTeamClick }) {
 
                 return (
                   <div
-                    key={g.id}
-                    className={`rounded-xl p-2.5 bg-zinc-800/50 ${
-                      isNext ? 'border-2 border-blue-500' : 'border border-zinc-700'
-                    }`}
-                  >
+                  key={g.id}
+                  onClick={g.completed && onGameClick ? () => {
+                    trigger('light');
+                    onGameClick({
+                      gameId: g.id,
+                      opponent: g.opponent,
+                      opponentLogo: g.opponentLogo || logoFor(g.opponent),
+                      teamAbbr,
+                      teamLogo: teamLogo || logoFor(teamAbbr),
+                      isHome: g.isHome,
+                      teamScore: g.myScore,
+                      opponentScore: g.oppScore,
+                    });
+                  } : undefined}
+                  className={`rounded-xl p-2.5 bg-zinc-800/50 ${g.completed && onGameClick ? 'cursor-pointer active:opacity-70' : ''} ${
+                    isNext ? 'border-2 border-blue-500' : 'border border-zinc-700'
+                  }`}
+                >
                     <div className="flex items-baseline justify-between gap-1">
                       <span className="text-sm font-bold whitespace-nowrap">{dateLabel}</span>
                       {corner && <span className="text-[10px] text-gray-400 truncate">{corner}</span>}
@@ -115,7 +128,7 @@ export default function TeamSchedule({ games = [], onTeamClick }) {
 
                     <div
                       className="flex items-center gap-1.5 mt-1.5 cursor-pointer active:opacity-70"
-                      onClick={() => {
+                      onClick={g.completed && onGameClick ? undefined : () => {
                         trigger('light');
                         onTeamClick?.(g.opponent, g.opponentLogo || logoFor(g.opponent));
                       }}

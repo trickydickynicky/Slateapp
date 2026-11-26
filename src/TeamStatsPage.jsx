@@ -462,7 +462,13 @@ export default function TeamStatsPage({
         onGameClick={g => { haptic('light'); onRecentGameClick && onRecentGameClick(g); }}
       />
 
-<TeamSchedule games={stats.fullSchedule} onTeamClick={onTeamClick} />
+<TeamSchedule
+  games={stats.fullSchedule}
+  onTeamClick={onTeamClick}
+  onGameClick={onRecentGameClick}
+  teamAbbr={abbr}
+  teamLogo={logo}
+/>
 
       <SeasonLineups teamAbbr={abbr} schedule={stats.fullSchedule} />
 

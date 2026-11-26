@@ -191,6 +191,7 @@ const leaderboardRef = useRef(null);
 const lbStandingsRef = useRef(null);
 const { trigger } = useWebHaptics();
 const [showReplay, setShowReplay] = useState(false);
+const [gameOverTeam, setGameOverTeam] = useState(false);
 useEffect(() => { setShowReplay(false); }, [selectedGame?.id]);
 useEffect(() => {
   const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 3000));
@@ -324,7 +325,7 @@ const [gamePeek, setGamePeek] = useState(null);
 
 useEffect(() => {
   const i = liveGames.findIndex(g => g.id === selectedGame?.id);
-  if (i >= 0 && i !== currentGameIndex) setCurrentGameIndex(i);
+  if (i !== currentGameIndex) setCurrentGameIndex(i);
 }, [selectedGame?.id, liveGames]);
 
 useLayoutEffect(() => {
@@ -1989,7 +1990,13 @@ console.log('🏀 FULL DATA:', data);
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       
-      if (previous.type === 'teamStats') {
+      if (previous.type === 'teamOverlay') {
+        setGameOverTeam(false);
+        setSelectedGame(previous.game || null);
+        setGameDetails(previous.game ? previous.details : null);
+        setSelectedTeam(previous.selectedTeam || 'away');
+        setPregameMatchupStats(previous.matchupStats || null);
+      } else if (previous.type === 'teamStats') {
         // First set the team info BEFORE closing the game modal
         setSelectedTeamInfo(previous.teamInfo);
         setTeamStats(null); // Clear old stats
@@ -2162,10 +2169,11 @@ console.log('🏀 FULL DATA:', data);
 
   const handleTeamClick = (teamAbbr, teamLogo) => {
     // If we're already on a team page, remember that team. Otherwise remember the game.
-    if (selectedTeamInfo) {
+    if (selectedTeamInfo && !gameOverTeam) {
       setNavigationStack(prev => [...prev, { type: 'team', teamInfo: selectedTeamInfo }]);
     } else if (selectedGame) {
-      setNavigationStack(prev => [...prev, { type: 'game', data: selectedGame, details: gameDetails }]);
+      setNavigationStack(prev => [...prev, { type: 'game', data: selectedGame, details: gameDetails, prevTeam: gameOverTeam ? selectedTeamInfo : null }]);
+      setGameOverTeam(false);
     }
     
     // Clear comparison state when navigating to a new team
@@ -2437,7 +2445,17 @@ console.log('🏀 FULL DATA:', data);
       const previous = navigationStack[navigationStack.length - 1];
       setNavigationStack(prev => prev.slice(0, -1));
       
-      if (previous.type === 'team') {
+          if (previous.type === 'game' && previous.prevTeam) {
+        // back to a game that was opened over a team page: put it back over that team
+        setGameOverTeam(true);
+        setSelectedGame(previous.data);
+        setGameDetails(previous.details);
+        setCompareTeam(null); setCompareTeamStats(null); setIsCompareMode(false);
+        setShowRoster(false); setRosterData(null);
+        setSelectedTeamInfo(previous.prevTeam);
+        setTeamStats(null);
+        fetchTeamStats(previous.prevTeam.abbr);
+      } else if (previous.type === 'team') {
         setCompareTeam(null);
         setCompareTeamStats(null);
         setIsCompareMode(false);
@@ -2477,14 +2495,22 @@ console.log('🏀 FULL DATA:', data);
   
   const handleRecentGameClick = (recentGame) => {
     // Add current team stats to navigation stack
-    setNavigationStack(prev => [...prev, { type: 'teamStats', teamInfo: selectedTeamInfo }]);
+    setNavigationStack(prev => [...prev, {
+      type: 'teamOverlay',
+      game: selectedGame,
+      details: gameDetails,
+      selectedTeam,
+      matchupStats: pregameMatchupStats,
+    }]);
+    setGameOverTeam(true);
     
     setSlideDirection('right'); // ADD THIS LINE
 
 
-    // Close team stats
-    setSelectedTeamInfo(null);
-    setTeamStats(null);
+    // team page stays mounted underneath the game
+    setGameDetails(null);
+    setPregameMatchupStats(null);
+    setSelectedTeam('away');
     
     // Create and open game
     const gameObj = {
@@ -3110,7 +3136,7 @@ if (odds && odds.spread !== undefined && odds.spread !== null) {
 {selectedGame && (
   <div 
     ref={(el) => { gameDetailScrollRef.current = el; gameDetailRef.current = el; }}
-    className={`fixed inset-0 bg-black bg-opacity-100 z-50 overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
+    className={`fixed inset-0 bg-black bg-opacity-100 ${gameOverTeam ? 'z-[165]' : 'z-50'} overflow-y-auto ${selectedTeamInfo ? '' : 'transition-transform duration-300 ease-out'}`}
     style={{ 
       transform: `translateX(${selectedTeamInfo ? 0 : swipeOffset}px)`,
       animation: slideDirection === 'right' ? 'slideInRight 0.3s ease-out' : 'none'
